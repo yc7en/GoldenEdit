@@ -1,10 +1,6 @@
-import type MarkdownIt from 'markdown-it';
-import type { PluginManifest, PluginRegister } from '../../../src/plugins/types';
+﻿import type MarkdownIt from 'markdown-it';
+import type { PluginManifest, PluginRegister } from '../../src/plugins/types';
 
-/**
- * dialogue：::: dialogue ... ::: 对白容器（迁移自 vscode-dialogue）。
- * 零依赖 container 解析。
- */
 export const manifest: PluginManifest = {
   id: 'dialogue',
   name: '对白容器',
@@ -47,7 +43,8 @@ export const register: PluginRegister = (md: MarkdownIt) => {
     if (closeLine < 0) return false;
 
     const open = state.push('container_dialogue_open', 'div', 1);
-    open.block = true; open.map = [startLine, closeLine];
+    open.block = true;
+    open.map = [startLine, closeLine];
     state.md.block.tokenize(state, startLine + 1, closeLine);
     state.push('container_dialogue_close', 'div', -1);
     state.line = closeLine + 1;
@@ -58,3 +55,5 @@ export const register: PluginRegister = (md: MarkdownIt) => {
   md.renderer.rules.container_dialogue_open = () => '<div class="ge-dialogue">\n';
   md.renderer.rules.container_dialogue_close = () => '</div>\n';
 };
+
+export default { manifest, register };

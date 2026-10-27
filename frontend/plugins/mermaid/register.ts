@@ -1,9 +1,6 @@
-import type MarkdownIt from 'markdown-it';
-import type { PluginManifest, PluginRegister } from '../../../src/plugins/types';
+﻿import type MarkdownIt from 'markdown-it';
+import type { PluginManifest, PluginRegister } from '../../src/plugins/types';
 
-/**
- * mermaid：```mermaid 代码块 -> 占位 div，onMount 时异步渲染 SVG。
- */
 export const manifest: PluginManifest = {
   id: 'mermaid',
   name: 'Mermaid 图表',
@@ -30,14 +27,19 @@ export const register: PluginRegister = (md: MarkdownIt, ctx) => {
     return `<div class="ge-mermaid" id="${id}" data-plugin="mermaid" data-code="${encodeURIComponent(src)}"></div>`;
   };
 
-  ctx.onMount('.ge-mermaid', async (el, code) => {
+  ctx.onMount('.ge-mermaid', async (el: HTMLElement, code: string) => {
     const src = decodeURIComponent(code);
     try {
       const mermaid = (await import('mermaid')).default;
-      const theme = (ctx.config.theme as string) === 'auto'
-        ? document.documentElement.dataset.previewTheme === 'dark' ? 'dark' : 'default'
-        : (ctx.config.theme as string);
-      mermaid.initialize({ startOnLoad: false, theme, securityLevel: ctx.config.securityLevel as string });
+      const cfgTheme = ctx.config.theme as string;
+      const theme = cfgTheme === 'auto'
+        ? (document.documentElement.dataset.previewTheme === 'dark' ? 'dark' : 'default')
+        : cfgTheme;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: theme as any,
+        securityLevel: ctx.config.securityLevel as any,
+      });
       const { svg } = await mermaid.render(el.id + '-svg', src);
       el.innerHTML = svg;
     } catch (e) {
@@ -45,3 +47,5 @@ export const register: PluginRegister = (md: MarkdownIt, ctx) => {
     }
   });
 };
+
+export default { manifest, register };

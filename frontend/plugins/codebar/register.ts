@@ -1,9 +1,6 @@
-import type MarkdownIt from 'markdown-it';
-import type { PluginManifest, PluginRegister } from '../../../src/plugins/types';
+﻿import type MarkdownIt from 'markdown-it';
+import type { PluginManifest, PluginRegister } from '../../src/plugins/types';
 
-/**
- * codebar：代码块工具条（红黄绿圆点 + 复制按钮）+ 行内代码强调。
- */
 export const manifest: PluginManifest = {
   id: 'codebar',
   name: '代码块工具条',
@@ -43,3 +40,5 @@ export const register: PluginRegister = (md: MarkdownIt, ctx) => {
     return html.replace(/^<code\b/, '<code class="ge-code__inline"');
   };
 };
+
+export default { manifest, register };

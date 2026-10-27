@@ -1,12 +1,8 @@
 import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import markdownWorker from 'monaco-editor/esm/vs/basic-languages/markdown/markdown.worker?worker';
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 
 ;(self as any).MonacoEnvironment = {
-  getWorker(_: unknown, label: string) {
-    if (label === 'markdown') return new markdownWorker();
-    return new editorWorker();
-  },
+  getWorker() { return new EditorWorker(); },
 };
 
 /** 创建 Monaco 编辑器实例（暗色主题）。 */

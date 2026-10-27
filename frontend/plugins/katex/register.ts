@@ -1,9 +1,9 @@
-import type MarkdownIt from 'markdown-it';
-import type { PluginManifest, PluginRegister } from '../../../src/plugins/types';
+﻿import type MarkdownIt from 'markdown-it';
+import type { PluginManifest, PluginRegister } from '../../src/plugins/types';
+import texmath from 'markdown-it-texmath';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
-/**
- * katex：$...$ 行内 / $$...$$ 块级公式。
- */
 export const manifest: PluginManifest = {
   id: 'katex',
   name: 'KaTeX 公式',
@@ -16,10 +16,12 @@ export const manifest: PluginManifest = {
 };
 
 export const register: PluginRegister = (md: MarkdownIt, ctx) => {
-  const delimiters = (ctx.config.delimiters as string) || 'dollars';
-  md.use(require('markdown-it-texmath'), {
-    engine: require('katex'),
-    delimiters: delimiters as 'dollars',
+  const delimiters = (ctx.config.delimiters as 'dollars' | 'brackets') || 'dollars';
+  md.use(texmath as any, {
+    engine: katex,
+    delimiters,
     katexOptions: { throwOnError: false, errorColor: '#cc0000' },
   });
 };
+
+export default { manifest, register };
