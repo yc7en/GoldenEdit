@@ -2,6 +2,7 @@
 
 ## 2026-10-27
 
+- **BugFix-261027-0002** 修复 exe 启动即崩：AssetServer 未注入 embed.FS。
 - **BugFix-261027-0001** 修复 wails build 前端编译错误（插件路径/默认导出/编码/monaco worker），成功产出 `GoldenEdit.exe`（10.2MB）。
 - **R-261027-0005** vault 文件树/多标签 + 设置面板（插件勾选与 config 表单自动生成）。
 - **R-261027-0004** Monaco 暗色编辑器 + 三布局切换 + 预览区亮暗独立切换。

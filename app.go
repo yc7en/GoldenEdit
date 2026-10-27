@@ -46,7 +46,7 @@ func main() {
 		Width:  1280,
 		Height: 800,
 		AssetServer: &assetserver.Options{
-			// 开发期由 Vite 提供；打包期指向 frontend/dist。
+			Assets: assets,
 		},
 		OnStartup: app.startup,
 		Bind: []interface{}{
