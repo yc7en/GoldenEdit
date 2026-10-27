@@ -27,6 +27,35 @@ html, body, #app { height: 100%; }
 #toolbar button:hover { background: #4a4a4a; }
 
 .ge-panes { display: flex; flex: 1; min-height: 0; }
+
+.ge-body { display: flex; flex: 1; min-height: 0; }
+#sidebar {
+  width: 200px;
+  background: #252526;
+  border-right: 1px solid #3c3c3c;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; }
+.tab { font-size: 12px; padding: 2px 8px; background: #2d2d2d; color: #ccc; border-radius: 3px; cursor: pointer; }
+.tab.active { background: #007acc; color: #fff; }
+.vault-tree { flex: 1; padding: 4px; font-size: 12px; color: #ccc; overflow: auto; }
+.vault-row:hover { background: #3c3c3c; }
+
+#settings-panel {
+  width: 280px;
+  background: #1e1e1e;
+  border-left: 1px solid #3c3c3c;
+  padding: 8px;
+  overflow: auto;
+  color: #ddd;
+  font-size: 13px;
+}
+#settings-panel.hidden { display: none; }
+.settings-head { font-weight: 600; margin-bottom: 8px; }
+.setting-row { margin: 8px 0; }
+.setting-field { margin: 4px 0; display: flex; align-items: center; gap: 6px; }
 .ge-pane { display: flex; flex-direction: column; width: 50%; height: 100%; }
 .ge-pane__bar { padding: 6px 12px; font-size: 12px; opacity: 0.7; border-bottom: 1px solid rgba(128,128,128,0.3); }
 
