@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoldenEdit</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- 左：编辑区（暗色） -->
+      <section id="editor-pane" class="ge-pane ge-editor">
+        <div class="ge-pane__bar">编辑区（暗色）— Monaco 待接入</div>
+        <textarea id="editor-input" placeholder="在此输入 Markdown…"></textarea>
+      </section>
+      <!-- 右：预览区（亮色） -->
+      <section id="preview-pane" class="ge-pane ge-preview">
+        <div class="ge-pane__bar">预览区（亮色）</div>
+        <div id="preview-output" class="ge-preview__body"></div>
+      </section>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
