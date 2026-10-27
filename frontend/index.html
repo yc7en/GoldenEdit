@@ -6,17 +6,23 @@
     <title>GoldenEdit</title>
   </head>
   <body>
-    <div id="app">
-      <!-- 左：编辑区（暗色） -->
-      <section id="editor-pane" class="ge-pane ge-editor">
-        <div class="ge-pane__bar">编辑区（暗色）— Monaco 待接入</div>
-        <textarea id="editor-input" placeholder="在此输入 Markdown…"></textarea>
-      </section>
-      <!-- 右：预览区（亮色） -->
-      <section id="preview-pane" class="ge-pane ge-preview">
-        <div class="ge-pane__bar">预览区（亮色）</div>
-        <div id="preview-output" class="ge-preview__body"></div>
-      </section>
+    <div id="app" data-layout="split">
+      <div id="toolbar">
+        <button id="btn-layout-split">分栏</button>
+        <button id="btn-layout-editor">纯编辑</button>
+        <button id="btn-layout-preview">纯预览</button>
+        <button id="btn-preview-theme">预览 亮/暗</button>
+      </div>
+      <div class="ge-panes">
+        <section id="editor-pane" class="ge-pane ge-editor">
+          <div class="ge-pane__bar">编辑区（暗色）</div>
+          <div id="editor-mount" class="ge-editor__body"></div>
+        </section>
+        <section id="preview-pane" class="ge-pane ge-preview">
+          <div class="ge-pane__bar">预览区</div>
+          <div id="preview-output" class="ge-preview__body"></div>
+        </section>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
