@@ -1,0 +1,19 @@
+{
+  "id": "dialogue",
+  "name": "对白容器",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "对话气泡容器，适用于剧本、访谈、AI 对话呈现",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "container": ["dialogue", "dialog", "chat"],
+    "fence": [],
+    "delimiter": []
+  },
+  "permissions": [],
+  "config": {},
+  "source": { "type": "builtin" }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "callout",
+  "name": "Callout 提示框",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "语义化提示框容器，支持 note、tip、warn、danger、success 等多种类型",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "container": [
+      "note",
+      "tip",
+      "warn",
+      "warning",
+      "danger",
+      "caution",
+      "success",
+      "info",
+      "quote",
+      "question",
+      "abstract",
+      "important"
+    ],
+    "fence": [],
+    "delimiter": []
+  },
+  "permissions": [],
+  "config": {},
+  "source": { "type": "builtin" }
+}

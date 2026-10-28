@@ -1,0 +1,50 @@
+.ge-codebar {
+  margin: 1.2em 0;
+  border: 1px solid var(--ge-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ge-code-bg);
+}
+
+.ge-codebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--ge-bg-subtle);
+  border-bottom: 1px solid var(--ge-border);
+  font-size: 0.85em;
+  color: var(--ge-fg-muted);
+}
+
+.ge-codebar__lang {
+  font-family: monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.ge-codebar__copy {
+  border: 1px solid var(--ge-border);
+  background: var(--ge-bg);
+  color: var(--ge-fg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background 0.15s ease;
+}
+
+.ge-codebar__copy:hover {
+  background: var(--ge-accent);
+  color: var(--ge-accent-fg);
+}
+
+.ge-codebar__pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  color: var(--ge-code-fg);
+  font-family: monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+}

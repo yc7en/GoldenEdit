@@ -1,0 +1,18 @@
+{
+  "id": "typographer",
+  "name": "排版美化",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "现代中文文档排版增强（纯样式）：标点挤压、首行与引用块美化",
+  "trust": "builtin",
+  "style": "style.css",
+  "match": {
+    "fence": [],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": [],
+  "config": {},
+  "source": { "type": "builtin" }
+}

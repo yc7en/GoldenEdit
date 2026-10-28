@@ -52,5 +52,18 @@ export default tseslint.config(
         __dirname: 'readonly',
       },
     },
+  },
+  {
+    files: ['frontend/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        console: 'readonly',
+      },
+    },
   }
 );

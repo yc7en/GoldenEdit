@@ -167,6 +167,66 @@ async function init(msg: Extract<HostMessage, { type: 'init' }>): Promise<void> 
   if (lastText !== null) requestRender(lastText);
 }
 
+function buildExportHtml(title: string): string {
+  let css = '';
+  for (let i = 0; i < document.styleSheets.length; i++) {
+    try {
+      const sheet = document.styleSheets[i];
+      const rules = sheet.cssRules;
+      for (let j = 0; j < rules.length; j++) {
+        css += rules[j].cssText + '\n';
+      }
+    } catch {
+      // 跨域或安全受限样式表忽略
+    }
+  }
+
+  const rootEl = document.documentElement;
+  const mode = rootEl.dataset.mode || 'light';
+  const customProps: string[] = [];
+  for (let i = 0; i < rootEl.style.length; i++) {
+    const prop = rootEl.style[i];
+    if (prop.startsWith('--ge-')) {
+      customProps.push(`${prop}: ${rootEl.style.getPropertyValue(prop)};`);
+    }
+  }
+
+  const content = document.getElementById('ge-root')?.innerHTML ?? '';
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN" data-mode="${mode}" style="${customProps.join(' ')}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+${css}
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--ge-bg, #ffffff);
+    color: var(--ge-fg, #1a1a1a);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    max-width: 980px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .ge-line { display: none !important; }
+  @media print {
+    body { padding: 0; max-width: 100%; }
+    @page { margin: 15mm; size: A4; }
+  }
+  </style>
+</head>
+<body>
+  <div class="ge-preview">
+    ${content}
+  </div>
+</body>
+</html>`;
+}
+
 window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
   if (ev.source !== window.parent) return;
   const msg = ev.data;
@@ -197,6 +257,14 @@ window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
       break;
     case 'remount':
       if (lastText !== null) requestRender(lastText);
+      break;
+    case 'export':
+      pipeline.expandAll();
+      window.setTimeout(() => {
+        const title = msg.title || 'GoldenEdit Export';
+        const html = buildExportHtml(title);
+        send({ type: 'exported', id: msg.id, html });
+      }, 60);
       break;
     case 'print':
       // 打印前先等一帧，确保懒加载块已展开（pipeline 在 mode=viewport 时会延迟渲染）

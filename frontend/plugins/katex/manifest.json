@@ -1,0 +1,24 @@
+{
+  "id": "katex",
+  "name": "KaTeX 数学公式",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "行内与块级 LaTeX 数学公式离线渲染",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "fence": ["math", "katex", "latex"],
+    "container": [],
+    "delimiter": ["$"]
+  },
+  "permissions": ["dom", "libs:katex"],
+  "config": {
+    "throwOnError": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "source": { "type": "builtin" }
+}

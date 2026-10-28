@@ -1,0 +1,74 @@
+.ge-callout {
+  margin: 1em 0;
+  padding: 12px 16px;
+  border-left: 4px solid var(--ge-accent);
+  background: var(--ge-bg-subtle);
+  border-radius: 4px;
+  color: var(--ge-fg);
+  font-size: 0.95em;
+}
+
+.ge-callout__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.ge-callout__icon {
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.ge-callout__title {
+  color: var(--ge-fg);
+}
+
+.ge-callout__body {
+  color: var(--ge-fg);
+  line-height: 1.6;
+}
+
+.ge-callout__body > :first-child {
+  margin-top: 0;
+}
+
+.ge-callout__body > :last-child {
+  margin-bottom: 0;
+}
+
+.ge-callout--note {
+  border-left-color: var(--ge-note);
+}
+.ge-callout--note .ge-callout__title {
+  color: var(--ge-note);
+}
+
+.ge-callout--tip {
+  border-left-color: var(--ge-tip);
+}
+.ge-callout--tip .ge-callout__title {
+  color: var(--ge-tip);
+}
+
+.ge-callout--warn {
+  border-left-color: var(--ge-warn);
+}
+.ge-callout--warn .ge-callout__title {
+  color: var(--ge-warn);
+}
+
+.ge-callout--danger {
+  border-left-color: var(--ge-danger);
+}
+.ge-callout--danger .ge-callout__title {
+  color: var(--ge-danger);
+}
+
+.ge-callout--success {
+  border-left-color: var(--ge-success);
+}
+.ge-callout--success .ge-callout__title {
+  color: var(--ge-success);
+}

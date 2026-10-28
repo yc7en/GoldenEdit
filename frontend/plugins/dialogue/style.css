@@ -1,0 +1,54 @@
+.ge-dialogue {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 1.2em 0;
+  padding: 16px;
+  background: var(--ge-bg-subtle);
+  border: 1px solid var(--ge-border);
+  border-radius: 8px;
+}
+
+.ge-bubble {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.ge-bubble--left {
+  align-self: flex-start;
+}
+
+.ge-bubble--right {
+  align-self: flex-end;
+}
+
+.ge-bubble__name {
+  font-size: 0.8em;
+  color: var(--ge-fg-muted);
+  margin-bottom: 4px;
+}
+
+.ge-bubble--right .ge-bubble__name {
+  text-align: right;
+}
+
+.ge-bubble__msg {
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.ge-bubble--left .ge-bubble__msg {
+  background: var(--ge-bg);
+  border: 1px solid var(--ge-border);
+  color: var(--ge-fg);
+  border-bottom-left-radius: 2px;
+}
+
+.ge-bubble--right .ge-bubble__msg {
+  background: var(--ge-accent);
+  color: var(--ge-accent-fg);
+  border-bottom-right-radius: 2px;
+}

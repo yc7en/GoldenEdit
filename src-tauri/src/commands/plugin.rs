@@ -158,10 +158,15 @@ fn builtin_roots(app: &AppHandle) -> Vec<PathBuf> {
     if let Ok(res) = app.path().resource_dir() {
         roots.push(res.join("plugins"));
         roots.push(res.join("_up_/plugins"));
+        roots.push(res.join("frontend").join("plugins"));
+        roots.push(res.join("_up_/frontend").join("plugins"));
     }
     let cwd = std::env::current_dir().unwrap_or_default();
+    roots.push(cwd.join("frontend").join("plugins"));
     roots.push(cwd.join("plugins"));
+    roots.push(cwd.join("..").join("frontend").join("plugins"));
     roots.push(cwd.join("..").join("plugins"));
+    roots.push(cwd.join("..").join("..").join("frontend").join("plugins"));
     roots.push(cwd.join("..").join("..").join("plugins"));
     roots
 }
@@ -300,5 +305,24 @@ mod tests {
         )
         .unwrap();
         assert!(read_manifest(&dir).is_none());
+    }
+
+    #[test]
+    fn scans_builtin_plugins_from_frontend_plugins() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let plugins_root = manifest_dir.join("../frontend/plugins");
+        let mut map = BTreeMap::new();
+        scan_dir(&plugins_root, "builtin", &mut map);
+        assert!(map.contains_key("callout"), "缺少 callout 插件");
+        assert!(map.contains_key("table-gfm"), "缺少 table-gfm 插件");
+        assert!(map.contains_key("heading-number"), "缺少 heading-number 插件");
+        assert!(map.contains_key("mermaid"), "缺少 mermaid 插件");
+        assert!(map.contains_key("katex"), "缺少 katex 插件");
+        assert!(map.contains_key("codebar"), "缺少 codebar 插件");
+        assert!(map.contains_key("dialogue"), "缺少 dialogue 插件");
+        assert!(map.contains_key("typographer"), "缺少 typographer 插件");
+        assert_eq!(map.get("mermaid").unwrap().capability, "L2");
+        assert_eq!(map.get("typographer").unwrap().capability, "L0");
+        assert_eq!(map.get("callout").unwrap().capability, "L1");
     }
 }

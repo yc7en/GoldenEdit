@@ -1,0 +1,30 @@
+{
+  "id": "mermaid",
+  "name": "Mermaid 图表",
+  "version": "1.4.2",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "流程图、时序图、甘特图等离线交互式图表渲染",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "fence": ["mermaid", "mmd"],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": ["dom", "libs:mermaid"],
+  "config": {
+    "theme": {
+      "type": "select",
+      "default": "auto",
+      "options": ["auto", "default", "dark", "neutral"]
+    },
+    "curve": {
+      "type": "select",
+      "default": "basis",
+      "options": ["basis", "linear", "step"]
+    }
+  },
+  "source": { "type": "builtin" }
+}

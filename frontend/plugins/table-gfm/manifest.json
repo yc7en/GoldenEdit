@@ -1,0 +1,19 @@
+{
+  "id": "table-gfm",
+  "name": "GFM 表格增强",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "GFM 表格样式优化、横向滚动条包裹与斑马纹渲染",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "fence": [],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": [],
+  "config": {},
+  "source": { "type": "builtin" }
+}

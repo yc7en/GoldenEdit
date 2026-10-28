@@ -1,0 +1,24 @@
+{
+  "id": "heading-number",
+  "name": "标题编号",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "自动为文档各级标题增加 1, 1.1, 1.1.1 序号",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "fence": [],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": [],
+  "config": {
+    "startLevel": {
+      "type": "number",
+      "default": 2
+    }
+  },
+  "source": { "type": "builtin" }
+}

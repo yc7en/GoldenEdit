@@ -61,9 +61,16 @@ let themeMode: 'light' | 'dark' = 'light';
 let hit: string[] = [];
 let errorSink: RenderError[] = [];
 
+const subMd = new MarkdownIt({ html: true });
+
 function mdFacade(inst: MarkdownIt) {
   // 故意不把整个 md 实例交给插件：给了就等于给全权（§5.5 缺口一）。
-  return { utils: inst.utils };
+  // 提供独立的 subMd 供插件安全渲染内嵌 Markdown，避免主解析状态重入损坏。
+  return {
+    utils: inst.utils,
+    render: (src: string) => subMd.render(src),
+    renderInline: (src: string) => subMd.renderInline(src),
+  };
 }
 
 function escapeHtml(s: string): string {

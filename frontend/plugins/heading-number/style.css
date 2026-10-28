@@ -1,0 +1,7 @@
+.ge-heading-number {
+  color: var(--ge-fg-muted);
+  margin-right: 0.5em;
+  font-weight: 500;
+  font-size: 0.9em;
+  user-select: none;
+}

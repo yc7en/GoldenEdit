@@ -2,6 +2,26 @@
 
 > 按时间倒序。架构层面的改动用 **架构变更** 标注；废弃与迁移必须写明去向。
 
+## 0.3.0 · 2026-10-28
+
+### 新增
+
+- P5 内置插件全量交付（R-261028-0005.md）：
+  - `callout`：语义化提示框容器，支持 note、tip、warn、danger、success 等多种类型，所有颜色使用 `--ge-*` 变量。
+  - `table-gfm`：GFM 表格横向溢出包裹与斑马纹优化，基于 `ctx.onCoreRule` 规则注入。
+  - `heading-number`：基于 `ctx.onCoreRule` 自动生成层级标题编号（可配置 startLevel）。
+  - `mermaid`：双环境架构离线图表渲染，Worker 产出带源码占位节点，主线程异步加载 mermaid 模块渲染 SVG。
+  - `katex`：离线 LaTeX 数学公式渲染，支持行内 `$...$` 定界符与 `math/katex/latex` 块级围栏。
+  - `codebar`：代码块语言徽标显示与一键复制功能，DOM 挂载事件驱动。
+  - `dialogue`：对话/气泡容器，区分左右气泡与发言者身份。
+  - `typographer`：纯 CSS（L0）排版增强覆盖，引用块与键盘按键美化。
+- P11 导出链路装配（R-261028-0005.md）：
+  - 预览外壳 `shell.ts` 接入 `export` 消息处理与 `buildExportHtml` 渲染，完整内联所有样式与 CSS 变量，生成单文件 HTML 并回传 `exported` 消息给宿主落盘。
+- 插件安全内嵌渲染：
+  - `parse.ts` 为插件提供独立的 `subMd` 实例，提供安全的 `md.render` 与 `md.renderInline` 能力，杜绝递归解析导致的主状态污染。
+- 扫描与打包：
+  - `src-tauri` 扫描逻辑覆盖 `frontend/plugins` 目录，单测验证 8 个内置插件全部被识别并正确嗅探能力分级。
+
 ## 0.2.1 · 2026-10-28
 
 ### 修复

@@ -1,0 +1,40 @@
+.ge-mermaid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 1.5em 0;
+  padding: 16px;
+  background: var(--ge-bg);
+  border: 1px solid var(--ge-border);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.ge-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.ge-mermaid__loading {
+  color: var(--ge-fg-muted);
+  font-size: 0.9em;
+  padding: 1em;
+}
+
+.ge-mermaid__error {
+  color: var(--ge-danger);
+  font-size: 0.9em;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.ge-mermaid__source {
+  background: var(--ge-code-bg);
+  color: var(--ge-code-fg);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  max-width: 100%;
+  overflow-x: auto;
+}

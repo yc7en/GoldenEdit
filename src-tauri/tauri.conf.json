@@ -36,7 +36,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["../dist-preview"],
+    "resources": ["../dist-preview", "../frontend/plugins"],
     "fileAssociations": [
       {
         "ext": ["md", "markdown"],

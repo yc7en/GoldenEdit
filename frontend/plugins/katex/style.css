@@ -1,0 +1,28 @@
+.ge-katex--block {
+  display: flex;
+  justify-content: center;
+  margin: 1.2em 0;
+  overflow-x: auto;
+  color: var(--ge-fg);
+}
+
+.ge-katex--inline {
+  color: var(--ge-fg);
+  display: inline;
+}
+
+.katex {
+  font-family: KaTeX_Main, 'Times New Roman', serif;
+  font-size: 1.1em;
+  color: var(--ge-fg);
+}
+
+.katex-display {
+  display: block;
+  margin: 1em 0;
+  text-align: center;
+}
+
+.katex-error {
+  color: var(--ge-danger);
+}
