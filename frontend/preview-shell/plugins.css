@@ -1,0 +1,340 @@
+/* 预览外壳样式。所有颜色必须来自 --ge-* 变量，插件同样只能消费这些变量。 */
+
+:root {
+  --ge-bg: #fffefb;
+  --ge-bg-subtle: #f6f5ef;
+  --ge-fg: #2b2a26;
+  --ge-fg-muted: #6f6e66;
+  --ge-border: #e3e2da;
+  --ge-accent: #a8802f;
+  --ge-accent-fg: #fffdf6;
+  --ge-code-bg: #f4f3ec;
+  --ge-code-fg: #3c3a33;
+  --ge-link: #8a6a20;
+  --ge-note: #4a6f8a;
+  --ge-tip: #4a7c59;
+  --ge-warn: #a8722a;
+  --ge-danger: #a8443a;
+  --ge-success: #4a7c59;
+  --ge-radius: 6px;
+  --ge-font: 'Segoe UI', 'Microsoft YaHei', -apple-system, system-ui, sans-serif;
+  --ge-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}
+
+:root[data-mode='dark'] {
+  --ge-bg: #1e1e21;
+  --ge-bg-subtle: #26262b;
+  --ge-fg: #dcdbd4;
+  --ge-fg-muted: #9a998f;
+  --ge-border: #35353b;
+  --ge-accent: #d3ab55;
+  --ge-accent-fg: #1b1a17;
+  --ge-code-bg: #26262b;
+  --ge-code-fg: #d8d6cc;
+  --ge-link: #d3ab55;
+  --ge-note: #7aa3c0;
+  --ge-tip: #7fae8c;
+  --ge-warn: #d3a05c;
+  --ge-danger: #cf7c72;
+  --ge-success: #7fae8c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--ge-bg);
+  color: var(--ge-fg);
+}
+
+body {
+  font-family: var(--ge-font);
+  font-size: 15px;
+  line-height: 1.78;
+  padding: 26px 30px 80px;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ge-accent) 26%, transparent);
+}
+
+#ge-root,
+.ge-doc {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.ge-doc > *:first-child {
+  margin-top: 0;
+}
+
+/* ── 块与行号角标 ── */
+.ge-block {
+  position: relative;
+  margin: 0 0 2px;
+}
+
+.ge-block--lazy {
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 20px,
+    color-mix(in srgb, var(--ge-border) 55%, transparent) 20px 21px
+  );
+  opacity: 0.5;
+}
+
+.ge-line {
+  position: absolute;
+  left: -40px;
+  top: 2px;
+  width: 30px;
+  padding: 1px 0;
+  font-family: var(--ge-mono);
+  font-size: 10px;
+  color: var(--ge-fg-muted);
+  background: var(--ge-bg-subtle);
+  border: 1px solid var(--ge-border);
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  text-align: center;
+}
+
+.ge-block:hover > .ge-line {
+  opacity: 1;
+}
+
+.ge-line:hover {
+  color: var(--ge-accent);
+  border-color: var(--ge-accent);
+}
+
+/* ── 排版 ── */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 650;
+  line-height: 1.35;
+  margin: 1.6em 0 0.6em;
+  letter-spacing: 0.2px;
+}
+
+h1 {
+  font-size: 1.72em;
+  border-bottom: 1px solid var(--ge-border);
+  padding-bottom: 0.32em;
+}
+h2 {
+  font-size: 1.34em;
+}
+h3 {
+  font-size: 1.12em;
+}
+h4,
+h5,
+h6 {
+  font-size: 1em;
+  color: var(--ge-fg-muted);
+}
+
+p {
+  margin: 0 0 0.95em;
+}
+
+a {
+  color: var(--ge-link);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--ge-link) 40%, transparent);
+}
+
+a:hover {
+  border-bottom-color: var(--ge-link);
+}
+
+strong {
+  font-weight: 650;
+}
+
+ul,
+ol {
+  margin: 0 0 0.95em;
+  padding-left: 1.5em;
+}
+
+li {
+  margin: 0.18em 0;
+}
+
+li > ul,
+li > ol {
+  margin: 0.18em 0;
+}
+
+blockquote {
+  margin: 0 0 1em;
+  padding: 0.2em 1em;
+  border-left: 3px solid var(--ge-border);
+  color: var(--ge-fg-muted);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--ge-border);
+  margin: 1.8em 0;
+}
+
+img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+/* ── 代码 ── */
+code {
+  font-family: var(--ge-mono);
+  font-size: 0.88em;
+  background: var(--ge-code-bg);
+  color: var(--ge-code-fg);
+  padding: 0.12em 0.36em;
+  border-radius: 3px;
+}
+
+pre {
+  margin: 0 0 1em;
+  padding: 0.85em 1em;
+  background: var(--ge-code-bg);
+  border-radius: var(--ge-radius);
+  overflow: auto;
+  border: 1px solid var(--ge-border);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.86em;
+  line-height: 1.62;
+}
+
+/* ── 表格 ── */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 1em;
+  font-size: 0.94em;
+}
+
+th,
+td {
+  border: 1px solid var(--ge-border);
+  padding: 0.42em 0.7em;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--ge-bg-subtle);
+  font-weight: 600;
+}
+
+tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--ge-bg-subtle) 55%, transparent);
+}
+
+/* ── 任务列表 ── */
+.ge-task {
+  list-style: none;
+  padding-left: 1.1em;
+}
+
+.ge-task li {
+  position: relative;
+}
+
+.ge-task input[type='checkbox'] {
+  margin-right: 0.45em;
+  accent-color: var(--ge-accent);
+}
+
+/* ── 错误卡：任何插件失败都不允许整页白屏（§5.7） ── */
+.ge-error {
+  margin: 0 0 1em;
+  border: 1px solid color-mix(in srgb, var(--ge-danger) 55%, transparent);
+  background: color-mix(in srgb, var(--ge-danger) 7%, transparent);
+  border-radius: var(--ge-radius);
+  padding: 9px 11px;
+}
+
+.ge-error__t {
+  font-size: 12.5px;
+  color: var(--ge-danger);
+  margin-bottom: 6px;
+}
+
+.ge-error__c {
+  margin: 0;
+  background: var(--ge-bg-subtle);
+  border: 0;
+  font-size: 11.5px;
+  max-height: 220px;
+}
+
+.ge-error__retry {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-family: var(--ge-font);
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--ge-border);
+  background: var(--ge-bg);
+  color: var(--ge-fg);
+  cursor: pointer;
+}
+
+/* 打印与导出：去掉交互装饰 */
+@page {
+  size: A4;
+  margin: 16mm 14mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+  }
+  body {
+    padding: 0;
+  }
+  .ge-doc {
+    max-width: none !important;
+  }
+  .ge-line {
+    display: none;
+  }
+  .ge-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ge-block--lazy {
+    background: none;
+    opacity: 1;
+  }
+  /* 长代码块与表格允许跨页，否则会被整块推到下一页留出大片空白 */
+  pre,
+  table {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
+}

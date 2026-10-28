@@ -1,0 +1,55 @@
+/* 设计 token：应用外壳（chrome）与编辑器主题。
+   预览主题的 token 在 frontend/src/theme/tokens.ts 里生成，注入 L3。 */
+
+:root {
+  --bg: #faf9f5;
+  --bg2: #f2f1eb;
+  --bg3: #e9e8e1;
+  --line: #e3e2da;
+  --line2: #d5d3c9;
+  --t1: #22211d;
+  --t2: #5b5a52;
+  --t3: #8b8a80;
+  --gold: #b08a3e;
+  --gold-soft: #c9a24a;
+  --gold-bg: #fbf4e4;
+  --gold-line: #e0c98f;
+  --dark: #1b1a17;
+  --green: #4a7c59;
+  --red: #a8443a;
+  --amber: #a8722a;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow-1: 0 1px 2px rgba(28, 26, 20, 0.06);
+  --shadow-2: 0 8px 28px rgba(28, 26, 20, 0.12);
+  --ui-font: 'Segoe UI', 'Microsoft YaHei', -apple-system, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+  --side-w: 208px;
+  --titlebar-h: 38px;
+  --tabstrip-h: 34px;
+  --status-h: 24px;
+}
+
+/* 编辑器主题：暗 */
+.app[data-editor-theme='dark'] {
+  --ed-bg: #1c1c1f;
+  --ed-bg2: #232327;
+  --ed-bg3: #2c2c31;
+  --ed-fg: #d7d6d0;
+  --ed-muted: #6b6b66;
+  --ed-line: #34343a;
+  --ed-accent: #c9a24a;
+  --ed-selection: #3a3a44;
+}
+
+/* 编辑器主题：亮 */
+.app[data-editor-theme='light'] {
+  --ed-bg: #fdfcf9;
+  --ed-bg2: #f3f2ec;
+  --ed-bg3: #e8e7e0;
+  --ed-fg: #2b2a26;
+  --ed-muted: #8b8a80;
+  --ed-line: #e3e2da;
+  --ed-accent: #a8802f;
+  --ed-selection: #efe6cf;
+}

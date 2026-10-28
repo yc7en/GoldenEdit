@@ -1,0 +1,36 @@
+{
+  "name": "goldenedit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "把 Markdown 当源码，把预览当可插拔的渲染目标",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:ui && npm run build:preview",
+    "build:ui": "vite build",
+    "build:preview": "vite build --config vite.preview.config.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "check:boundary": "node scripts/check-bridge-boundary.mjs",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.9.0",
+    "katex": "^0.16.11",
+    "markdown-it": "^14.1.0",
+    "markdown-it-container": "^4.0.0",
+    "mermaid": "^11.2.0",
+    "monaco-editor": "^0.52.0",
+    "morphdom": "^2.7.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@tauri-apps/cli": "^2.9.0",
+    "@types/markdown-it": "^14.1.2",
+    "@types/morphdom": "^2.4.2",
+    "eslint": "^9.13.0",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.12.0",
+    "vite": "^5.4.10"
+  }
+}

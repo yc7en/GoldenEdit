@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoldenEdit</title>
+  </head>
+  <body>
+    <div class="app" id="app" data-editor-theme="dark" data-preview-theme="light">
+      <header class="titlebar">
+        <div class="titlebar__drag">
+          <div class="brand">
+            <span class="brand__mark"></span>
+            <span class="brand__name">GoldenEdit</span>
+            <span class="brand__ver" id="appVersion">v0.1.0</span>
+          </div>
+          <div class="vault-chip" id="vaultChip" title="当前工作区">
+            <span id="vaultName">未打开工作区</span>
+            <span class="vault-chip__caret"></span>
+          </div>
+        </div>
+        <div class="titlebar__right">
+          <button class="iconbtn" id="btnPalette" title="命令面板 (Ctrl+Shift+P)">
+            <span class="i-cmd"></span>
+          </button>
+          <button class="iconbtn iconbtn--toggle" id="btnPreview" title="预览面板 (Ctrl+Shift+V)">
+            <span class="i-panel"></span>
+          </button>
+        </div>
+      </header>
+
+      <div class="tabstrip" id="tabstrip"></div>
+
+      <div class="body">
+        <aside class="side">
+          <nav class="side__nav">
+            <button class="navrow" id="navNew">
+              <span class="navrow__ico i-plus"></span><span class="navrow__t">新建文档</span>
+              <span class="navrow__k">Ctrl N</span>
+            </button>
+            <button class="navrow" id="navOpen">
+              <span class="navrow__ico i-folder"></span><span class="navrow__t">打开文件夹</span>
+              <span class="navrow__k">Ctrl K</span>
+            </button>
+            <button class="navrow" id="navPlugins">
+              <span class="navrow__ico i-plug"></span><span class="navrow__t">插件</span>
+              <span class="navrow__badge" id="navPluginCount">0</span>
+            </button>
+            <button class="navrow" id="navExport">
+              <span class="navrow__ico i-export"></span><span class="navrow__t">导出</span>
+              <span class="navrow__k">Ctrl E</span>
+            </button>
+          </nav>
+
+          <div class="side__scroll" id="sideScroll">
+            <section class="group" id="grpFiles">
+              <div class="group__head" data-toggle="grpFiles">
+                <span class="gcaret"></span><span class="group__t">文件</span>
+                <span class="gcount" id="fileCount">0</span>
+                <span class="gadd" id="btnNewFile" title="新建文件">+</span>
+              </div>
+              <div class="group__inner"><div class="group__body" id="fileTree"></div></div>
+            </section>
+
+            <div class="side__bottom">
+              <section class="group" id="grpOutline">
+                <div class="group__head" data-toggle="grpOutline">
+                  <span class="gcaret"></span><span class="group__t">大纲</span>
+                  <span class="gcount" id="outlineCount">0</span>
+                </div>
+                <div class="group__inner"><div class="group__body" id="outlineBody"></div></div>
+              </section>
+
+              <section class="group" id="grpTimeline">
+                <div class="group__head" data-toggle="grpTimeline">
+                  <span class="gcaret"></span><span class="group__t">版本</span>
+                  <span class="gcount" id="timelineCount">0</span>
+                </div>
+                <div class="group__inner"><div class="group__body" id="timelineBody"></div></div>
+              </section>
+            </div>
+          </div>
+
+          <div class="side__foot">
+            <div class="avatar">LE</div>
+            <div class="side__foot-t">
+              <div class="side__foot-n" id="footName">本地工作区</div>
+              <div class="side__foot-s" id="footSub">未打开文件夹</div>
+            </div>
+            <button class="iconbtn iconbtn--sm" id="btnSettings" title="设置">
+              <span class="i-gear"></span>
+            </button>
+          </div>
+        </aside>
+
+        <main class="workspace" id="workspace">
+          <div class="pane pane--editor" id="paneEditor">
+            <div class="editor" id="editor"></div>
+            <div class="empty" id="emptyState">
+              <div class="empty__title">GoldenEdit</div>
+              <div class="empty__sub">把 Markdown 当源码，把预览当可插拔的渲染目标</div>
+              <div class="empty__acts">
+                <button class="btn btn--dark" id="emptyOpen">打开文件夹</button>
+                <button class="btn" id="emptyNew">新建文档</button>
+              </div>
+              <div class="empty__recent" id="recentList"></div>
+            </div>
+          </div>
+
+          <div class="splitter" id="splitter" title="拖动调整比例 · 双击收起"></div>
+
+          <section class="pane pane--preview" id="panePreview">
+            <div class="preview__head">
+              <div class="segs" id="widthPresets">
+                <button class="seg seg--on" data-width="980">980</button>
+                <button class="seg" data-width="794">A4</button>
+                <button class="seg" data-width="390">390</button>
+                <button class="seg" data-width="0">自适应</button>
+              </div>
+              <div class="preview__stat" id="previewStat">
+                <span class="dot dot--ok"></span><span id="previewStatText">就绪</span>
+              </div>
+              <button class="iconbtn iconbtn--sm" id="btnCollapsePreview" title="收起预览">›</button>
+            </div>
+            <div class="preview__stage" id="previewStage">
+              <iframe
+                id="preview"
+                class="preview__frame"
+                sandbox="allow-scripts"
+                referrerpolicy="no-referrer"
+                title="预览"
+              ></iframe>
+            </div>
+          </section>
+        </main>
+
+        <div class="page" id="page-plugins" hidden>
+          <div class="page__head">
+            <div>
+              <div class="page__title">插件</div>
+              <div class="page__sub" id="pluginsSub">—</div>
+            </div>
+            <div class="page__acts">
+              <input class="input" id="pluginSearch" placeholder="搜索插件 / 触发语法" />
+              <button class="btn" id="btnInstallPlugin">从文件夹安装</button>
+            </div>
+          </div>
+          <div class="page__body">
+            <div class="cards" id="pluginCards"></div>
+            <div class="diag" id="diagPanel">
+              <div class="diag__head">
+                <span>渲染诊断</span><span class="diag__hint">每块命中的插件与耗时</span>
+              </div>
+              <div class="diag__body" id="diagBody"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page" id="page-settings" hidden>
+          <div class="page__head">
+            <div>
+              <div class="page__title">设置</div>
+              <div class="page__sub">主题、预览与插件行为</div>
+            </div>
+          </div>
+          <div class="page__body">
+            <div class="setting">
+              <div class="setting__t">主题预设</div>
+              <div class="setting__d">编辑器与预览可分别跟随系统，也可强制暗/亮。</div>
+              <div class="segs segs--wide" id="themePresets">
+                <button class="seg" data-preset="system">跟随系统</button>
+                <button class="seg seg--on" data-preset="writing">写作模式</button>
+                <button class="seg" data-preset="light">全亮</button>
+                <button class="seg" data-preset="dark">全暗</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting__t">高级</div>
+              <div class="setting__d">主题预设在下面被手动覆盖后，会切到「自定义」。</div>
+              <div class="setting__row">
+                <label>编辑器</label>
+                <select class="select" id="editorTheme">
+                  <option value="dark">暗</option>
+                  <option value="light">亮</option>
+                  <option value="system">跟随系统</option>
+                </select>
+                <label>预览</label>
+                <select class="select" id="previewTheme">
+                  <option value="light">亮</option>
+                  <option value="dark">暗</option>
+                  <option value="system">跟随系统</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting__t">滚动同步</div>
+              <div class="setting__d">编辑区滚动时，预览跟随到对应块。默认关闭。</div>
+              <div class="setting__row">
+                <label class="switch"><input type="checkbox" id="syncScroll" /><span></span></label>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting__t">数据位置</div>
+              <div class="setting__d" id="dataPaths">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="statusbar">
+        <div class="statusbar__l">
+          <span id="statWord">0 字</span>
+          <span id="statRead">0 分钟</span>
+        </div>
+        <div class="statusbar__r">
+          <span id="statRatio">分栏 54/46</span>
+          <span id="statCursor">行 1 · 列 1</span>
+          <span id="statLang">Markdown</span>
+          <span id="statEncoding">UTF-8</span>
+        </div>
+      </footer>
+    </div>
+
+    <div class="modal" id="modal" hidden>
+      <div class="modal__mask" data-close="modal"></div>
+      <div class="modal__card" id="modalCard"></div>
+    </div>
+
+    <div class="palette" id="palette" hidden>
+      <div class="palette__mask" data-close="palette"></div>
+      <div class="palette__card">
+        <input class="palette__input" id="paletteInput" placeholder="输入命令…" />
+        <div class="palette__list" id="paletteList"></div>
+      </div>
+    </div>
+
+    <div class="toasts" id="toasts"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
