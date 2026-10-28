@@ -2,7 +2,7 @@ node_modules/
 dist/
 dist-preview/
 .vite/
-plugins/
+/plugins/
 
 src-tauri/target/
 src-tauri/gen/
