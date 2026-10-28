@@ -520,12 +520,35 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 
 | 威胁 | 防线 |
 |---|---|
-| 第三方插件读取任意文件 | 插件运行于 opaque origin，无 IPC；资源仅能通过带 token 的 `/asset` 取，且限制在 vault 内 |
-| 第三方插件外发文档内容 | CSP 禁止 `connect-src`；`fetch` 不可用；L3 级网络请求需显式授权并走可审计命令 |
-| 文档内嵌 `<script>` | 预览外壳不执行文档内脚本（渲染结果中 `<script>` 被剥离），沙箱本身亦无同源权限 |
+| 第三方插件读取任意文件 | 插件运行于独立源（`127.0.0.1:{port}`，与宿主 `tauri.localhost` 跨源），无可用 IPC；资源仅能通过带 token 的 `/asset` 取，且限制在 vault 内 |
+| 第三方插件外发文档内容 | 外壳 CSP 禁止 `connect-src`（值为 `'none'`）；L3 级网络请求需显式授权并走可审计命令 |
+| 文档内嵌 `<script>` | 预览外壳不执行文档内脚本（渲染结果中 `<script>` 被剥离） |
 | 路径穿越 | 统一 `resolve_in_vault`，符号链接解析后校验 |
-| 预览 iframe 反向控制宿主 | `postMessage` 双向校验 `event.origin === previewOrigin`；只接受白名单消息类型 |
+| 预览 iframe 反向控制宿主 | 宿主只校验 `event.source === iframe.contentWindow`；iframe → 宿主方向只接受白名单消息类型。**不得**按 `event.origin` 比对 URL：沙箱属性的 origin 曾为 `null`、现在为本地服务源，两种形态都和直觉不符（BugFix-261028-0003） |
 | 导出的 HTML 携带恶意脚本 | 导出时剥离 `<script>`，保留 `<style>` 与内联 SVG |
+
+### 11.1 iframe 沙箱的实测结论（2026-10-28，Tauri 2.12 / WebView2 / Chromium 140）
+
+以下事实由真机探针验证，是本节防线的依据；**升级 Tauri 或 WebView2 后必须重跑**（探针步骤见 13.2）：
+
+1. `sandbox="allow-scripts"`（opaque origin）下 `new Worker()` 一律抛 `SecurityError`，
+   因此渲染 Worker 要求 iframe 必须有真实源 → 使用 `allow-scripts allow-same-origin`。
+   该组合下 iframe 与宿主仍跨源，`window.parent.document` 访问被 `SecurityError` 拦截。
+2. WebView2 会把 `__TAURI_INTERNALS__` 注入**所有子框架**，且属性 `writable/configurable`
+   均为 `false`，无法删除或覆写（`delete` 与赋值均无效）。
+3. 但子框架发出的 `invoke` **不会被 Rust 处理**：promise 永不 resolve，且命令不产生任何
+   副作用（已用 `set_ui_state` 探针验证：从 iframe 触发后主窗口读回的状态无变化）。
+   即「看得见、用不了」。这一条是插件无文件权限的结构性依据，依赖 WebView2 行为，
+   必须随升级复验。
+4. opaque origin 下 Vite 产物的 `<script crossorigin>` 会被浏览器按跨域请求处理，
+   无 CORS 头时静默不执行——所以预览构建去掉了 `crossorigin`，且预览服务对所有
+   GET 响应补 `Access-Control-Allow-Origin: *`（token 仍是唯一的访问凭证）。
+
+### 11.2 预览服务的资源边界
+
+- `/p/{token}/…` 之外的一切路径 403；token 错误不区分「路由不存在」与「无权限」。
+- 插件文件只放行 `entry.js`、`style.css`、`preview.png`、`assets/*`；asset 只放行
+  白名单扩展名；两者都经 `join_checked` 阻断 `..` 穿越。
 
 ---
 
@@ -553,6 +576,13 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 | 大文件渲染卡顿 | 准备 200KB / 2MB / 8MB 三份样本 | 按 6.4 阈值降级 |
 | PDF 分页样式不可控 | 导出含代码块、表格、长图的样本 | 用 `@page` 控制纸张与边距；页码后置 |
 | 插件在 Worker 与主线程行为不一致 | 内置插件全部跑双环境 | 强制 `ctx.scope` 分支约定 |
+| WebView2 / Tauri 升级后子框架 IPC 行为变化 | 重跑 §11.1 三条探针：① `typeof __TAURI_INTERNALS__`；② iframe 内 `invoke('set_ui_state')` 后主窗口读回状态确认无副作用；③ `new Worker` 是否可用 | 探针失败则禁止发布，直至重新评估沙箱策略 |
+
+### 13.2 探针操作方式
+
+以 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9333"` 启动应用，
+用 CDP `/json/list` 找到 `type: iframe` 目标，在其中 `Runtime.evaluate` 执行上述表达式。
+结论与日期记录到本节，替代记忆。
 
 ---
 

@@ -2,6 +2,25 @@
 
 > 按时间倒序。架构层面的改动用 **架构变更** 标注；废弃与迁移必须写明去向。
 
+## 0.2.1 · 2026-10-28
+
+### 修复
+
+- BugFix-261028-0001：构建期 vite 清空输出目录触发批量删除保护，`emptyOutDir` 改为手动清理。
+- BugFix-261028-0002：`main.ts` 引用已删除的 `#btnPlugins` 导致启动即中断、预览链路不初始化；元素绑定改为缺失时告警。
+- BugFix-261028-0003：外壳模块脚本因 `<script crossorigin>` + 无 CORS 头被静默丢弃；构建去除 crossorigin，预览服务补 CORS 头。
+- BugFix-261028-0004：沙箱 iframe 的 origin 为 `null`，宿主与外壳的 postMessage 双向被丢弃；改为只校验 `event.source`。
+- BugFix-261028-0005：opaque origin 禁止创建 Worker，渲染内核无法启动。
+
+### 架构变更
+
+- 预览 iframe 沙箱由 `allow-scripts` 调整为 `allow-scripts allow-same-origin`：
+  opaque origin 无法创建 Worker，渲染 Worker 必须有真实源。隔离性经真机探针复验：
+  iframe 与宿主仍跨源，子框架 invoke 不被执行、不产生副作用。
+  结论与升级复验要求写入 `ARCHITECTURE.md` §11.1 / §13.2。
+- 本次为首批真机运行验证：exe 构建成功，窗口、编辑器、预览渲染（块切分 / data-line /
+  表格 / 代码块 / 大纲回传）、预览服务 403 防护均实测通过。
+
 ## 0.2.0 · 2026-10-28
 
 ### 新增

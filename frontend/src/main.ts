@@ -22,6 +22,19 @@ import { escapeHtml, mountShell, setPreviewCollapsed, toast } from './ui/shell';
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
 
+/**
+ * 绑定点击。元素缺失时只告警不抛错——否则一个拼错的 id 会让整个 boot() 中断，
+ * 表现为「窗口能开、预览永远是空的」，排查成本远高于一条 warning。
+ */
+function bind(id: string, handler: () => void): void {
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn(`[shell] 缺少元素 #${id}，跳过绑定`);
+    return;
+  }
+  el.addEventListener('click', handler);
+}
+
 let previewRatio = 0.46;
 let activePage: 'main' | 'plugins' | 'settings' = 'main';
 
@@ -311,11 +324,10 @@ async function boot(): Promise<void> {
   wireExternalChanges();
   wireDragDrop();
 
-  $('btnPalette').addEventListener('click', openPalette);
-  $('btnPlugins').addEventListener('click', () => showPage('plugins'));
-  $('navPlugins').addEventListener('click', () => showPage('plugins'));
-  $('navExport').addEventListener('click', () => openExportDialog(preview));
-  $('btnSettings').addEventListener('click', () => showPage('settings'));
+  bind('btnPalette', openPalette);
+  bind('navPlugins', () => showPage('plugins'));
+  bind('navExport', () => openExportDialog(preview));
+  bind('btnSettings', () => showPage('settings'));
 
   bus.on('settings', applyTheme);
   bus.on('plugins', () => preview.rebuild(store.settings, store.plugins));

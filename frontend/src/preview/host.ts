@@ -141,9 +141,13 @@ export class PreviewHost {
     this.post({ type: 'print' });
   }
 
+  /**
+   * 目标 origin 只能是 `*`：sandbox="allow-scripts" 的 iframe 文档源是 opaque（`null`），
+   * 指定具体 origin 时浏览器会直接丢弃消息。安全性由 src 的 token 与上文的 e.source 校验承担。
+   */
   private post(msg: unknown): void {
     if (!this.server) return;
-    this.iframe.contentWindow?.postMessage(msg, this.server.origin);
+    this.iframe.contentWindow?.postMessage(msg, '*');
   }
 
   private themePayload(): ThemePayload {
@@ -175,8 +179,10 @@ export class PreviewHost {
   }
 
   private onMessage(e: MessageEvent): void {
-    if (!this.server || e.origin !== this.server.origin) return;
+    if (!this.server) return;
+    // 只看 source：沙箱 iframe 发来的消息 origin 恒为 "null"，按 URL 比对会把握手消息全丢掉
     if (e.source !== this.iframe.contentWindow) return;
+    if (e.origin !== 'null' && e.origin !== this.server.origin) return;
     const msg = e.data as PreviewMessage;
     if (!msg || typeof msg !== 'object') return;
 

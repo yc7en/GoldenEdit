@@ -134,6 +134,11 @@ fn not_found() -> Response<std::io::Cursor<Vec<u8>>> {
     Response::from_string("not found").with_status_code(StatusCode(404))
 }
 
+/// 沙箱 iframe 的 Origin 是 null，只能用 `*`；数据本身由 token 保护
+fn cors_header() -> Header {
+    Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).expect("静态 CORS 头")
+}
+
 fn mime_header(value: &str) -> Header {
     Header::from_bytes(&b"Content-Type"[..], value.as_bytes()).expect("静态 Content-Type")
 }
@@ -279,6 +284,9 @@ fn handle(request: tiny_http::Request, ctx: &Context) -> std::io::Result<()> {
         };
         let mut res = Response::from_data(bytes);
         res.add_header(mime_header(mime_of(&target)));
+        // iframe 是 opaque origin（sandbox），浏览器把它的请求视为跨域。
+        // Vite 产出的 <script crossorigin> / 字体 / CSS 都要求 CORS，缺这个头会静默丢弃资源。
+        res.add_header(cors_header());
         if target.extension().map(|e| e == "html").unwrap_or(false) {
             if let Ok(h) = Header::from_bytes(&b"Content-Security-Policy"[..], csp(&ctx.origin).as_bytes()) {
                 res.add_header(h);
@@ -320,6 +328,7 @@ fn handle(request: tiny_http::Request, ctx: &Context) -> std::io::Result<()> {
         };
         let mut res = Response::from_data(bytes);
         res.add_header(mime_header(mime_of(&target)));
+        res.add_header(cors_header());
         let _ = request.respond(res);
         return Ok(());
     }
@@ -357,6 +366,7 @@ fn handle(request: tiny_http::Request, ctx: &Context) -> std::io::Result<()> {
         };
         let mut res = Response::from_data(bytes);
         res.add_header(mime_header(mime_of(&target)));
+        res.add_header(cors_header());
         let _ = request.respond(res);
         return Ok(());
     }

@@ -123,10 +123,16 @@
               <button class="iconbtn iconbtn--sm" id="btnCollapsePreview" title="收起预览">›</button>
             </div>
             <div class="preview__stage" id="previewStage">
+              <!--
+                allow-same-origin 是必需的：opaque origin 的文档无法 new Worker，
+                而渲染内核把 markdown-it 与 L1 插件放在 Worker 里跑（ARCHITECTURE §6.1）。
+                它仍然与宿主 tauri.localhost 跨源，拿不到父窗口 DOM；外壳入口还会主动删除
+                Tauri 注入的 __TAURI_INTERNALS__，见 preview-shell/shell.ts 顶部。
+              -->
               <iframe
                 id="preview"
                 class="preview__frame"
-                sandbox="allow-scripts"
+                sandbox="allow-scripts allow-same-origin"
                 referrerpolicy="no-referrer"
                 title="预览"
               ></iframe>

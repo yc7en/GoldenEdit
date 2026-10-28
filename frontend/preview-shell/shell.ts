@@ -19,6 +19,17 @@ import {
 /** 沙箱 iframe 的 origin 是 opaque，不能用 location.origin，只能按路径推导 */
 const baseUrl = new URL('./', location.href).href;
 
+/**
+ * 安全说明（实测 2026-10-28，Tauri 2.12 / WebView2）：
+ * WebView2 的初始化脚本会把 `__TAURI_INTERNALS__` 注入到所有子框架，且属性
+ * writable/configurable 均为 false，无法删除或覆写。但子框架发出的 invoke 不会被
+ * Rust 侧处理（消息永不 resolve，也不产生副作用，已用 set_ui_state 探针验证），
+ * 因此第三方插件拿不到 command 能力。升级 Tauri 后必须重跑该探针（ARCHITECTURE §12.2）。
+ */
+if (typeof (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ !== 'undefined') {
+  console.warn('[ge] Tauri IPC 桥在预览框架内可见（已实测不可调用，见 ARCHITECTURE §12.2）');
+}
+
 const send = (msg: PreviewMessage) => {
   try {
     window.parent.postMessage(msg, '*');
