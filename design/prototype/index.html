@@ -89,7 +89,8 @@ input,select{font:inherit;color:inherit}
 .badge{margin-left:auto;font-size:10px;line-height:15px;padding:0 6px;color:#6B5309;
   background:var(--gold-bg);border:.5px solid var(--gold-line);border-radius:20px}
 
-.side__scroll{flex:1;min-height:0;overflow:auto;padding:4px 8px 10px}
+.side__scroll{flex:1;min-height:0;overflow:auto;padding:4px 8px 6px;
+  display:flex;flex-direction:column}
 .side__scroll::-webkit-scrollbar{width:6px}
 .side__scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
 .group{margin-top:2px}
@@ -103,7 +104,10 @@ input,select{font:inherit;color:inherit}
   border-left:3.5px solid transparent;border-right:3.5px solid transparent;
   transition:transform .15s ease}
 .group.closed .gcaret{transform:rotate(-90deg)}
-.group.closed .group__body{display:none}
+.group__body{display:grid;grid-template-rows:1fr;
+  transition:grid-template-rows .22s cubic-bezier(.4,0,.2,1)}
+.group.closed .group__body{grid-template-rows:0fr}
+.group__inner{min-height:0;overflow:hidden}
 
 .row{display:flex;align-items:center;gap:6px;height:26px;padding:0 6px 0 8px;
   border-radius:6px;color:var(--t2);white-space:nowrap;overflow:hidden}
@@ -119,14 +123,24 @@ input,select{font:inherit;color:inherit}
 .olrow--3{padding-left:38px;color:var(--t3);font-size:11px}
 .olrow--on{color:var(--t1);background:#fff;box-shadow:inset 2px 0 0 var(--gold)}
 
-.promo{margin:0;padding:10px 11px;background:#fff;
-  border:.5px solid var(--line2);border-radius:9px}
-.promo__t{font-size:11.5px;font-weight:600;margin-bottom:2px}
-.promo__d{font-size:10.5px;color:var(--t3);line-height:1.5;margin-bottom:8px}
-.promo__b{font-size:10.5px;background:var(--dark);color:#fff;border-radius:5px;padding:3px 10px}
-.promo__b:hover{background:#000}
+/* 底部锚定的分组：折叠/展开时整块贴底，头部向下回归 */
+.side__bottom{margin-top:auto;padding-top:8px}
 
-.side__promo{flex:none;padding:2px 10px 9px;border-top:1px solid var(--line);background:var(--bg2)}
+/* 版本时间线 */
+.tl{padding:1px 0 4px 3px}
+.tl__item{position:relative;padding:0 6px 5px 16px}
+.tl__item::before{content:"";position:absolute;left:4px;top:10px;bottom:-2px;width:1px;background:var(--line2)}
+.tl__item:last-child::before{display:none}
+.tl__dot{position:absolute;left:1px;top:5px;width:7px;height:7px;border-radius:50%;
+  background:var(--bg2);border:1.5px solid var(--line3)}
+.tl__item--head .tl__dot{background:var(--gold);border-color:var(--gold)}
+.tl__top{display:flex;align-items:baseline;gap:6px;line-height:1.4}
+.tl__ver{font-size:11px;font-weight:600;color:var(--t1)}
+.tl__hash{font-family:var(--mono);font-size:10px;color:#A9A79E}
+.tl__date{margin-left:auto;font-size:10px;color:#A9A79E}
+.tl__msg{font-size:10.5px;color:var(--t3);line-height:1.45;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+
 .side__foot{flex:none;display:flex;align-items:center;gap:7px;padding:8px 10px;
   border-top:1px solid var(--line);background:var(--bg2);position:relative;z-index:2}
 .avatar{width:22px;height:22px;border-radius:50%;flex:none;background:var(--green-bg);
@@ -365,33 +379,48 @@ input,select{font:inherit;color:inherit}
       <div class="side__scroll">
         <div class="group" id="grpFiles">
           <div class="group__head"><span class="gcaret"></span><span>文件</span><span class="gcount">12</span><span class="gadd">+</span></div>
-          <div class="group__body">
+          <div class="group__body"><div class="group__inner">
             <div class="row"><span class="gcaret" style="opacity:.5"></span>docs<span class="row__meta">4</span></div>
             <div class="row row--file row--on">ARCHITECTURE.md<span class="row__dot"></span></div>
             <div class="row row--file">Features.md</div>
-            <div class="row row--file">原型草图.md<span class="row__dot"></span></div>
             <div class="row"><span class="gcaret" style="opacity:.5"></span>samples<span class="row__meta">7</span></div>
-          </div>
+          </div></div>
         </div>
 
-        <div class="group" id="grpOutline">
-          <div class="group__head"><span class="gcaret"></span><span>大纲</span><span class="gcount">6</span></div>
-          <div class="group__body">
-            <div class="olrow">GoldenEdit</div>
-            <div class="olrow olrow--2 olrow--on">已启用插件</div>
-            <div class="olrow olrow--3">渲染管线</div>
-            <div class="olrow olrow--2">插件契约</div>
-            <div class="olrow olrow--2">导出</div>
-            <div class="olrow">主题</div>
+        <div class="side__bottom">
+          <div class="group" id="grpOutline">
+            <div class="group__head"><span class="gcaret"></span><span>大纲</span><span class="gcount">5</span></div>
+            <div class="group__body"><div class="group__inner">
+              <div class="olrow">GoldenEdit</div>
+              <div class="olrow olrow--2 olrow--on">已启用插件</div>
+              <div class="olrow olrow--3">渲染管线</div>
+              <div class="olrow olrow--2">插件契约</div>
+              <div class="olrow olrow--2">导出</div>
+            </div></div>
           </div>
-        </div>
-      </div>
 
-      <div class="side__promo">
-        <div class="promo">
-          <div class="promo__t">渲染正常 · 38ms</div>
-          <div class="promo__d">6 个插件生效，无报错</div>
-          <button class="promo__b">打开诊断</button>
+          <div class="group" id="grpTimeline">
+            <div class="group__head"><span class="gcaret"></span><span>版本</span><span class="gcount">3</span></div>
+            <div class="group__body"><div class="group__inner">
+              <div class="tl">
+                <div class="tl__item tl__item--head">
+                  <span class="tl__dot"></span>
+                  <div class="tl__top"><span class="tl__ver">v0.1.1</span><span class="tl__hash">1fcb2b4</span><span class="tl__date">今天</span></div>
+                  <div class="tl__msg">左栏分组化，预览改为按钮开合</div>
+                </div>
+                <div class="tl__item">
+                  <span class="tl__dot"></span>
+                  <div class="tl__top"><span class="tl__ver">v0.1.0</span><span class="tl__hash">bc53f41</span><span class="tl__date">今天</span></div>
+                  <div class="tl__msg">迁移 Rust + Tauri 2，重写架构契约</div>
+                </div>
+                <div class="tl__item">
+                  <span class="tl__dot"></span>
+                  <div class="tl__top"><span class="tl__ver">v0.0.9</span><span class="tl__hash">89c7367</span><span class="tl__date">今天</span></div>
+                  <div class="tl__msg">归档旧 Wails 实现</div>
+                </div>
+              </div>
+            </div></div>
+          </div>
         </div>
       </div>
 
