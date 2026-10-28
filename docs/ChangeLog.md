@@ -10,6 +10,12 @@
 
 ### 新增
 
+- 插件语法与测试样例增强（R-261028-0006.md）：
+  - 在 `docs/demo.md` 中增加 `::: chat` 智能问答与 `::: dialogue` 剧本对白完整测试用例；
+  - 对话插件增加 `(右)`、`[right]` 灵活发言方位置修饰与发言者名称清洗；
+  - 解析内核新增 `ge_math_block` 规则，支持原生 `$$ ... $$` 块级数学公式离线解析并绑定 KaTeX；
+  - 解析内核新增 `ge_obsidian_callout` 规则，全面兼容 Obsidian 风格引用提示框（`> [!NOTE]`、`> [!TIP]`、`> [!WARNING]` 等）；
+  - 全量通过 `docs/demo.md` 解析与渲染测试。
 - P5 内置插件全量交付（R-261028-0005.md）：
   - `callout`：语义化提示框容器，支持 note、tip、warn、danger、success 等多种类型，所有颜色使用 `--ge-*` 变量。
   - `table-gfm`：GFM 表格横向溢出包裹与斑马纹优化，基于 `ctx.onCoreRule` 规则注入。

@@ -133,6 +133,53 @@ function build(inst: MarkdownIt): void {
     { alt: ['paragraph', 'reference', 'blockquote'] }
   );
 
+  // 块级公式 $$ ... $$
+  inst.block.ruler.before(
+    'fence',
+    'ge_math_block',
+    (state, startLine, endLine, silent) => {
+      const start = state.bMarks[startLine] + state.tShift[startLine];
+      const max = state.eMarks[startLine];
+      if (start + 2 > max) return false;
+      if (state.src.charCodeAt(start) !== 0x24 || state.src.charCodeAt(start + 1) !== 0x24) return false;
+
+      const firstLine = state.src.slice(start, max).trim();
+      let body = '';
+      let next = startLine;
+
+      if (firstLine.length > 4 && firstLine.endsWith('$$')) {
+        body = firstLine.slice(2, -2).trim();
+        next = startLine + 1;
+      } else {
+        next = startLine + 1;
+        let closed = false;
+        for (; next < endLine; next++) {
+          const s = state.bMarks[next] + state.tShift[next];
+          const e = state.eMarks[next];
+          const line = state.src.slice(s, e).trim();
+          if (line === '$$' || line.endsWith('$$')) {
+            closed = true;
+            break;
+          }
+        }
+        body = state.src.slice(state.bMarks[startLine + 1], state.bMarks[next] ?? state.eMarks[next - 1]).trim();
+        if (closed) next++;
+      }
+
+      if (silent) return true;
+      state.line = Math.min(next, endLine);
+      const token = state.push('html_block', '', 0);
+      token.map = [startLine, state.line];
+      token.content = wrapPlugin(
+        'katex',
+        `<div class="ge-katex ge-katex--block" data-math="${escapeHtml(body)}" data-display="true"></div>`
+      );
+      hit.push('katex@1.0.0');
+      return true;
+    },
+    { alt: ['paragraph', 'reference', 'blockquote'] }
+  );
+
   // 围栏：命中插件则交给插件，否则走默认渲染
   const defaultFence = inst.renderer.rules.fence;
   inst.renderer.rules.fence = (tokens, idx, opts, env, self) => {
@@ -201,6 +248,76 @@ function build(inst: MarkdownIt): void {
       }
     }
     return false;
+  });
+
+  // Obsidian 提示框语法支持：> [!NOTE] Title
+  const OBS_ICONS: Record<string, string> = {
+    note: 'ℹ️', info: 'ℹ️', tip: '💡', important: '💡',
+    warn: '⚠️', warning: '⚠️', danger: '🛑', caution: '🛑', attention: '⚠️',
+    success: '✅', done: '✅', todo: '📋', example: '💡',
+    quote: '💬', question: '❓', bug: '🛑',
+  };
+  const OBS_TITLES: Record<string, string> = {
+    note: '注意', info: '信息', tip: '提示', important: '重要',
+    warn: '警告', warning: '警告', danger: '危险', caution: '警示', attention: '注意',
+    success: '成功', done: '完成', todo: '待办', example: '示例',
+    quote: '引用', question: '疑问', bug: '缺陷',
+  };
+
+  inst.core.ruler.after('block', 'ge_obsidian_callout', (state) => {
+    const tokens = state.tokens;
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i].type === 'blockquote_open') {
+        let j = i + 1;
+        while (j < tokens.length && tokens[j].type !== 'blockquote_close') {
+          if (tokens[j].type === 'inline') break;
+          j++;
+        }
+        if (j < tokens.length && tokens[j].type === 'inline') {
+          const text = tokens[j].content;
+          const m = /^\[!([a-zA-Z0-9_-]+)(?:\|([^\]]*))?\]([+-])?\s*(.*)$/.exec(text);
+          if (m) {
+            const rawType = m[1].toLowerCase();
+            const normType =
+              rawType === 'warning' || rawType === 'caution' || rawType === 'attention'
+                ? 'warn'
+                : rawType === 'important' || rawType === 'example'
+                ? 'tip'
+                : rawType === 'info' || rawType === 'todo' || rawType === 'question'
+                ? 'note'
+                : rawType === 'bug' || rawType === 'error' || rawType === 'failure'
+                ? 'danger'
+                : rawType === 'done'
+                ? 'success'
+                : rawType;
+            const icon = OBS_ICONS[rawType] || '💡';
+            const title = m[4] || OBS_TITLES[rawType] || (rawType.charAt(0).toUpperCase() + rawType.slice(1));
+
+            tokens[j].content = '';
+            if (tokens[j].children) tokens[j].children = [];
+
+            tokens[i].type = 'html_block';
+            tokens[i].content = `<div class="ge-plugin ge-plugin--callout" data-ge-plugin="callout"><div class="ge-callout ge-callout--${normType}"><div class="ge-callout__header"><span class="ge-callout__icon">${icon}</span><span class="ge-callout__title">${escapeHtml(title)}</span></div><div class="ge-callout__body">`;
+
+            hit.push('callout@1.0.0');
+
+            let depth = 1;
+            let k = i + 1;
+            for (; k < tokens.length; k++) {
+              if (tokens[k].type === 'blockquote_open') depth++;
+              else if (tokens[k].type === 'blockquote_close') {
+                depth--;
+                if (depth === 0) break;
+              }
+            }
+            if (k < tokens.length) {
+              tokens[k].type = 'html_block';
+              tokens[k].content = '</div></div></div>';
+            }
+          }
+        }
+      }
+    }
   });
 
   // 内置口子：只有 trust === 'builtin' 拿到过 coreRuleHook

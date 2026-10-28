@@ -34,13 +34,19 @@ export function register(md, ctx) {
         text = line.slice(idx + 1).trim();
       }
 
-      const side = RIGHT_SPEAKERS.has(speaker.toLowerCase()) ? 'right' : 'left';
+      const isRight =
+        RIGHT_SPEAKERS.has(speaker.toLowerCase()) ||
+        speaker.endsWith('(右)') ||
+        speaker.endsWith('[right]') ||
+        line.includes('[right]');
+      const cleanSpeaker = speaker.replace(/\((?:右|right)\)|\[(?:右|right)\]/gi, '').trim() || speaker;
+      const side = isRight ? 'right' : 'left';
       const renderedText =
         md && typeof md.renderInline === 'function' ? md.renderInline(text) : escapeHtml(text);
 
       bubbles.push(
         `<div class="ge-bubble ge-bubble--${side}">
-          <span class="ge-bubble__name">${escapeHtml(speaker)}</span>
+          <span class="ge-bubble__name">${escapeHtml(cleanSpeaker)}</span>
           <div class="ge-bubble__msg">${renderedText}</div>
         </div>`
       );
