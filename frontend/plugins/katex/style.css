@@ -26,3 +26,16 @@
 .katex-error {
   color: var(--ge-danger);
 }
+
+/* 强力隐藏 MathML 无障碍回退文本，防止浏览器在屏幕上将公式与纯文本双重渲染 */
+.katex .katex-mathml {
+  position: absolute !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  height: 1px !important;
+  width: 1px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  display: none !important;
+}

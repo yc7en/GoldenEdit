@@ -250,73 +250,247 @@ function build(inst: MarkdownIt): void {
     return false;
   });
 
-  // Obsidian 提示框语法支持：> [!NOTE] Title
+  // Obsidian 提示框语法支持：> [!NOTE] Title 以及折叠/元数据增强
   const OBS_ICONS: Record<string, string> = {
     note: 'ℹ️', info: 'ℹ️', tip: '💡', important: '💡',
-    warn: '⚠️', warning: '⚠️', danger: '🛑', caution: '🛑', attention: '⚠️',
-    success: '✅', done: '✅', todo: '📋', example: '💡',
-    quote: '💬', question: '❓', bug: '🛑',
+    warn: '⚠️', warning: '⚠️', danger: '🛑', caution: '⚠️', attention: '⚠️',
+    success: '✅', done: '✅', todo: '📋', example: '📋',
+    quote: '💬', question: '❓', bug: '🛑', abstract: '📋',
   };
   const OBS_TITLES: Record<string, string> = {
     note: '注意', info: '信息', tip: '提示', important: '重要',
-    warn: '警告', warning: '警告', danger: '危险', caution: '警示', attention: '注意',
+    warn: '警告', warning: '警告', danger: '危险', caution: '警告', attention: '注意',
     success: '成功', done: '完成', todo: '待办', example: '示例',
-    quote: '引用', question: '疑问', bug: '缺陷',
+    quote: '引用', question: '疑问', bug: '缺陷', abstract: '摘要',
   };
 
-  inst.core.ruler.after('block', 'ge_obsidian_callout', (state) => {
-    const tokens = state.tokens;
-    for (let i = 0; i < tokens.length; i++) {
-      if (tokens[i].type === 'blockquote_open') {
-        let j = i + 1;
-        while (j < tokens.length && tokens[j].type !== 'blockquote_close') {
-          if (tokens[j].type === 'inline') break;
-          j++;
-        }
-        if (j < tokens.length && tokens[j].type === 'inline') {
-          const text = tokens[j].content;
-          const m = /^\[!([a-zA-Z0-9_-]+)(?:\|([^\]]*))?\]([+-])?\s*(.*)$/.exec(text);
-          if (m) {
-            const rawType = m[1].toLowerCase();
-            const normType =
-              rawType === 'warning' || rawType === 'caution' || rawType === 'attention'
-                ? 'warn'
-                : rawType === 'important' || rawType === 'example'
-                ? 'tip'
-                : rawType === 'info' || rawType === 'todo' || rawType === 'question'
-                ? 'note'
-                : rawType === 'bug' || rawType === 'error' || rawType === 'failure'
-                ? 'danger'
-                : rawType === 'done'
-                ? 'success'
-                : rawType;
-            const icon = OBS_ICONS[rawType] || '💡';
-            const title = m[4] || OBS_TITLES[rawType] || (rawType.charAt(0).toUpperCase() + rawType.slice(1));
+  // 兼容旧语法：!!!note{旧语法} ... !!!
+  inst.block.ruler.before(
+    'fence',
+    'ge_legacy_admonition',
+    (state, startLine, endLine, silent) => {
+      const start = state.bMarks[startLine] + state.tShift[startLine];
+      const max = state.eMarks[startLine];
+      if (
+        start + 3 > max ||
+        state.src.charCodeAt(start) !== 0x21 ||
+        state.src.charCodeAt(start + 1) !== 0x21 ||
+        state.src.charCodeAt(start + 2) !== 0x21
+      ) {
+        return false;
+      }
+      const line = state.src.slice(start, max);
+      const m = /^!!!\s*([a-zA-Z0-9_-]+)(?:\{(.*?)\})?\s*$/.exec(line);
+      if (!m) return false;
+      if (silent) return true;
 
-            tokens[j].content = '';
-            if (tokens[j].children) tokens[j].children = [];
+      let next = startLine + 1;
+      for (; next < endLine; next++) {
+        const s = state.bMarks[next] + state.tShift[next];
+        const e = state.eMarks[next];
+        if (/^!!!\s*$/.test(state.src.slice(s, e))) break;
+      }
 
-            tokens[i].type = 'html_block';
-            tokens[i].content = `<div class="ge-plugin ge-plugin--callout" data-ge-plugin="callout"><div class="ge-callout ge-callout--${normType}"><div class="ge-callout__header"><span class="ge-callout__icon">${icon}</span><span class="ge-callout__title">${escapeHtml(title)}</span></div><div class="ge-callout__body">`;
+      const body = state.src.slice(
+        state.bMarks[startLine + 1],
+        state.bMarks[next] ?? state.eMarks[next - 1]
+      );
+      state.line = Math.min(next + 1, endLine);
 
-            hit.push('callout@1.0.0');
+      const rawType = m[1].toLowerCase();
+      const attrStr = (m[2] ?? '').trim();
+      let title = '';
+      let foldable = false;
+      let defaultOpen = true;
 
-            let depth = 1;
-            let k = i + 1;
-            for (; k < tokens.length; k++) {
-              if (tokens[k].type === 'blockquote_open') depth++;
-              else if (tokens[k].type === 'blockquote_close') {
-                depth--;
-                if (depth === 0) break;
-              }
-            }
-            if (k < tokens.length) {
-              tokens[k].type = 'html_block';
-              tokens[k].content = '</div></div></div>';
+      if (attrStr) {
+        if (!attrStr.includes('=') && !attrStr.includes(' ')) {
+          title = attrStr;
+        } else {
+          for (const p of attrStr.split(/\s+/)) {
+            if (p === 'collapsible' || p === 'fold') foldable = true;
+            else if (p === 'open=false' || p === 'closed') {
+              foldable = true;
+              defaultOpen = false;
+            } else if (p === 'open=true' || p === 'open') {
+              foldable = true;
+              defaultOpen = true;
+            } else if (p.startsWith('title=')) {
+              title = p.slice(6).replace(/^["']|["']$/g, '');
+            } else if (!title) {
+              title = p;
             }
           }
         }
       }
+
+      const normType =
+        rawType === 'warning' || rawType === 'caution' || rawType === 'attention'
+          ? 'warn'
+          : rawType === 'important' || rawType === 'example'
+          ? 'tip'
+          : rawType === 'info' || rawType === 'todo' || rawType === 'question'
+          ? 'note'
+          : rawType === 'bug' || rawType === 'error' || rawType === 'failure'
+          ? 'danger'
+          : rawType === 'done'
+          ? 'success'
+          : rawType;
+
+      const icon = OBS_ICONS[rawType] || '💡';
+      const finalTitle = title || OBS_TITLES[rawType] || (rawType.charAt(0).toUpperCase() + rawType.slice(1));
+      const tag = foldable ? 'details' : 'div';
+      const headerTag = foldable ? 'summary' : 'div';
+      const openAttr = foldable && defaultOpen ? ' open' : '';
+      const foldClass = foldable ? ' ge-callout--foldable' : '';
+      const renderedBody = inst.render(body);
+
+      const token = state.push('html_block', '', 0);
+      token.map = [startLine, state.line];
+      token.content = `<div class="ge-plugin ge-plugin--callout" data-ge-plugin="callout"><${tag} class="ge-callout ge-callout--${normType} ge-callout--type-${rawType}${foldClass}"${openAttr}><${headerTag} class="ge-callout__header"><span class="ge-callout__icon">${icon}</span><span class="ge-callout__title">${escapeHtml(
+        finalTitle
+      )}</span>${foldable ? '<span class="ge-callout__fold-arrow"></span>' : ''}</${headerTag}><div class="ge-callout__body">${renderedBody}</div></${tag}></div>`;
+
+      hit.push('callout@1.0.0');
+      return true;
+    },
+    { alt: ['paragraph', 'reference', 'blockquote'] }
+  );
+
+  inst.core.ruler.after('block', 'ge_obsidian_callout', (state) => {
+    const tokens = state.tokens;
+    const re = /^\[!([a-zA-Z0-9_-]+)(?:\|([^\]]*))?\]([+-])?(?:[ \t]+([^\n]*))?(?:\n([\s\S]*))?$/;
+
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i].type !== 'blockquote_open') continue;
+
+      let depth = 1;
+      let closeIdx = -1;
+      for (let k = i + 1; k < tokens.length; k++) {
+        if (tokens[k].type === 'blockquote_open') depth++;
+        else if (tokens[k].type === 'blockquote_close') {
+          depth--;
+          if (depth === 0) {
+            closeIdx = k;
+            break;
+          }
+        }
+      }
+      if (closeIdx === -1) continue;
+
+      let inlineIdx = -1;
+      for (let k = i + 1; k < closeIdx; k++) {
+        if (tokens[k].type === 'inline') {
+          inlineIdx = k;
+          break;
+        }
+      }
+      if (inlineIdx === -1) continue;
+
+      const m = re.exec(tokens[inlineIdx].content);
+      if (!m) continue;
+
+      const rawType = m[1].toLowerCase();
+      const metaStr = m[2] || '';
+      const fold = m[3];
+      const rawTitle = m[4];
+      const rest = m[5] || '';
+
+      let typeOverride = '';
+      let color = '';
+      let icon = '';
+      let noIcon = false;
+      let foldable = fold === '+' || fold === '-';
+      let defaultOpen = fold !== '-';
+      const customClasses: string[] = [];
+
+      const metaTokens = metaStr.trim() ? metaStr.trim().split(/\s+/) : [];
+      for (const mt of metaTokens) {
+        if (/^(type|kind):/i.test(mt)) {
+          typeOverride = mt.replace(/^(type|kind):/i, '').toLowerCase();
+        } else if (/^color:/i.test(mt)) {
+          color = mt.replace(/^color:/i, '');
+        } else if (/^icon:/i.test(mt)) {
+          const ic = mt.replace(/^icon:/i, '');
+          if (ic === 'none') noIcon = true;
+          else icon = ic;
+        } else if (mt === 'no-icon') {
+          noIcon = true;
+        } else if (mt === 'collapsible' || mt === 'fold') {
+          foldable = true;
+        } else if (mt === 'open') {
+          foldable = true;
+          defaultOpen = true;
+        } else if (mt === 'closed') {
+          foldable = true;
+          defaultOpen = false;
+        } else if (
+          /^#|^rgb|^hsl/.test(mt) ||
+          ['purple', 'green', 'red', 'blue', 'orange', 'pink', 'cyan', 'yellow'].includes(mt)
+        ) {
+          color = mt;
+          customClasses.push(`mdext-admonition--meta-${mt}`);
+        } else {
+          customClasses.push(`mdext-admonition--meta-${mt}`);
+        }
+      }
+
+      const type = typeOverride || rawType;
+      const normType =
+        type === 'warning' || type === 'caution' || type === 'attention'
+          ? 'warn'
+          : type === 'important' || type === 'example'
+          ? 'tip'
+          : type === 'info' || type === 'todo' || type === 'question'
+          ? 'note'
+          : type === 'bug' || type === 'error' || type === 'failure' || type === 'missing'
+          ? 'danger'
+          : type === 'done'
+          ? 'success'
+          : type;
+
+      const finalIcon = noIcon ? '' : icon || OBS_ICONS[type] || OBS_ICONS[normType] || '💡';
+      const finalTitle =
+        rawTitle !== undefined && rawTitle.trim() !== ''
+          ? rawTitle.trim()
+          : OBS_TITLES[type] || OBS_TITLES[normType] || (type.charAt(0).toUpperCase() + type.slice(1));
+
+      // 更新首段文本：清除 [!TYPE] 标记所在首行，只保留后续正文
+      tokens[inlineIdx].content = rest;
+      if (!rest.trim()) {
+        if (inlineIdx > i && tokens[inlineIdx - 1].type === 'paragraph_open') {
+          tokens[inlineIdx - 1].hidden = true;
+        }
+        if (inlineIdx < closeIdx && tokens[inlineIdx + 1].type === 'paragraph_close') {
+          tokens[inlineIdx + 1].hidden = true;
+        }
+      }
+
+      const colorStyle = color
+        ? `--ge-callout-custom-color: ${color}; border-left-color: ${color} !important;`
+        : '';
+      const headerBgStyle = color
+        ? `background: color-mix(in srgb, ${color} 10%, transparent);`
+        : '';
+
+      const tag = foldable ? 'details' : 'div';
+      const headerTag = foldable ? 'summary' : 'div';
+      const openAttr = foldable && defaultOpen ? ' open' : '';
+      const foldClass = foldable ? ' ge-callout--foldable' : '';
+      const classStr = `ge-callout ge-callout--${normType} ge-callout--type-${type}${foldClass} ${customClasses.join(
+        ' '
+      )}`.trim();
+
+      tokens[i].type = 'html_block';
+      tokens[i].content = `<div class="ge-plugin ge-plugin--callout" data-ge-plugin="callout"><${tag} class="${classStr}"${openAttr} style="${colorStyle}"><${headerTag} class="ge-callout__header" style="${headerBgStyle}">${
+        finalIcon ? `<span class="ge-callout__icon">${finalIcon}</span>` : ''
+      }<span class="ge-callout__title">${escapeHtml(finalTitle)}</span>${
+        foldable ? '<span class="ge-callout__fold-arrow"></span>' : ''
+      }</${headerTag}><div class="ge-callout__body">`;
+
+      tokens[closeIdx].type = 'html_block';
+      tokens[closeIdx].content = `</div></${tag}></div>`;
+      hit.push('callout@1.0.0');
     }
   });
 

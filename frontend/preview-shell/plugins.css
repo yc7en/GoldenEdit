@@ -338,3 +338,114 @@ tbody tr:nth-child(even) td {
     display: table-header-group;
   }
 }
+
+/* KaTeX 数学公式基础样式与 MathML 无障碍文本强力隐藏，杜绝公式与纯文本双重渲染缺陷 */
+.katex .katex-mathml {
+  position: absolute !important;
+  clip: rect(1px, 1px, 1px, 1px) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  height: 1px !important;
+  width: 1px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  display: none !important;
+}
+
+/* Callout 提示框基础降级与折叠样式 */
+.ge-callout {
+  margin: 1.2em 0;
+  border: 1px solid var(--ge-border);
+  border-left: 4px solid var(--ge-callout-color, var(--ge-accent));
+  border-radius: var(--ge-radius);
+  background: var(--ge-bg-subtle);
+  color: var(--ge-fg);
+  font-size: 0.95em;
+  overflow: hidden;
+}
+
+.ge-callout__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--ge-callout-color, var(--ge-accent)) 10%, transparent);
+  color: var(--ge-fg);
+  user-select: none;
+}
+
+details.ge-callout > summary.ge-callout__header {
+  cursor: pointer;
+  list-style: none;
+}
+
+details.ge-callout > summary.ge-callout__header::-webkit-details-marker {
+  display: none;
+}
+
+.ge-callout__fold-arrow {
+  margin-left: auto;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.2s ease;
+  opacity: 0.6;
+}
+
+details.ge-callout[open] > summary .ge-callout__fold-arrow {
+  transform: rotate(90deg);
+}
+
+.ge-callout__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.ge-callout__title {
+  color: var(--ge-fg);
+  font-weight: 600;
+  flex: 1;
+}
+
+.ge-callout__body {
+  padding: 12px 16px;
+  color: var(--ge-fg);
+  line-height: 1.6;
+}
+
+.ge-callout__body > :first-child {
+  margin-top: 0;
+}
+
+.ge-callout__body > :last-child {
+  margin-bottom: 0;
+}
+
+.ge-callout--note {
+  --ge-callout-color: var(--ge-note);
+}
+.ge-callout--tip {
+  --ge-callout-color: var(--ge-tip);
+}
+.ge-callout--warn {
+  --ge-callout-color: var(--ge-warn);
+}
+.ge-callout--danger {
+  --ge-callout-color: var(--ge-danger);
+}
+.ge-callout--success {
+  --ge-callout-color: var(--ge-success);
+}
+.ge-callout--type-example {
+  --ge-callout-color: #d84a8c;
+}
+.mdext-admonition--meta-purple {
+  --ge-callout-color: #8e24aa;
+}
+
