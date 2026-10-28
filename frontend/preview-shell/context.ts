@@ -61,7 +61,7 @@ export class PluginRuntime {
   readonly inlineDelims: DelimiterHandler[] = [];
   readonly mounts: MountEntry[] = [];
   /** 运行时探测：插件实际用了哪些受限口子 */
-  private accessed = new Set<string>();
+  readonly accessed = new Set<string>();
   coreRuleHook: ((state: unknown) => void) | null = null;
   ctx: PluginContext;
   loaded = true;
@@ -69,9 +69,9 @@ export class PluginRuntime {
 
   constructor(
     spec: PluginSpec,
-    private readonly scope: 'worker' | 'main',
-    private readonly baseUrl: string,
-    private readonly events: RuntimeEvents
+    readonly scope: 'worker' | 'main',
+    readonly baseUrl: string,
+    readonly events: RuntimeEvents
   ) {
     this.spec = spec;
     this.ctx = this.buildContext();
@@ -85,80 +85,7 @@ export class PluginRuntime {
   }
 
   private buildContext(): PluginContext {
-    const self = this;
-    const config = () => self.spec.config ?? {};
-    const forbidden = (name: string) => ({
-      get() {
-        self.accessed.add(name);
-        throw new Error(`插件不允许使用 ${name}：宿主未开放该能力（ARCHITECTURE §5.5）`);
-      },
-    });
-
-    const raw: PluginContext = {
-      get env() {
-        return {
-          apiVersion: API_VERSION as 1,
-          hostVersion: HOST_VERSION,
-          locale: 'zh-CN',
-          scope: self.scope,
-        };
-      },
-      get config() {
-        return config();
-      },
-      get doc() {
-        return self.docMeta;
-      },
-      get theme() {
-        return self.themePayload;
-      },
-      onFence(langs, fn) {
-        if (self.scope !== 'worker') return;
-        for (const lang of langs) self.fence.set(lang.toLowerCase(), fn);
-      },
-      onContainer(names, fn) {
-        if (self.scope !== 'worker') return;
-        for (const name of names) self.container.set(name.toLowerCase(), fn);
-      },
-      onDelimiter(kind, fn) {
-        if (self.scope !== 'worker') return;
-        if (kind === 'inline') self.inlineDelims.push(fn);
-      },
-      onMount(selector, fn) {
-        self.accessed.add('mount');
-        if (self.scope !== 'main') return;
-        self.mounts.push({ selector, fn });
-      },
-      assets: {
-        url(rel: string) {
-          if (rel.includes('..') || rel.startsWith('/')) {
-            throw new Error(`非法资源路径：${rel}`);
-          }
-          return `${self.baseUrl}plugin/${self.spec.id}/${rel}`;
-        },
-      },
-      libs: {
-        async load(name: 'mermaid' | 'katex') {
-          if (self.scope === 'worker') {
-            throw new Error('libs.load 只能在主线程调用');
-          }
-          return loadLib(name);
-        },
-      },
-      log(level, message, detail) {
-        self.events.log(level, self.spec.id, detail ? `${message} ${String(detail)}` : message);
-      },
-      onCoreRule(fn) {
-        if (self.spec.trust !== 'builtin' || self.scope !== 'worker') return;
-        self.coreRuleHook = fn;
-      },
-    };
-
-    // 受限成员用显式 getter 拒绝并记录访问：比让插件「用不到但能拿到」安全，
-    // 同时给能力分级提供依据（§5.4）。
-    Object.defineProperty(raw, 'net', forbidden('net'));
-    Object.defineProperty(raw, 'fs', forbidden('fs'));
-    return raw;
+    return createPluginContext(this);
   }
 
   docMeta: Readonly<DocMeta> = {
@@ -262,4 +189,80 @@ export class RuntimeRegistry {
   setTheme(theme: ThemePayload): void {
     for (const rt of this.runtimes.values()) rt.setTheme(theme);
   }
+}
+
+function createPluginContext(runtime: PluginRuntime): PluginContext {
+  const config = () => runtime.spec.config ?? {};
+  const forbidden = (name: string) => ({
+    get() {
+      runtime.accessed.add(name);
+      throw new Error(`插件不允许使用 ${name}：宿主未开放该能力（ARCHITECTURE §5.5）`);
+    },
+  });
+
+  const raw: PluginContext = {
+    get env() {
+      return {
+        apiVersion: API_VERSION as 1,
+        hostVersion: HOST_VERSION,
+        locale: 'zh-CN',
+        scope: runtime.scope,
+      };
+    },
+    get config() {
+      return config();
+    },
+    get doc() {
+      return runtime.docMeta;
+    },
+    get theme() {
+      return runtime.themePayload;
+    },
+    onFence(langs, fn) {
+      if (runtime.scope !== 'worker') return;
+      for (const lang of langs) runtime.fence.set(lang.toLowerCase(), fn);
+    },
+    onContainer(names, fn) {
+      if (runtime.scope !== 'worker') return;
+      for (const name of names) runtime.container.set(name.toLowerCase(), fn);
+    },
+    onDelimiter(kind, fn) {
+      if (runtime.scope !== 'worker') return;
+      if (kind === 'inline') runtime.inlineDelims.push(fn);
+    },
+    onMount(selector, fn) {
+      runtime.accessed.add('mount');
+      if (runtime.scope !== 'main') return;
+      runtime.mounts.push({ selector, fn });
+    },
+    assets: {
+      url(rel: string) {
+        if (rel.includes('..') || rel.startsWith('/')) {
+          throw new Error(`非法资源路径：${rel}`);
+        }
+        return `${runtime.baseUrl}plugin/${runtime.spec.id}/${rel}`;
+      },
+    },
+    libs: {
+      async load(name: 'mermaid' | 'katex') {
+        if (runtime.scope === 'worker') {
+          throw new Error('libs.load 只能在主线程调用');
+        }
+        return loadLib(name);
+      },
+    },
+    log(level, message, detail) {
+      runtime.events.log(level, runtime.spec.id, detail ? `${message} ${String(detail)}` : message);
+    },
+    onCoreRule(fn) {
+      if (runtime.spec.trust !== 'builtin' || runtime.scope !== 'worker') return;
+      runtime.coreRuleHook = fn;
+    },
+  };
+
+  // 受限成员用显式 getter 拒绝并记录访问：比让插件「用不到但能拿到」安全，
+  // 同时给能力分级提供依据（§5.4）。
+  Object.defineProperty(raw, 'net', forbidden('net'));
+  Object.defineProperty(raw, 'fs', forbidden('fs'));
+  return raw;
 }

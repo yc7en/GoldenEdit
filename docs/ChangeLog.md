@@ -11,6 +11,7 @@
 - BugFix-261028-0003：外壳模块脚本因 `<script crossorigin>` + 无 CORS 头被静默丢弃；构建去除 crossorigin，预览服务补 CORS 头。
 - BugFix-261028-0004：沙箱 iframe 的 origin 为 `null`，宿主与外壳的 postMessage 双向被丢弃；改为只校验 `event.source`。
 - BugFix-261028-0005：opaque origin 禁止创建 Worker，渲染内核无法启动。
+- BugFix-261028-0006：`context.ts` 别名赋值 `this` 触发 ESLint no-this-alias，提取为 `createPluginContext` 纯函数。
 
 ### 架构变更
 
