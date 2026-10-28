@@ -64,19 +64,79 @@ input,select{font:inherit;color:inherit}
 
 .body{flex:1;display:flex;min-height:0;position:relative;overflow:hidden}
 
-.sidebar{width:190px;flex:none;background:var(--bg2);border-right:1px solid var(--line);
-  display:flex;flex-direction:column;font-size:12px}
-.sidebar__head{display:flex;align-items:center;justify-content:space-between;
-  padding:10px 12px 7px;font-size:11px;color:var(--t3)}
-.tree{flex:1;overflow:hidden}
-.tree__row{display:flex;align-items:center;gap:6px;padding:4px 12px;color:var(--t2)}
-.tree__row--file{padding-left:27px}
-.tree__row--active{background:var(--bg3);color:var(--t1);font-weight:500;
-  border-left:2px solid var(--gold);padding-left:25px}
-.caret{width:0;height:0;border-left:4px solid #8A8A85;border-top:3.5px solid transparent;
-  border-bottom:3.5px solid transparent}
-.sidebar__foot{border-top:1px solid var(--line);padding:8px 12px;font-size:11px;
-  color:var(--t3);display:flex;justify-content:space-between}
+/* ---------- 左侧栏：品牌 / 导航 / 分组 / 用户 ---------- */
+.sidebar{width:208px;flex:none;background:var(--bg2);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;font-size:12px;min-height:0}
+.side__brand{display:flex;align-items:center;gap:8px;padding:11px 12px 10px;
+  border-bottom:1px solid var(--line)}
+.side__logo{width:16px;height:16px;border-radius:5px;background:var(--gold);flex:none}
+.side__brandtext{min-width:0;line-height:1.25}
+.side__name{font-size:12.5px;font-weight:600;letter-spacing:.1px}
+.side__ver{font-size:10px;color:var(--t3);letter-spacing:.3px}
+.side__ws{margin-left:auto;font-size:10.5px;color:var(--t2);background:#fff;
+  border:.5px dashed var(--line3);border-radius:20px;padding:3px 8px;white-space:nowrap}
+.side__ws:hover{border-color:var(--gold);color:var(--t1)}
+
+.side__nav{padding:7px 8px 6px;border-bottom:1px solid var(--line);
+  display:flex;flex-direction:column;gap:1px;flex:none}
+.navrow{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:7px;
+  color:var(--t2);text-align:left;width:100%}
+.navrow:hover{background:#EFEEE8;color:var(--t1)}
+.navrow--on{background:#EAE8DF;color:var(--t1);font-weight:500}
+.ni{width:14px;height:14px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--t3)}
+.navrow:hover .ni,.navrow--on .ni{color:var(--t2)}
+.navmeta{margin-left:auto;font-size:10px;color:#A9A79E;font-family:var(--mono);letter-spacing:.2px}
+.badge{margin-left:auto;font-size:10px;line-height:15px;padding:0 6px;color:#6B5309;
+  background:var(--gold-bg);border:.5px solid var(--gold-line);border-radius:20px}
+
+.side__scroll{flex:1;min-height:0;overflow:auto;padding:4px 8px 10px}
+.side__scroll::-webkit-scrollbar{width:6px}
+.side__scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+.group{margin-top:2px}
+.group__head{display:flex;align-items:center;gap:5px;height:26px;padding:0 6px;
+  color:var(--t3);font-size:11px;border-radius:6px;cursor:pointer;user-select:none}
+.group__head:hover{background:#EFEEE8;color:var(--t2)}
+.gcount{font-size:10px;color:#A9A79E}
+.gadd{margin-left:auto;font-size:13px;line-height:1;color:var(--t3);opacity:0;transition:opacity .12s}
+.group__head:hover .gadd{opacity:1}
+.gcaret{width:0;height:0;flex:none;border-top:4px solid currentColor;
+  border-left:3.5px solid transparent;border-right:3.5px solid transparent;
+  transition:transform .15s ease}
+.group.closed .gcaret{transform:rotate(-90deg)}
+.group.closed .group__body{display:none}
+
+.row{display:flex;align-items:center;gap:6px;height:26px;padding:0 6px 0 8px;
+  border-radius:6px;color:var(--t2);white-space:nowrap;overflow:hidden}
+.row:hover{background:#EFEEE8;color:var(--t1)}
+.row--file{padding-left:22px}
+.row--on{background:#fff;color:var(--t1);font-weight:500;box-shadow:inset 2px 0 0 var(--gold)}
+.row__meta{margin-left:auto;font-size:10px;color:#A9A79E;font-family:var(--mono)}
+.row__dot{width:4px;height:4px;border-radius:50%;background:var(--gold);margin-left:5px;flex:none}
+.olrow{display:flex;align-items:center;height:24px;padding:0 8px 0 14px;border-radius:6px;
+  color:var(--t2);font-size:11.5px;white-space:nowrap;overflow:hidden}
+.olrow:hover{background:#EFEEE8;color:var(--t1)}
+.olrow--2{padding-left:26px;color:var(--t3)}
+.olrow--3{padding-left:38px;color:var(--t3);font-size:11px}
+.olrow--on{color:var(--t1);background:#fff;box-shadow:inset 2px 0 0 var(--gold)}
+
+.promo{margin:0;padding:10px 11px;background:#fff;
+  border:.5px solid var(--line2);border-radius:9px}
+.promo__t{font-size:11.5px;font-weight:600;margin-bottom:2px}
+.promo__d{font-size:10.5px;color:var(--t3);line-height:1.5;margin-bottom:8px}
+.promo__b{font-size:10.5px;background:var(--dark);color:#fff;border-radius:5px;padding:3px 10px}
+.promo__b:hover{background:#000}
+
+.side__promo{flex:none;padding:2px 10px 9px;border-top:1px solid var(--line);background:var(--bg2)}
+.side__foot{flex:none;display:flex;align-items:center;gap:7px;padding:8px 10px;
+  border-top:1px solid var(--line);background:var(--bg2);position:relative;z-index:2}
+.avatar{width:22px;height:22px;border-radius:50%;flex:none;background:var(--green-bg);
+  color:var(--green-t);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.side__user{min-width:0;line-height:1.25}
+.side__user b{display:block;font-size:11.5px;font-weight:500}
+.side__usersub{font-size:10px;color:var(--t3)}
+.iconbtn{width:22px;height:22px;border-radius:6px;flex:none;display:flex;
+  align-items:center;justify-content:center;color:var(--t3)}
+.iconbtn:hover{background:#EFEEE8;color:var(--t1)}
 
 .editor{flex:1 1 0;min-width:0;background:var(--dark);display:flex;flex-direction:column}
 .editor__head{height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;
@@ -105,8 +165,9 @@ input,select{font:inherit;color:inherit}
 .window.preview-hidden .splitter{opacity:0;pointer-events:none}
 
 .preview{flex:0 0 46%;min-width:0;display:flex;flex-direction:column;background:#F3F2EC;
-  overflow:hidden;transition:flex-basis .26s cubic-bezier(.4,0,.2,1),opacity .16s ease}
-.window.preview-hidden .preview{flex-basis:0;opacity:0;pointer-events:none}
+  overflow:hidden;transform:translateX(0);
+  transition:flex-basis .26s cubic-bezier(.4,0,.2,1),opacity .18s ease,transform .26s cubic-bezier(.4,0,.2,1)}
+.window.preview-hidden .preview{flex-basis:0;opacity:0;transform:translateX(22px);pointer-events:none}
 .preview__head{height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;
   padding:0 12px;border-bottom:1px solid var(--line);background:var(--bg2);font-size:11px;color:var(--t3)}
 .widths{display:flex;gap:3px}
@@ -136,38 +197,20 @@ input,select{font:inherit;color:inherit}
 .mermaid code{font-family:var(--mono);font-size:11px;background:#fff;border:.5px solid var(--line);
   border-radius:5px;padding:1px 6px;color:var(--t2)}
 
-.rail{width:34px;flex:none;background:var(--bg2);border-left:1px solid var(--line);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-  cursor:pointer;margin-right:-35px;opacity:0;
-  transition:margin-right .26s cubic-bezier(.4,0,.2,1),opacity .2s ease}
-.window.preview-hidden .rail{margin-right:0;opacity:1}
-.rail:hover{background:var(--bg3)}
-.rail__label{writing-mode:vertical-rl;font-size:11px;color:var(--t2);letter-spacing:1.5px}
-.rail__arrow{width:16px;height:16px;border:.5px solid var(--line2);border-radius:4px;
-  display:flex;align-items:center;justify-content:center}
-.ar-l{border-right:4px solid var(--t2);border-top:3.5px solid transparent;border-bottom:3.5px solid transparent}
-.ar-r{border-left:4px solid var(--t2);border-top:3.5px solid transparent;border-bottom:3.5px solid transparent}
-
-.drawer{position:absolute;top:0;right:0;bottom:0;width:216px;background:#fff;
-  border-left:1px solid var(--line2);display:flex;flex-direction:column;
-  transform:translateX(100%);transition:transform .2s ease;z-index:20;font-size:12px}
-.drawer.open{transform:translateX(0)}
-.drawer__head{display:flex;align-items:center;justify-content:space-between;
-  padding:9px 12px;border-bottom:1px solid var(--line);font-size:11px;color:var(--t3)}
-.drawer__body{flex:1;padding:8px 0;line-height:1.95;overflow:hidden}
-.ol{padding:3px 12px;color:var(--t1)}
-.ol--sub{padding-left:26px;color:var(--t2)}
-.ol--active{background:var(--gold-bg);border-left:2px solid var(--gold);padding-left:10px}
-.drawer__foot{padding:8px 12px;border-top:1px solid var(--line);font-size:11px;
-  color:var(--t3);display:flex;justify-content:space-between}
+.paneltoggle{width:26px;height:24px;flex:none;border:.5px solid var(--line2);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;color:var(--t2);margin-left:2px;
+  transition:background .15s,border-color .15s,color .15s}
+.paneltoggle:hover{border-color:var(--gold);color:var(--t1);background:var(--gold-bg)}
+.paneltoggle.on{background:var(--gold-bg);border-color:var(--gold-line);color:#6B5309}
 
 .statusbar{height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;
   padding:0 12px;border-top:1px solid var(--line);background:var(--bg2);font-size:11px;color:var(--t3)}
 .statusbar__group{display:flex;gap:14px}
 .remember{color:var(--green-t)}
 
-.page{position:absolute;left:0;right:0;top:80px;bottom:0;background:var(--bg);
+.page{position:absolute;left:208px;right:0;top:44px;bottom:0;background:var(--bg);
   z-index:30;display:none;flex-direction:column}
+.window.navpage .tabbar{display:none}
 .page.active{display:flex}
 .page__head{flex:none;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
 .page__title{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
@@ -252,13 +295,13 @@ input,select{font:inherit;color:inherit}
 <body>
 
 <div class="review">
-  <div class="review__brand"><span class="review__dot"></span>GoldenEdit · 产品原型 v3</div>
+  <div class="review__brand"><span class="review__dot"></span>GoldenEdit · 产品原型 v4</div>
   <div class="review__tabs">
     <button class="rtab active" data-view="main">主界面</button>
     <button class="rtab" data-view="plugins">插件管理</button>
     <button class="rtab" data-view="export">导出对话框</button>
   </div>
-  <div class="review__hint">预览右侧 › 收起，右缘把手展开 · Ctrl+Shift+V / Ctrl+Shift+O</div>
+  <div class="review__hint">左栏分组可折叠 · 右上角方框开合预览 · Ctrl+Shift+V / O</div>
 </div>
 
 <div class="window" id="win">
@@ -271,9 +314,15 @@ input,select{font:inherit;color:inherit}
     </div>
     <div class="titlebar__right">
       <div class="chip"><span class="sw sw--dark"></span><span class="sw sw--light"></span><span>暗 / 亮</span></div>
-      <button class="chip" id="btnOutline">大纲</button>
       <button class="chip" id="btnPlugins">插件 6</button>
       <button class="chip" id="btnExport">导出</button>
+      <button class="paneltoggle on" id="btnPreview" title="预览面板（Ctrl+Shift+V）">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.2" stroke-linejoin="round">
+          <rect x="1.7" y="2.7" width="12.6" height="10.6" rx="2"></rect>
+          <path d="M9.5 2.7v10.6"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -285,17 +334,77 @@ input,select{font:inherit;color:inherit}
 
   <div class="body">
     <aside class="sidebar">
-      <div class="sidebar__head"><span>文件</span><span>+</span></div>
-      <div class="tree">
-        <div class="tree__row"><span class="caret"></span>docs</div>
-        <div class="tree__row tree__row--file tree__row--active">ARCHITECTURE.md</div>
-        <div class="tree__row tree__row--file">Features.md</div>
-        <div class="tree__row tree__row--file">原型草图.md</div>
-        <div class="tree__row"><span class="caret"></span>samples</div>
-        <div class="tree__row tree__row--file">demo.md</div>
-        <div class="tree__row">README.md</div>
+      <div class="side__brand">
+        <span class="side__logo"></span>
+        <div class="side__brandtext">
+          <div class="side__name">GoldenEdit</div>
+          <div class="side__ver">v0.1.0</div>
+        </div>
+        <button class="side__ws">工作区 ▾</button>
       </div>
-      <div class="sidebar__foot"><span>12 个文件</span><span>3 个未保存</span></div>
+
+      <nav class="side__nav">
+        <button class="navrow">
+          <span class="ni"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 3.2v9.6M3.2 8h9.6"></path></svg></span>
+          <span>新建文档</span><span class="navmeta">Ctrl N</span>
+        </button>
+        <button class="navrow">
+          <span class="ni"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M1.8 4.2h4l1.3 1.6h7.1v7.2H1.8z"></path><path d="M1.8 4.2V3h5.3l1.2 1.2"></path></svg></span>
+          <span>打开文件夹</span><span class="navmeta">Ctrl K</span>
+        </button>
+        <button class="navrow" id="navPlugins">
+          <span class="ni"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="4.6" height="4.6" rx="1.4"></rect><rect x="9.4" y="2" width="4.6" height="4.6" rx="1.4"></rect><rect x="2" y="9.4" width="4.6" height="4.6" rx="1.4"></rect><rect x="9.4" y="9.4" width="4.6" height="4.6" rx="1.4"></rect></svg></span>
+          <span>插件</span><span class="badge" id="navBadge">6</span>
+        </button>
+        <button class="navrow" id="navExport">
+          <span class="ni"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M8 2.4v7.2"></path><path d="M5.1 6.9 8 9.8l2.9-2.9"></path><path d="M2.6 11.4v1.4c0 .4.3.8.8.8h9.2c.5 0 .8-.4.8-.8v-1.4"></path></svg></span>
+          <span>导出</span><span class="navmeta">Ctrl E</span>
+        </button>
+      </nav>
+
+      <div class="side__scroll">
+        <div class="group" id="grpFiles">
+          <div class="group__head"><span class="gcaret"></span><span>文件</span><span class="gcount">12</span><span class="gadd">+</span></div>
+          <div class="group__body">
+            <div class="row"><span class="gcaret" style="opacity:.5"></span>docs<span class="row__meta">4</span></div>
+            <div class="row row--file row--on">ARCHITECTURE.md<span class="row__dot"></span></div>
+            <div class="row row--file">Features.md</div>
+            <div class="row row--file">原型草图.md<span class="row__dot"></span></div>
+            <div class="row"><span class="gcaret" style="opacity:.5"></span>samples<span class="row__meta">7</span></div>
+          </div>
+        </div>
+
+        <div class="group" id="grpOutline">
+          <div class="group__head"><span class="gcaret"></span><span>大纲</span><span class="gcount">6</span></div>
+          <div class="group__body">
+            <div class="olrow">GoldenEdit</div>
+            <div class="olrow olrow--2 olrow--on">已启用插件</div>
+            <div class="olrow olrow--3">渲染管线</div>
+            <div class="olrow olrow--2">插件契约</div>
+            <div class="olrow olrow--2">导出</div>
+            <div class="olrow">主题</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side__promo">
+        <div class="promo">
+          <div class="promo__t">渲染正常 · 38ms</div>
+          <div class="promo__d">6 个插件生效，无报错</div>
+          <button class="promo__b">打开诊断</button>
+        </div>
+      </div>
+
+      <div class="side__foot">
+        <span class="avatar">L</span>
+        <div class="side__user"><b>Leo</b><span class="side__usersub">本地工作区</span></div>
+        <button class="iconbtn" title="设置">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="2.1"></circle><path d="M8 1.9v1.5M8 12.6v1.5M1.9 8h1.5M12.6 8h1.5M3.7 3.7l1 1M11.3 11.3l1 1M12.3 3.7l-1 1M4.7 11.3l-1 1"></path></svg>
+        </button>
+        <button class="iconbtn" title="切换主题">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="5.6"></circle><path d="M8 2.4a5.6 5.6 0 0 0 0 11.2z" fill="currentColor" stroke="none" opacity=".35"></path></svg>
+        </button>
+      </div>
     </aside>
 
     <main class="editor">
@@ -317,7 +426,7 @@ input,select{font:inherit;color:inherit}
             <span style="width:5px;height:5px;border-radius:50%;background:var(--green)"></span>
             <span>6 插件 · 38ms</span>
           </div>
-          <button class="collapse" id="btnCollapse" title="收起预览（Ctrl+Shift+V）">›</button>
+          <button class="collapse" id="btnCollapse" title="关闭预览（Ctrl+Shift+V）">×</button>
         </div>
       </div>
       <div class="preview__scroll">
@@ -345,24 +454,6 @@ input,select{font:inherit;color:inherit}
         </div>
       </div>
     </section>
-
-    <div class="rail" id="rail">
-      <div class="rail__label">预览</div>
-      <div class="rail__arrow"><span class="ar-l"></span></div>
-    </div>
-
-    <div class="drawer" id="drawer">
-      <div class="drawer__head"><span>大纲 · ARCHITECTURE.md</span><span>Esc</span></div>
-      <div class="drawer__body">
-        <div class="ol">GoldenEdit</div>
-        <div class="ol ol--active">已启用插件</div>
-        <div class="ol ol--sub">渲染管线</div>
-        <div class="ol ol--sub">插件契约</div>
-        <div class="ol">导出</div>
-        <div class="ol">主题</div>
-      </div>
-      <div class="drawer__foot"><span>跳转不关闭</span><span>Ctrl+Shift+O</span></div>
-    </div>
   </div>
 
   <footer class="statusbar">
@@ -506,15 +597,18 @@ codeEl.innerHTML = doc.map((row, idx) => {
 }).join('');
 
 const win = document.getElementById('win');
-const drawer = document.getElementById('drawer');
 
-document.getElementById('rail').onclick = () => togglePreview(false);
+document.getElementById('btnPreview').onclick = () => togglePreview(!win.classList.contains('preview-hidden'));
 document.getElementById('splitter').ondblclick = () => togglePreview(true);
 document.getElementById('btnCollapse').onclick = () => togglePreview(true);
-document.getElementById('btnOutline').onclick = () => {
-  drawer.classList.toggle('open');
-  document.getElementById('btnOutline').classList.toggle('chip--on');
-};
+
+document.querySelectorAll('.group__head').forEach(head => {
+  head.onclick = e => {
+    if (e.target.classList.contains('gadd')) return;
+    head.closest('.group').classList.toggle('closed');
+  };
+});
+
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
     e.preventDefault();
@@ -523,24 +617,24 @@ document.addEventListener('keydown', e => {
   }
   if (e.ctrlKey && e.shiftKey && (e.key === 'O' || e.key === 'o')) {
     e.preventDefault();
-    toggleOutline();
+    toggleGroup('grpOutline');
     return;
   }
   if (e.key === 'Escape') {
-    drawer.classList.remove('open');
-    document.getElementById('btnOutline').classList.remove('chip--on');
     document.getElementById('overlay').classList.remove('active');
     showView('main');
   }
 });
 
-function toggleOutline() {
-  drawer.classList.toggle('open');
-  document.getElementById('btnOutline').classList.toggle('chip--on');
+function toggleGroup(id) {
+  const g = document.getElementById(id);
+  g.classList.toggle('closed');
+  if (!g.classList.contains('closed')) g.scrollIntoView({ block: 'nearest' });
 }
 
 function togglePreview(collapse) {
   win.classList.toggle('preview-hidden', collapse);
+  document.getElementById('btnPreview').classList.toggle('on', !collapse);
   const ratio = document.getElementById('ratio');
   ratio.textContent = collapse ? '预览已收起 · 已记忆' : '分栏 54/46 · 已记忆';
 }
@@ -643,6 +737,7 @@ function updateCount() {
   const n = plugins.filter(p => p.on).length;
   document.getElementById('pluginCount').textContent = `${plugins.length} 个已安装 · ${n} 个已启用`;
   document.getElementById('btnPlugins').textContent = `插件 ${n}`;
+  document.getElementById('navBadge').textContent = n;
 }
 
 document.getElementById('pluginSearch').oninput = e => renderPlugins(e.target.value);
@@ -653,11 +748,16 @@ function showView(v) {
   document.querySelectorAll('.rtab').forEach(b => b.classList.toggle('active', b.dataset.view === v));
   document.getElementById('page-plugins').classList.toggle('active', v === 'plugins');
   document.getElementById('overlay').classList.toggle('active', v === 'export');
+  document.getElementById('navPlugins').classList.toggle('navrow--on', v === 'plugins');
+  document.getElementById('navExport').classList.toggle('navrow--on', v === 'export');
+  win.classList.toggle('navpage', v !== 'main');
 }
 
 document.querySelectorAll('.rtab').forEach(b => b.onclick = () => showView(b.dataset.view));
 document.getElementById('btnPlugins').onclick = () => showView('plugins');
 document.getElementById('btnExport').onclick = () => showView('export');
+document.getElementById('navPlugins').onclick = () => showView('plugins');
+document.getElementById('navExport').onclick = () => showView('export');
 document.getElementById('closeModal').onclick = () => showView('main');
 document.getElementById('cancelModal').onclick = () => showView('main');
 document.getElementById('doExport').onclick = () => showView('main');
