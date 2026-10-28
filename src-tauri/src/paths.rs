@@ -84,11 +84,18 @@ pub fn is_inside(root: &Path, target: &Path) -> bool {
 
 /// 把用户传入的 `rel` 解析成绝对路径，并做全部校验。
 /// 目标不存在时，校验其父目录——新建 / 重命名都需要这条路径。
+/// 空路径或 "." 代表工作区根目录自身。
 pub fn resolve_in_vault(root: &Path, rel: &str) -> ApiResult<PathBuf> {
-    let rel_path = validate_rel(rel)?;
     let canon_root = root
         .canonicalize()
         .map_err(|e| ApiError::denied(format!("工作区不可访问：{e}")))?;
+
+    let trimmed = rel.trim();
+    if trimmed.is_empty() || trimmed == "." {
+        return Ok(canon_root);
+    }
+
+    let rel_path = validate_rel(trimmed)?;
 
     let joined = canon_root.join(&rel_path);
     let resolved = if joined.exists() {
@@ -125,9 +132,24 @@ pub fn vault_id(root: &Path) -> String {
 pub fn to_rel(root: &Path, target: &Path) -> Option<String> {
     let r = strip_verbatim(root);
     let t = strip_verbatim(target);
-    let rel = t.strip_prefix(&r).ok()?;
+    let r_comps: Vec<_> = r.components().collect();
+    let t_comps: Vec<_> = t.components().collect();
+    if t_comps.len() <= r_comps.len() {
+        return None;
+    }
+    for (rc, tc) in r_comps.iter().zip(t_comps.iter()) {
+        let r_str = rc.as_os_str().to_string_lossy();
+        let t_str = tc.as_os_str().to_string_lossy();
+        if cfg!(windows) {
+            if !r_str.eq_ignore_ascii_case(&t_str) {
+                return None;
+            }
+        } else if r_str != t_str {
+            return None;
+        }
+    }
     let mut parts: Vec<String> = Vec::new();
-    for c in rel.components() {
+    for c in &t_comps[r_comps.len()..] {
         if let Component::Normal(seg) = c {
             parts.push(seg.to_string_lossy().to_string());
         }
@@ -250,5 +272,21 @@ mod tests {
         let (_g, root) = vault();
         let p = root.join("docs").join("nested");
         assert_eq!(to_rel(&root, &p).as_deref(), Some("docs/nested"));
+    }
+
+    #[test]
+    fn resolve_in_vault_allows_root_itself() {
+        let (_g, root) = vault();
+        assert_eq!(resolve_in_vault(&root, "").unwrap(), root.canonicalize().unwrap());
+        assert_eq!(resolve_in_vault(&root, ".").unwrap(), root.canonicalize().unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn to_rel_handles_case_difference_on_windows() {
+        let (_g, root) = vault();
+        let upper_root = PathBuf::from(root.to_string_lossy().to_uppercase());
+        let p = root.join("docs").join("nested");
+        assert_eq!(to_rel(&upper_root, &p).as_deref(), Some("docs/nested"));
     }
 }

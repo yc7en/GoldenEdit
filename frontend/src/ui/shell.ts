@@ -152,10 +152,14 @@ function renderTree(): void {
   }
   const root = store.tree.get('') ?? [];
   $('fileCount').textContent = String(root.length);
-  renderLevel(root, box);
+  if (root.length === 0) {
+    box.innerHTML = '<div class="row row--empty">当前文件夹为空</div>';
+    return;
+  }
+  renderLevel(root, box, 0);
 }
 
-function renderLevel(entries: Entry[], parent: HTMLElement): void {
+function renderLevel(entries: Entry[], parent: HTMLElement, depth = 0): void {
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue;
     const isDir = entry.kind === 'dir';
@@ -165,6 +169,9 @@ function renderLevel(entries: Entry[], parent: HTMLElement): void {
     row.className = `row${isDir ? '' : ' row--file'}${active ? ' row--on' : ''}`;
     row.dataset.rel = entry.rel;
     row.dataset.kind = entry.kind;
+    if (depth > 0) {
+      row.style.paddingLeft = `${12 + depth * 14}px`;
+    }
     row.innerHTML = isDir
       ? `<span class="gcaret"${expanded ? '' : ' style="transform:rotate(-90deg)"'}></span>` +
         `<span class="row__name">${escapeHtml(entry.name)}</span>` +
@@ -173,7 +180,7 @@ function renderLevel(entries: Entry[], parent: HTMLElement): void {
     parent.appendChild(row);
     if (isDir && expanded) {
       const children = store.tree.get(entry.rel) ?? [];
-      renderLevel(children, parent);
+      renderLevel(children, parent, depth + 1);
     }
   }
 }

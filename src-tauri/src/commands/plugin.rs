@@ -161,13 +161,26 @@ fn builtin_roots(app: &AppHandle) -> Vec<PathBuf> {
         roots.push(res.join("frontend").join("plugins"));
         roots.push(res.join("_up_/frontend").join("plugins"));
     }
+    // 兼容从 target/debug/ 或其他嵌套子目录直接运行的情况，向上逐级回溯 6 层探测
+    if let Ok(exe) = std::env::current_exe() {
+        let mut cur = exe.as_path();
+        for _ in 0..6 {
+            if let Some(p) = cur.parent() {
+                roots.push(p.join("plugins"));
+                roots.push(p.join("frontend").join("plugins"));
+                cur = p;
+            }
+        }
+    }
     let cwd = std::env::current_dir().unwrap_or_default();
-    roots.push(cwd.join("frontend").join("plugins"));
-    roots.push(cwd.join("plugins"));
-    roots.push(cwd.join("..").join("frontend").join("plugins"));
-    roots.push(cwd.join("..").join("plugins"));
-    roots.push(cwd.join("..").join("..").join("frontend").join("plugins"));
-    roots.push(cwd.join("..").join("..").join("plugins"));
+    let mut cur = cwd.as_path();
+    for _ in 0..4 {
+        roots.push(cur.join("frontend").join("plugins"));
+        roots.push(cur.join("plugins"));
+        if let Some(p) = cur.parent() {
+            cur = p;
+        }
+    }
     roots
 }
 
