@@ -339,17 +339,32 @@ tbody tr:nth-child(even) td {
   }
 }
 
-/* KaTeX 数学公式基础样式与 MathML 无障碍文本强力隐藏，杜绝公式与纯文本双重渲染缺陷 */
-.katex .katex-mathml {
-  position: absolute !important;
-  clip: rect(1px, 1px, 1px, 1px) !important;
-  padding: 0 !important;
-  border: 0 !important;
-  height: 1px !important;
-  width: 1px !important;
-  overflow: hidden !important;
-  white-space: nowrap !important;
-  display: none !important;
+/* KaTeX 数学公式基础样式与 Chromium 原生 MathML 支持 */
+.ge-katex--block {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1.2em 0;
+  overflow-x: auto;
+  color: var(--ge-fg);
+}
+
+.ge-katex--block math {
+  margin: 0 auto;
+}
+
+.ge-katex--inline {
+  color: var(--ge-fg);
+  display: inline;
+}
+
+.katex {
+  font-size: 1.15em;
+  color: var(--ge-fg);
+}
+
+.katex math {
+  color: var(--ge-fg);
 }
 
 /* Callout 提示框基础降级与折叠样式 */

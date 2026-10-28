@@ -27,7 +27,7 @@ export function register(md, ctx) {
         katex.render(math, el, {
           displayMode,
           throwOnError: Boolean(cfg.throwOnError),
-          output: 'html',
+          output: 'mathml',
         });
       } catch {
         el.textContent = math;
