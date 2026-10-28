@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoldenEdit · 产品原型</title>
+<style>
+:root{
+  --page:#EFEDE6; --bg:#FFFFFF; --bg2:#F7F7F5; --bg3:#EFEDE4;
+  --line:#E9E7DF; --line2:#D9D7CE; --line3:#C9C7BE;
+  --t1:#2C2C2A; --t2:#5F5E5A; --t3:#8A8A85;
+  --gold:#C9A227; --gold-bg:#F7F2DF; --gold-line:#E4D49A;
+  --dark:#1E1E1E; --dark2:#252526; --dark3:#2A2D2E;
+  --blue:#378ADD; --blue-bg:#F4F8FD; --blue-t:#185FA5;
+  --green:#1D9E75; --green-bg:#E1F5EE; --green-t:#085041;
+  --mono:"Cascadia Mono","JetBrains Mono",Consolas,"Courier New",monospace;
+  --sans:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--page); font-family:var(--sans); color:var(--t1);
+  font-size:13px; line-height:1.6; padding:26px 24px 40px;
+  display:flex; flex-direction:column; align-items:center; gap:16px;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select{font:inherit;color:inherit}
+
+.review{width:min(1240px,100%);display:flex;align-items:center;justify-content:space-between;gap:16px}
+.review__brand{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--t2);letter-spacing:.2px}
+.review__dot{width:12px;height:12px;border-radius:4px;background:var(--gold)}
+.review__tabs{display:flex;gap:2px;background:#E7E5DC;padding:3px;border-radius:9px}
+.rtab{font-size:12px;padding:5px 14px;border-radius:7px;color:var(--t2)}
+.rtab.active{background:#fff;color:var(--t1);box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.review__hint{font-size:11px;color:var(--t3)}
+
+.window{
+  width:min(1240px,100%);height:780px;background:var(--bg);
+  border:1px solid var(--line3);border-radius:12px;overflow:hidden;
+  display:flex;flex-direction:column;position:relative;
+}
+
+.titlebar{height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;border-bottom:1px solid var(--line)}
+.titlebar__left{display:flex;align-items:center;gap:9px;min-width:0}
+.logo{width:14px;height:14px;border-radius:4px;background:var(--gold);flex:none}
+.appname{font-size:13px;font-weight:500}
+.crumb{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.titlebar__right{display:flex;align-items:center;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 9px;
+  border:.5px solid var(--line2);border-radius:6px;color:var(--t2)}
+.chip--on{background:var(--gold-bg);border-color:var(--gold-line);color:#6B5309}
+.sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+.sw--dark{background:var(--dark)}
+.sw--light{background:#fff;border:.5px solid var(--line3)}
+
+.tabbar{height:36px;flex:none;display:flex;align-items:flex-end;gap:2px;padding:0 8px;
+  background:var(--bg2);border-bottom:1px solid var(--line)}
+.tab{display:flex;align-items:center;gap:7px;height:36px;padding:0 13px;font-size:12px;color:var(--t2)}
+.tab.active{background:#fff;color:var(--t1);border-top:2px solid var(--gold);
+  border-left:.5px solid var(--line);border-right:.5px solid var(--line);margin-bottom:-1px}
+.tab__dot{width:5px;height:5px;border-radius:50%;background:var(--gold)}
+.tab--add{color:var(--t3);padding:0 10px}
+
+.body{flex:1;display:flex;min-height:0;position:relative;overflow:hidden}
+
+.sidebar{width:190px;flex:none;background:var(--bg2);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;font-size:12px}
+.sidebar__head{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px 7px;font-size:11px;color:var(--t3)}
+.tree{flex:1;overflow:hidden}
+.tree__row{display:flex;align-items:center;gap:6px;padding:4px 12px;color:var(--t2)}
+.tree__row--file{padding-left:27px}
+.tree__row--active{background:var(--bg3);color:var(--t1);font-weight:500;
+  border-left:2px solid var(--gold);padding-left:25px}
+.caret{width:0;height:0;border-left:4px solid #8A8A85;border-top:3.5px solid transparent;
+  border-bottom:3.5px solid transparent}
+.sidebar__foot{border-top:1px solid var(--line);padding:8px 12px;font-size:11px;
+  color:var(--t3);display:flex;justify-content:space-between}
+
+.editor{flex:1 1 0;min-width:0;background:var(--dark);display:flex;flex-direction:column}
+.editor__head{height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 12px;background:var(--dark2);color:#9A9A9A;font-size:11px}
+.code{flex:1;padding:8px 0;font-family:var(--mono);font-size:12px;line-height:1.95;overflow:hidden}
+.line{display:flex;padding:0 12px}
+.line--active{background:var(--dark3)}
+.ln{width:22px;flex:none;text-align:right;color:#5A5A5A;user-select:none}
+.line--active .ln{color:#8A8A8A}
+.lc{padding-left:12px;white-space:pre}
+.c-h1{color:#569CD6;font-weight:500}
+.c-h2{color:#4EC9B0;font-weight:500}
+.c-q{color:#6A9955}
+.c-qv{color:#9CDCFE}
+.c-p{color:#D4D4D4}
+.c-str{color:#CE9178}
+.c-ck{color:#6A9955}
+.c-empty{color:#808080}
+.caret-mark{color:var(--gold)}
+
+.splitter{width:4px;flex:none;background:var(--bg3);cursor:col-resize;transition:opacity .18s;
+  display:flex;align-items:center;justify-content:center}
+.splitter::after{content:"";width:2px;height:24px;border-radius:1px;background:var(--line3);transition:background .15s}
+.splitter:hover{background:var(--gold-line)}
+.splitter:hover::after{background:var(--gold)}
+.window.preview-hidden .splitter{opacity:0;pointer-events:none}
+
+.preview{flex:0 0 46%;min-width:0;display:flex;flex-direction:column;background:#F3F2EC;
+  overflow:hidden;transition:flex-basis .26s cubic-bezier(.4,0,.2,1),opacity .16s ease}
+.window.preview-hidden .preview{flex-basis:0;opacity:0;pointer-events:none}
+.preview__head{height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 12px;border-bottom:1px solid var(--line);background:var(--bg2);font-size:11px;color:var(--t3)}
+.widths{display:flex;gap:3px}
+.wbtn{padding:2px 8px;border-radius:5px;font-size:11px;color:var(--t3)}
+.wbtn.active{background:var(--bg3);color:var(--t1)}
+.collapse{width:18px;height:18px;padding:0;border:.5px solid var(--line2);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;color:var(--t2)}
+.collapse:hover{background:#fff;border-color:var(--gold);color:var(--t1)}
+.preview__scroll{flex:1;overflow:hidden;padding:16px}
+.paper{background:#fff;border:.5px solid var(--line);max-width:100%;margin:0 auto;
+  padding:22px 26px;transition:max-width .18s ease;min-height:100%}
+.h1{font-size:21px;font-weight:500;letter-spacing:-.2px;margin-bottom:13px}
+.h2{font-size:15px;font-weight:500;margin:16px 0 9px}
+.callout{position:relative;border-left:3px solid var(--blue);background:var(--blue-bg);
+  border-radius:0 6px 6px 0;padding:9px 13px;margin-bottom:14px}
+.callout__label{font-size:11px;color:var(--blue-t);margin-bottom:3px}
+.callout__body{font-size:13px;line-height:1.65;color:#3A3A38}
+.line-badge{position:absolute;left:-13px;top:3px;font-size:10px;line-height:1.4;
+  color:var(--t3);background:var(--bg3);border-radius:4px;padding:0 4px;opacity:0;transition:opacity .12s}
+.callout:hover .line-badge,.para:hover .line-badge{opacity:1}
+.para{position:relative;font-size:13px;line-height:1.75;color:#3A3A38;margin-bottom:10px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.pill{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--green-bg);color:var(--green-t)}
+.pill--off{background:var(--bg3);color:var(--t3)}
+.mermaid{border:.5px dashed var(--line2);border-radius:8px;background:#FBFAF6;
+  padding:16px;display:flex;align-items:center;justify-content:center;gap:9px;color:var(--t3);font-size:11px}
+.mermaid code{font-family:var(--mono);font-size:11px;background:#fff;border:.5px solid var(--line);
+  border-radius:5px;padding:1px 6px;color:var(--t2)}
+
+.rail{width:34px;flex:none;background:var(--bg2);border-left:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  cursor:pointer;margin-right:-35px;opacity:0;
+  transition:margin-right .26s cubic-bezier(.4,0,.2,1),opacity .2s ease}
+.window.preview-hidden .rail{margin-right:0;opacity:1}
+.rail:hover{background:var(--bg3)}
+.rail__label{writing-mode:vertical-rl;font-size:11px;color:var(--t2);letter-spacing:1.5px}
+.rail__arrow{width:16px;height:16px;border:.5px solid var(--line2);border-radius:4px;
+  display:flex;align-items:center;justify-content:center}
+.ar-l{border-right:4px solid var(--t2);border-top:3.5px solid transparent;border-bottom:3.5px solid transparent}
+.ar-r{border-left:4px solid var(--t2);border-top:3.5px solid transparent;border-bottom:3.5px solid transparent}
+
+.drawer{position:absolute;top:0;right:0;bottom:0;width:216px;background:#fff;
+  border-left:1px solid var(--line2);display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .2s ease;z-index:20;font-size:12px}
+.drawer.open{transform:translateX(0)}
+.drawer__head{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 12px;border-bottom:1px solid var(--line);font-size:11px;color:var(--t3)}
+.drawer__body{flex:1;padding:8px 0;line-height:1.95;overflow:hidden}
+.ol{padding:3px 12px;color:var(--t1)}
+.ol--sub{padding-left:26px;color:var(--t2)}
+.ol--active{background:var(--gold-bg);border-left:2px solid var(--gold);padding-left:10px}
+.drawer__foot{padding:8px 12px;border-top:1px solid var(--line);font-size:11px;
+  color:var(--t3);display:flex;justify-content:space-between}
+
+.statusbar{height:28px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 12px;border-top:1px solid var(--line);background:var(--bg2);font-size:11px;color:var(--t3)}
+.statusbar__group{display:flex;gap:14px}
+.remember{color:var(--green-t)}
+
+.page{position:absolute;left:0;right:0;top:80px;bottom:0;background:var(--bg);
+  z-index:30;display:none;flex-direction:column}
+.page.active{display:flex}
+.page__head{flex:none;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+.page__title{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.page__title h1{font-size:17px;font-weight:500}
+.page__title span{font-size:12px;color:var(--t3)}
+.page__tools{display:flex;align-items:center;gap:8px}
+.search{flex:1;max-width:280px;height:30px;border:.5px solid var(--line2);border-radius:7px;
+  padding:0 10px;font-size:12px;background:#fff;outline:none}
+.search:focus{border-color:var(--gold)}
+.btn{font-size:12px;padding:6px 12px;border:.5px solid var(--line2);border-radius:7px;color:var(--t2)}
+.btn:hover{background:var(--bg2)}
+.btn--primary{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:500}
+.btn--primary:hover{background:#BE9820}
+.filters{display:flex;gap:4px;margin-top:12px}
+.fbtn{font-size:11px;padding:3px 10px;border-radius:20px;color:var(--t3)}
+.fbtn.active{background:var(--bg3);color:var(--t1)}
+.grid{flex:1;overflow:auto;padding:16px 22px 24px;display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start}
+.card{border:.5px solid var(--line);border-radius:10px;padding:13px 15px;background:#fff}
+.card.off{background:#FCFCFA}
+.card__top{display:flex;align-items:flex-start;gap:10px;margin-bottom:7px}
+.icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:500;flex:none}
+.card__name{font-size:13px;font-weight:500;line-height:1.35}
+.card__meta{font-size:11px;color:var(--t3)}
+.card__desc{font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:9px;min-height:38px}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.tag{font-family:var(--mono);font-size:10.5px;background:var(--bg2);border:.5px solid var(--line);
+  border-radius:5px;padding:1px 6px;color:var(--t2)}
+.card__foot{display:flex;align-items:center;justify-content:space-between;
+  border-top:.5px solid var(--line);padding-top:9px;font-size:11px;color:var(--t3)}
+.gear{font-size:11px;color:var(--t2);padding:2px 8px;border:.5px solid var(--line2);border-radius:6px}
+.gear:hover{background:var(--bg2)}
+.card__config{display:none;border-top:.5px dashed var(--line2);margin-top:10px;padding-top:10px}
+.card__config.open{display:block}
+.field{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.field label{font-size:11.5px;color:var(--t2)}
+.field select,.field input{font-size:11.5px;height:26px;border:.5px solid var(--line2);
+  border-radius:6px;padding:0 7px;background:#fff;color:var(--t1);min-width:120px}
+.perm{color:#854F0B;background:#FAEEDA;border-radius:4px;padding:1px 6px;font-size:10.5px}
+
+.switch{position:relative;width:32px;height:18px;flex:none;margin-left:auto;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.track{position:absolute;inset:0;background:var(--line3);border-radius:10px;transition:background .15s}
+.knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;
+  transition:transform .15s;border:.5px solid rgba(0,0,0,.06)}
+.switch input:checked+.track{background:var(--green)}
+.switch input:checked+.track .knob{transform:translateX(14px)}
+
+.overlay{position:absolute;inset:0;background:rgba(38,38,34,.32);z-index:50;
+  display:none;align-items:center;justify-content:center}
+.overlay.active{display:flex}
+.modal{width:640px;max-width:calc(100% - 48px);background:#fff;border-radius:12px;
+  overflow:hidden;display:flex;flex-direction:column}
+.modal__head{display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+.modal__head h2{font-size:15px;font-weight:500}
+.modal__body{display:flex;gap:18px;padding:16px 20px}
+.modal__col{flex:1;min-width:0}
+.modal__side{width:180px;flex:none}
+.mrow{margin-bottom:14px}
+.mlabel{font-size:11px;color:var(--t3);margin-bottom:6px}
+.seg{display:flex;gap:3px;background:var(--bg2);border-radius:8px;padding:3px}
+.seg button{flex:1;font-size:12px;padding:5px 0;border-radius:6px;color:var(--t2)}
+.seg button.active{background:#fff;color:var(--t1);border:.5px solid var(--line2)}
+.check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--t2);margin-bottom:7px;line-height:1.5}
+.check input{margin-top:3px;accent-color:var(--gold)}
+.check small{display:block;font-size:11px;color:var(--t3)}
+.path{display:flex;gap:6px}
+.path input{flex:1;height:30px;border:.5px solid var(--line2);border-radius:7px;padding:0 9px;font-size:12px;background:#fff}
+.thumb{border:.5px solid var(--line);border-radius:8px;background:#F3F2EC;padding:10px;height:150px;overflow:hidden}
+.thumb__paper{background:#fff;border:.5px solid var(--line);height:100%;padding:10px}
+.thumb__bar{height:5px;border-radius:2px;background:#E4E2DA;margin-bottom:5px}
+.thumb__bar--title{height:8px;width:60%;background:#CFCDC4;margin-bottom:8px}
+.estimate{margin-top:10px;font-size:11px;color:var(--t3);line-height:1.8}
+.estimate b{color:var(--t1);font-weight:500}
+.modal__foot{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;border-top:1px solid var(--line);background:var(--bg2)}
+.hintbox{font-size:11px;color:var(--t3)}
+</style>
+</head>
+<body>
+
+<div class="review">
+  <div class="review__brand"><span class="review__dot"></span>GoldenEdit · 产品原型 v3</div>
+  <div class="review__tabs">
+    <button class="rtab active" data-view="main">主界面</button>
+    <button class="rtab" data-view="plugins">插件管理</button>
+    <button class="rtab" data-view="export">导出对话框</button>
+  </div>
+  <div class="review__hint">预览右侧 › 收起，右缘把手展开 · Ctrl+Shift+V / Ctrl+Shift+O</div>
+</div>
+
+<div class="window" id="win">
+
+  <header class="titlebar">
+    <div class="titlebar__left">
+      <div class="logo"></div>
+      <span class="appname">GoldenEdit</span>
+      <span class="crumb">notes / docs / ARCHITECTURE.md</span>
+    </div>
+    <div class="titlebar__right">
+      <div class="chip"><span class="sw sw--dark"></span><span class="sw sw--light"></span><span>暗 / 亮</span></div>
+      <button class="chip" id="btnOutline">大纲</button>
+      <button class="chip" id="btnPlugins">插件 6</button>
+      <button class="chip" id="btnExport">导出</button>
+    </div>
+  </header>
+
+  <div class="tabbar">
+    <div class="tab active"><span>ARCHITECTURE.md</span><span class="tab__dot"></span></div>
+    <div class="tab"><span>对白-第三幕.md</span></div>
+    <div class="tab tab--add">+</div>
+  </div>
+
+  <div class="body">
+    <aside class="sidebar">
+      <div class="sidebar__head"><span>文件</span><span>+</span></div>
+      <div class="tree">
+        <div class="tree__row"><span class="caret"></span>docs</div>
+        <div class="tree__row tree__row--file tree__row--active">ARCHITECTURE.md</div>
+        <div class="tree__row tree__row--file">Features.md</div>
+        <div class="tree__row tree__row--file">原型草图.md</div>
+        <div class="tree__row"><span class="caret"></span>samples</div>
+        <div class="tree__row tree__row--file">demo.md</div>
+        <div class="tree__row">README.md</div>
+      </div>
+      <div class="sidebar__foot"><span>12 个文件</span><span>3 个未保存</span></div>
+    </aside>
+
+    <main class="editor">
+      <div class="editor__head"><span>Markdown</span><span>已保存</span></div>
+      <div class="code" id="code"></div>
+    </main>
+
+    <div class="splitter" id="splitter" title="双击收起预览"></div>
+
+    <section class="preview">
+      <div class="preview__head">
+        <div class="widths">
+          <button class="wbtn active" data-w="480">A4</button>
+          <button class="wbtn" data-w="100%">980</button>
+          <button class="wbtn" data-w="250">390</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="width:5px;height:5px;border-radius:50%;background:var(--green)"></span>
+            <span>6 插件 · 38ms</span>
+          </div>
+          <button class="collapse" id="btnCollapse" title="收起预览（Ctrl+Shift+V）">›</button>
+        </div>
+      </div>
+      <div class="preview__scroll">
+        <div class="paper" id="paper">
+          <div class="h1">GoldenEdit</div>
+          <div class="callout">
+            <div class="line-badge">L3</div>
+            <div class="callout__label">NOTE · 定位</div>
+            <div class="callout__body">把 Markdown 当源码，预览当渲染目标。</div>
+          </div>
+          <div class="h2">已启用插件</div>
+          <div class="pills">
+            <span class="pill">callout</span>
+            <span class="pill">mermaid</span>
+            <span class="pill">heading-number</span>
+            <span class="pill">codebar</span>
+            <span class="pill pill--off">katex 未启用</span>
+          </div>
+          <div class="mermaid"><span>mermaid 渲染区 · 只读</span><code>graph LR</code></div>
+          <div class="h2">插件契约</div>
+          <div class="para">
+            <div class="line-badge">L18</div>
+            每个插件导出 register(md, ctx)。渲染块必须带 data-line，否则点击跳转失效。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="rail" id="rail">
+      <div class="rail__label">预览</div>
+      <div class="rail__arrow"><span class="ar-l"></span></div>
+    </div>
+
+    <div class="drawer" id="drawer">
+      <div class="drawer__head"><span>大纲 · ARCHITECTURE.md</span><span>Esc</span></div>
+      <div class="drawer__body">
+        <div class="ol">GoldenEdit</div>
+        <div class="ol ol--active">已启用插件</div>
+        <div class="ol ol--sub">渲染管线</div>
+        <div class="ol ol--sub">插件契约</div>
+        <div class="ol">导出</div>
+        <div class="ol">主题</div>
+      </div>
+      <div class="drawer__foot"><span>跳转不关闭</span><span>Ctrl+Shift+O</span></div>
+    </div>
+  </div>
+
+  <footer class="statusbar">
+    <div class="statusbar__group"><span>1,842 字</span><span>约 8 分钟</span></div>
+    <div class="statusbar__group">
+      <span class="remember" id="ratio">分栏 54/46 · 已记忆</span>
+      <span>Ln 9, Col 18</span><span>UTF-8</span><span>Markdown</span>
+    </div>
+  </footer>
+
+  <section class="page" id="page-plugins">
+    <div class="page__head">
+      <div class="page__title">
+        <h1>插件</h1>
+        <span id="pluginCount">9 个已安装 · 6 个已启用</span>
+      </div>
+      <div class="page__tools">
+        <input class="search" id="pluginSearch" placeholder="搜索插件、触发语法…">
+        <button class="btn">打开插件目录</button>
+        <button class="btn btn--primary">+ 从文件夹安装</button>
+      </div>
+      <div class="filters">
+        <button class="fbtn active">全部</button>
+        <button class="fbtn">已启用 6</button>
+        <button class="fbtn">内置 7</button>
+        <button class="fbtn">本地 2</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="modal__head">
+        <h2>导出</h2>
+        <button class="gear" id="closeModal">关闭</button>
+      </div>
+      <div class="modal__body">
+        <div class="modal__col">
+          <div class="mrow">
+            <div class="mlabel">格式</div>
+            <div class="seg" id="fmtSeg">
+              <button class="active" data-fmt="html">单文件 HTML</button>
+              <button data-fmt="pdf">PDF</button>
+              <button data-fmt="png">PNG 长图</button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mlabel">宽度</div>
+            <div class="seg" id="wSeg">
+              <button class="active" data-w="a4">A4 210mm</button>
+              <button data-w="980">980px</button>
+              <button data-w="390">390px</button>
+            </div>
+          </div>
+          <div class="mrow">
+            <div class="mlabel">主题</div>
+            <select style="width:100%;height:30px;border:.5px solid var(--line2);border-radius:7px;padding:0 8px;background:#fff">
+              <option>与预览一致（当前：亮）</option>
+              <option>强制亮色</option>
+              <option>强制暗色</option>
+            </select>
+          </div>
+          <div class="mrow">
+            <div class="mlabel">资源</div>
+            <label class="check"><input type="checkbox" checked><span>内联图片与字体<small>生成的文件可以离线打开，体积变大</small></span></label>
+            <label class="check"><input type="checkbox" checked><span>内联插件样式<small>callout / 表格 / 代码块的外观</small></span></label>
+            <label class="check"><input type="checkbox"><span>内联插件脚本<small>保留 mermaid 等动态渲染能力，需联网或带运行时</small></span></label>
+          </div>
+        </div>
+        <div class="modal__side">
+          <div class="mlabel">输出预览</div>
+          <div class="thumb">
+            <div class="thumb__paper">
+              <div class="thumb__bar thumb__bar--title"></div>
+              <div class="thumb__bar" style="width:88%"></div>
+              <div class="thumb__bar" style="width:94%"></div>
+              <div class="thumb__bar" style="width:70%"></div>
+              <div style="height:14px"></div>
+              <div class="thumb__bar" style="width:40%;height:6px;background:#CFCDC4"></div>
+              <div class="thumb__bar" style="width:92%"></div>
+              <div class="thumb__bar" style="width:85%"></div>
+            </div>
+          </div>
+          <div class="estimate">
+            预估 <b id="estSize">1.8 MB</b><br>
+            <span id="estPages">A4 · 约 6 页</span><br>
+            与预览像素一致
+          </div>
+        </div>
+      </div>
+      <div class="modal__foot">
+        <div class="path" style="flex:1;max-width:360px">
+          <input value="J:\CODE\GoldenEdit\ARCHITECTURE.html">
+          <button class="btn">浏览</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="cancelModal">取消</button>
+          <button class="btn btn--primary" id="doExport">导出 HTML</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const doc = [
+  ['# GoldenEdit','h1'],
+  ['',''],
+  ['> [!NOTE] 定位','q'],
+  ['> 把 Markdown 当源码，预览当渲染目标。','qv'],
+  ['',''],
+  ['## 已启用插件','h2'],
+  ['',''],
+  ['- [x] callout','p'],
+  ['- [x] mermaid','p'],
+  ['- [ ] katex','p'],
+  ['',''],
+  ['```mermaid','str'],
+  ['graph LR','p'],
+  ['  A[编辑] --> B[预览]','p'],
+  ['```','str'],
+  ['',''],
+  ['## 插件契约','h2'],
+  ['每个插件导出 register(md, ctx)。','p'],
+  ['渲染块必须带 data-line，否则点击跳转失效。','p']
+];
+
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const codeEl = document.getElementById('code');
+const ACTIVE_LINE = 8;
+codeEl.innerHTML = doc.map((row, idx) => {
+  const [text, cls] = row;
+  let html = esc(text);
+  if (/^- \[/.test(text)) {
+    html = html.replace('[x]','<span class="c-ck">[x]</span>').replace('[ ]','<span class="c-empty">[ ]</span>');
+  }
+  if (idx === ACTIVE_LINE) html += '<span class="caret-mark">|</span>';
+  return `<div class="line${idx===ACTIVE_LINE?' line--active':''}"><span class="ln">${idx+1}</span><span class="lc c-${cls}">${html}</span></div>`;
+}).join('');
+
+const win = document.getElementById('win');
+const drawer = document.getElementById('drawer');
+
+document.getElementById('rail').onclick = () => togglePreview(false);
+document.getElementById('splitter').ondblclick = () => togglePreview(true);
+document.getElementById('btnCollapse').onclick = () => togglePreview(true);
+document.getElementById('btnOutline').onclick = () => {
+  drawer.classList.toggle('open');
+  document.getElementById('btnOutline').classList.toggle('chip--on');
+};
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
+    e.preventDefault();
+    togglePreview(!win.classList.contains('preview-hidden'));
+    return;
+  }
+  if (e.ctrlKey && e.shiftKey && (e.key === 'O' || e.key === 'o')) {
+    e.preventDefault();
+    toggleOutline();
+    return;
+  }
+  if (e.key === 'Escape') {
+    drawer.classList.remove('open');
+    document.getElementById('btnOutline').classList.remove('chip--on');
+    document.getElementById('overlay').classList.remove('active');
+    showView('main');
+  }
+});
+
+function toggleOutline() {
+  drawer.classList.toggle('open');
+  document.getElementById('btnOutline').classList.toggle('chip--on');
+}
+
+function togglePreview(collapse) {
+  win.classList.toggle('preview-hidden', collapse);
+  const ratio = document.getElementById('ratio');
+  ratio.textContent = collapse ? '预览已收起 · 已记忆' : '分栏 54/46 · 已记忆';
+}
+
+document.querySelectorAll('.wbtn').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('.wbtn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const w = b.dataset.w;
+    document.getElementById('paper').style.maxWidth = w === '100%' ? '100%' : w + 'px';
+  };
+});
+
+const plugins = [
+  {name:'提示框', id:'callout', v:'1.2.0', src:'内置', perm:'L1', on:true,
+   desc:'Obsidian 兼容的十一类提示框，可折叠、可嵌套、可自定义配色。',
+   tags:['&gt; [!NOTE]','> [!TIP]-'], cfg:'callout'},
+  {name:'标题编号', id:'heading-number', v:'1.1.0', src:'内置', perm:'L1', on:true,
+   desc:'多级自动编号 1.1.1，生成中文锚点 id 与就地目录。',
+   tags:['# 标题','[toc]'], cfg:null},
+  {name:'Mermaid 图表', id:'mermaid', v:'1.4.2', src:'内置', perm:'L2', on:true,
+   desc:'流程图、时序图、甘特图，配色与连线跟随预览主题。',
+   tags:['```mermaid'], cfg:'mermaid'},
+  {name:'KaTeX 公式', id:'katex', v:'1.0.3', src:'内置', perm:'L2', on:false,
+   desc:'离线渲染 LaTeX，不修改原始 Markdown，金额文本不会误判。',
+   tags:['$...$','$$...$$'], cfg:null},
+  {name:'代码块工具条', id:'codebar', v:'1.3.1', src:'内置', perm:'L2', on:true,
+   desc:'代码块顶部工具条与一键复制，行内代码红色强调。',
+   tags:['```any'], cfg:null},
+  {name:'表格增强', id:'table-gfm', v:'1.0.0', src:'内置', perm:'L1', on:true,
+   desc:'GFM 表格、删除线、列对齐与窄屏横向滚动。',
+   tags:['| a | b |'], cfg:null},
+  {name:'对白容器', id:'dialogue', v:'0.9.0', src:'内置', perm:'L1', on:false,
+   desc:'台词左栏、批注右栏的剧本排布，支持树状批注线。',
+   tags:['::: dialogue'], cfg:null},
+  {name:'PlantUML 时序图', id:'plantuml', v:'0.4.1', src:'本地', perm:'L3', on:false,
+   desc:'本地渲染 UML，需要系统安装 Java 运行时。',
+   tags:['```plantuml'], cfg:null, permWarn:true},
+  {name:'中文排版', id:'typographer', v:'1.0.2', src:'本地', perm:'L0', on:true,
+   desc:'标点挤压、中西文自动间距、段落两端对齐，纯 CSS 实现。',
+   tags:['全局'], cfg:null}
+];
+
+const colorFor = p => ({
+  L0:'#F1EFE8', L1:'#E6F1FB', L2:'#E1F5EE', L3:'#FAEEDA'
+}[p.perm] || '#F1EFE8');
+const inkFor = p => ({
+  L0:'#5F5E5A', L1:'#185FA5', L2:'#085041', L3:'#854F0B'
+}[p.perm] || '#5F5E5A');
+
+function renderPlugins(filter) {
+  const grid = document.getElementById('grid');
+  const list = plugins.filter(p => !filter || (p.name + p.id + p.tags.join('')).toLowerCase().includes(filter.toLowerCase()));
+  grid.innerHTML = list.map((p,i) => `
+    <article class="card ${p.on?'':'off'}">
+      <div class="card__top">
+        <div class="icon" style="background:${colorFor(p)};color:${inkFor(p)}">${p.perm}</div>
+        <div style="min-width:0">
+          <div class="card__name">${p.name}</div>
+          <div class="card__meta">${p.id} · v${p.v} · ${p.src}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" ${p.on?'checked':''} data-id="${p.id}">
+          <span class="track"><span class="knob"></span></span>
+        </label>
+      </div>
+      <div class="card__desc">${p.desc}</div>
+      <div class="tags">${p.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      <div class="card__foot">
+        <span>${p.permWarn ? '<span class="perm">需要本地程序</span>' : '权限等级 '+p.perm}</span>
+        ${p.cfg ? '<button class="gear">配置</button>' : '<span style="color:#B4B2A9">无配置项</span>'}
+      </div>
+      ${p.cfg ? `<div class="card__config">${cfgForm(p.cfg)}</div>` : ''}
+    </article>`).join('');
+
+  grid.querySelectorAll('.switch input').forEach(inp => {
+    inp.onchange = () => {
+      const p = plugins.find(x => x.id === inp.dataset.id);
+      p.on = inp.checked;
+      inp.closest('.card').classList.toggle('off', !inp.checked);
+      updateCount();
+    };
+  });
+  grid.querySelectorAll('.gear').forEach(btn => {
+    btn.onclick = () => btn.closest('.card').querySelector('.card__config').classList.toggle('open');
+  });
+}
+
+function cfgForm(id) {
+  if (id === 'mermaid') return `
+    <div class="field"><label>主题</label><select><option>跟随预览</option><option>default</option><option>dark</option><option>neutral</option></select></div>
+    <div class="field"><label>连线</label><select><option>basis（平滑）</option><option>step（直角）</option><option>linear</option></select></div>
+    <div class="field"><label>安全级别</label><select><option>strict</option><option>loose</option></select></div>`;
+  return `
+    <div class="field"><label>默认标题语言</label><select><option>中文</option><option>Obsidian 英文</option></select></div>
+    <div class="field"><label>显示图标</label><select><option>显示</option><option>隐藏</option></select></div>`;
+}
+
+function updateCount() {
+  const n = plugins.filter(p => p.on).length;
+  document.getElementById('pluginCount').textContent = `${plugins.length} 个已安装 · ${n} 个已启用`;
+  document.getElementById('btnPlugins').textContent = `插件 ${n}`;
+}
+
+document.getElementById('pluginSearch').oninput = e => renderPlugins(e.target.value);
+renderPlugins('');
+updateCount();
+
+function showView(v) {
+  document.querySelectorAll('.rtab').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  document.getElementById('page-plugins').classList.toggle('active', v === 'plugins');
+  document.getElementById('overlay').classList.toggle('active', v === 'export');
+}
+
+document.querySelectorAll('.rtab').forEach(b => b.onclick = () => showView(b.dataset.view));
+document.getElementById('btnPlugins').onclick = () => showView('plugins');
+document.getElementById('btnExport').onclick = () => showView('export');
+document.getElementById('closeModal').onclick = () => showView('main');
+document.getElementById('cancelModal').onclick = () => showView('main');
+document.getElementById('doExport').onclick = () => showView('main');
+
+const sizes = { html:['1.8 MB','A4 · 约 6 页'], pdf:['420 KB','A4 · 6 页'], png:['2.4 MB','2 倍图 · 480 × 3120'] };
+document.querySelectorAll('#fmtSeg button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#fmtSeg button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const f = b.dataset.fmt;
+    document.getElementById('estSize').textContent = sizes[f][0];
+    document.getElementById('estPages').textContent = sizes[f][1];
+    document.getElementById('doExport').textContent = '导出 ' + b.textContent.replace('单文件 ','');
+  };
+});
+document.querySelectorAll('#wSeg button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#wSeg button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  };
+});
+</script>
+</body>
+</html>

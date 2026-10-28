@@ -1,55 +1,106 @@
 # GoldenEdit 架构设计
 
-> Go + Wails v2 桌面 Markdown / HTML 编辑器。
-> 本地优先、离线可用、预览渲染可插拔（JS/CSS 插件，勾选即启用）。
-> Obsidian 兼容（读写本地 .md 库），左编辑暗色 / 右预览亮色分栏。
+> **本文件是软件设计契约。** 实现必须与本文一致；任何架构层面的变更，必须先修改本文件、再修改代码。
+> 版本基线：0.1.0 · 2026-10-28 · 目标平台 Windows（WebView2），架构上不排斥 macOS / Linux。
 
 ---
 
-## 1. 设计目标
+## 0. 文档治理
 
-| 目标 | 说明 |
+### 0.1 文档职责
+
+| 文件 | 职责 |
 |---|---|
-| 本地优先 | 不登录、不联网也能用；文件就是磁盘上的 .md，不入库 |
-| 插件化预览 | 新增渲染格式 = 丢一个 JS/CSS 插件包，设置页勾选启用；不改 Go、不重打包 |
-| 代码块触发 | ```mermaid / ```latex 等围栏语言名决定走哪个插件渲染 |
-| 暗色编辑 / 亮色预览 | 编辑区与预览区主题独立，默认左黑右白（Obsidian 分栏观感） |
-| 二期契约预留 | 云同步、协作、Vim/Emacs、DOCX/EPUB 只留接口，不实现 |
+| `docs/Features.md` | 功能清单。每条一句话，带状态标记。 |
+| `docs/ChangeLog.md` | 变更流水，按时间倒序。 |
+| `docs/ARCHITECTURE.md` | 本文。架构契约，唯一权威。 |
+| `docs/R-YYMMDD-00XX.md` | 需求 / 功能迭代记录。 |
+| `docs/BugFix-YYMMDD-00XX.md` | 缺陷修复记录。 |
+
+### 0.2 强制规则
+
+- 新增功能：必须同时更新 `Features.md` 与 `ChangeLog.md`。
+- 修改已有功能行为：必须更新 `Features.md`，并在 `ChangeLog.md` 记录。
+- 删除 / 废弃功能：必须更新 `Features.md` 状态，并在 `ChangeLog.md` 记录废弃 / 迁移说明。
+- 仅修 bug、不改功能行为：至少更新 `ChangeLog.md`；若影响功能说明，再更新 `Features.md`。
+- 架构发生变化：必须先更新 `ARCHITECTURE.md`，并在 `ChangeLog.md` 中注明「架构变更」。
+- 只改代码、不改文档：不允许提交，除非能明确说明「本次变更不触发任何文档更新」。
+- 文档更新与代码变更放在同一个提交中，不允许事后补。
+
+### 0.3 状态标记
+
+`✅ 已实现` / `🚧 开发中` / `📋 规划中` / `🗑 废弃`
+
+### 0.4 记录文件头
+
+`R-*` 与 `BugFix-*` 文件必须以下述头部开始，便于检索：
+
+```markdown
+---
+date: YYYY-MM-DD
+abstract: 一句话摘要
+status: 待处理 | 已处理 | 已取消
+---
+```
 
 ---
 
-## 2. 总体分层
+## 1. 产品定位与边界
+
+**一句话**：把 Markdown 当源码，把预览当可插拔的渲染目标。
+
+**差异化**：Typora 的主题只能换皮，Obsidian 的插件绑死在 Obsidian 内，VS Code 扩展只能活在 VSCode 的预览里。GoldenEdit 把「渲染」本身做成可外挂的：丢一个 JS/CSS 目录进去、勾选、预览立刻变样，并且能把这套外观原样导出成一份独立 HTML。
+
+**目标用户**：需要控制「文档交付形态」的人——写技术文档、研报、剧本，且不接受「在我的机器上很好看，发出去就散了」。
+
+**明确不做**：
+
+| 不做 | 原因 |
+|---|---|
+| 移动端 | 编辑依赖键盘与多窗格；手机端定位是「读」，属于后期用同一套渲染层做网页版 |
+| 所见即所得（Typora 式行内编辑） | 与「源码 / 成品分离」的产品模型冲突，且成本极高 |
+| 云同步 / 多人协作 | 一期契约里只留接口，不实现 |
+| 双链 / 笔记库 / 图谱 | 这是 Obsidian 的战场，不进入 |
+| 插件市场与在线分发 | 一期只支持本地目录安装；`manifest.source` 字段预留 |
+
+**争议裁决标准**：当功能取舍僵持时，问一句「它是否让预览更可编程、或让交付更可控」。答否即推迟。
+
+---
+
+## 2. 系统分层
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Wails 窗口 (WebView2)                  │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  frontend SPA (TS + Vite)                          │  │
-│  │  ┌──────────┐  ┌─────────────┐  ┌────────────────┐ │  │
-│  │  │  Monaco  │  │  Preview    │  │  Settings/UI   │ │  │
-│  │  │  编辑器   │←→│  渲染管线   │←→│  插件勾选面板  │ │  │
-│  │  └──────────┘  └──────┬──────┘  └───────┬────────┘ │  │
-│  │                        │                   │          │  │
-│  │              ┌─────────▼─────────────────▼───────┐   │  │
-│  │              │  Plugin Loader / Registry         │   │  │
-│  │              │  (markdown-it 规则 + 生命周期钩子)│   │  │
-│  │              └─────────▲─────────────────────────┘   │  │
-│  └────────────────────────│───────────────────────────┘  │
-└──────────────────────────┼───────────────────────────────┘
-                            │ Wails Bind (TS <-> Go)
-┌────────────────────────────┼───────────────────────────────┐
-│  Go Backend                ▼                               │
-│  internal/fs     读文件、vault 扫描、watcher、最近文件     │
-│  internal/settings  设置持久化 (appdata JSON)              │
-│  internal/export    HTML 单文件 / PDF (webview print)     │
-│  internal/platform  原生对话框、托盘、打开外部程序          │
-│  internal/sync      [二期] SyncProvider 接口 (空实现)      │
-│  internal/collab    [二期] 协作接口 (空实现)               │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ L1  Rust 宿主（tauri core）                                   │
+│     文件读写 / 目录扫描 / 文件监听 / 设置持久化 / 导出落盘     │
+│     预览 HTTP 服务 / 原生对话框 / 外部链接                     │
+│     职责红线：不解析 Markdown，不碰渲染树                      │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ Tauri IPC（仅 L2 持有 capability）
+┌───────────────────────────▼──────────────────────────────────┐
+│ L2  主 WebView（可信上下文）                                   │
+│     Monaco 编辑器 / 文件树 / 标签页 / 大纲抽屉 / 设置 / 插件管理 │
+│     postMessage 桥 / 剪贴板 / 快捷键                           │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ postMessage（双向 origin 校验）
+┌───────────────────────────▼──────────────────────────────────┐
+│ L3  预览 iframe（不可信上下文，opaque origin）                  │
+│     预览外壳页 / markdown-it 管线 / 插件运行时 / Worker        │
+│     无 Tauri IPC、无宿主 DOM、无 localStorage                  │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**关键决策：Markdown→HTML 在前端做，不在 Go 做。**
-理由：插件是 JS/CSS，`markdown-it` 的 fenced code block 渲染规则就是插件天然的挂载点；Go 端只做文件 IO 和系统集成，保持瘦后端。Go 不碰 markdown 语法树。
+### 2.1 层间铁律
+
+1. **L1 不解析 Markdown**。所有语法树与渲染逻辑都在 L3。L1 只认字节和路径。
+2. **L2 是唯一持有 Tauri capability 的上下文**。所有特权操作只能由 L2 发起。
+3. **L3 必须从预览服务的独立源加载**，不得使用 `srcdoc`、不得加载应用自身页面。原因：`srcdoc` 会继承父页面源，Tauri 的 IPC 注入脚本可能随之进入，沙箱失效。
+4. **插件代码只允许在 L3 执行**。插件永远拿不到 L2 的 DOM，也拿不到任何 IPC。
+5. **数据单向**：文档内容与配置由 L2 推入 L3；渲染结果只留在 L3；L3 只能回传事件（跳转、复制、日志）。L3 不向 L2 回传 HTML。
+
+### 2.2 为什么渲染不在 Rust 侧
+
+插件是 JS/CSS，`markdown-it` 的 fence / container 规则是插件唯一的挂载点。若渲染放 Rust，插件必须改成 WASM 或跨进程 RPC，「丢一个 JS 目录进去就能用」这个核心承诺立刻破产。
 
 ---
 
@@ -57,278 +108,457 @@
 
 ```
 GoldenEdit/
-├── go.mod
-├── main.go                  # Wails 入口
-├── app.go                   # App 结构，Bind 各 service
-├── wails.json
-├── internal/
-│   ├── fs/                  # 文件层
-│   │   ├── vault.go         # 打开 vault、列目录树
-│   │   ├── watcher.go       # 文件变更监听（外部改动同步回编辑器）
-│   │   ├── recent.go        # 最近文件/最近 vault
-│   │   └── doc.go
-│   ├── settings/            # 设置读写
-│   │   └── settings.go      # settings.json 模型 + 默认值
-│   ├── export/
-│   │   ├── exporter.go       # Exporter 接口（二期扩展点）
-│   │   ├── html.go           # 单文件 HTML 导出
-│   │   └── pdf.go            # 调 webview print-to-pdf
-│   ├── platform/
-│   │   ├── dialog.go         # 打开/保存文件、选 vault 目录
-│   │   └── shell.go          # 打开外部链接/文件夹
-│   ├── sync/                # [二期] 接口，不实现
-│   │   └── provider.go      # type Provider interface {...}
-│   └── collab/              # [二期] 接口，不实现
-│       └── session.go
-├── frontend/
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── index.html
-│   ├── src/
-│   │   ├── main.ts
-│   │   ├── editor/          # Monaco
-│   │   │   ├── setup.ts     # 实例化、暗主题、键位
-│   │   │   └── theme.ts     # "Golden Dark" 自定义主题
-│   │   ├── preview/         # 预览区
-│   │   │   ├── pipeline.ts  # markdown-it 实例 + 插件装配
-│   │   │   ├── renderer.ts  # HTML 注入预览容器
-│   │   │   └── scrollsync.ts # 编辑行↔预览锚点对齐
-│   │   ├── plugins/         # 插件运行时
-│   │   │   ├── types.ts     # PluginManifest / PluginContext
-│   │   │   ├── manager.ts   # 扫描、加载、启停
-│   │   │   └── sandbox.ts   # 插件沙箱（隔离用户贴的 HTML）
-│   │   ├── theme/           # 主题引擎
-│   │   │   ├── editor.css   # 暗色编辑区
-│   │   │   └── preview.css  # 亮色预览区（独立作用域）
-│   │   ├── vault/           # 文件树、多标签
-│   │   ├── settings/        # 设置面板（插件勾选表）
-│   │   └── wails-bindings/  # Wails 生成的 TS client
-│   └── plugins/             # 内置插件（随包发布）
-│       ├── callout/         # Obsidian > [!NOTE] + 旧 !!!note
-│       ├── heading-number/   # 标题多级编号 + TOC
-│       ├── mermaid/         # ```mermaid 图表
-│       ├── codebar/         # 代码块工具条/复制/行内代码
-│       ├── katex/           # $...$ 公式
-│       ├── table-gfm/       # GFM 表格
-│       └── dialogue/        # ::: dialogue 对白容器
-└── docs/
-    └── ARCHITECTURE.md
+├─ src-tauri/
+│  ├─ Cargo.toml
+│  ├─ tauri.conf.json
+│  ├─ capabilities/default.json          # 只授予主窗口 core:default + 自定义命令
+│  └─ src/
+│     ├─ main.rs
+│     ├─ lib.rs
+│     ├─ state.rs                       # AppState：vault / settings / 插件注册表
+│     ├─ paths.rs                       # 路径守卫（唯一允许拼路径的地方）
+│     ├─ watcher.rs                     # notify 封装
+│     ├─ preview_server.rs              # 本地 HTTP 服务
+│     └─ commands/
+│        ├─ vault.rs  ├─ doc.rs  ├─ settings.rs
+│        ├─ plugin.rs ├─ export.rs ├─ system.rs
+├─ frontend/
+│  ├─ index.html
+│  ├─ vite.config.ts
+│  ├─ src/
+│  │  ├─ main.ts
+│  │  ├─ bridge/            # invoke 封装 + 事件订阅（唯一碰 @tauri-apps/api 的目录）
+│  │  ├─ editor/            # Monaco 实例、golden-dark 主题、Emacs/Vim 预留
+│  │  ├─ shell/             # 应用外壳：标签页、分栏、抽屉、状态条
+│  │  ├─ vault/             # 文件树（懒加载）
+│  │  ├─ plugins/           # 插件管理 UI（不含运行时）
+│  │  ├─ settings/
+│  │  └─ theme/             # 设计 token、预设、生成 --ge-* 变量
+│  ├─ preview-shell/        # L3 入口页（打进预览服务，不打包进主页面）
+│  │  ├─ shell.ts           # 消息桥 + 管线装配
+│  │  ├─ pipeline.ts        # 解析 / 分块 / morphdom / mount 调度
+│  │  ├─ blocks.ts          # 块切分与 key
+│  │  ├─ context.ts         # PluginContext 实现
+│  │  ├─ worker/parse.ts    # Worker：markdown-it + L1 插件
+│  │  └─ plugins.css        # --ge-* 变量消费方样式
+│  └─ plugins/              # 内置插件（随包发布，构建期复制到预览服务根）
+│     ├─ callout/  ├─ heading-number/ ├─ mermaid/
+│     ├─ katex/    ├─ codebar/        ├─ table-gfm/  └─ dialogue/
+├─ design/prototype/index.html
+├─ docs/
+└─ README.md
 ```
 
-用户第三方插件不落仓库，落在：
-`%AppData%/GoldenEdit/plugins/<plugin-id>/`，启动时与内置插件合并扫描。
+**约束**：`frontend/src` 内除 `bridge/` 外，任何文件不得 import `@tauri-apps/api`。这是为了让预览侧的代码将来能原样搬到网页版。
 
 ---
 
-## 4. 插件契约（核心）
+## 4. 技术选型
 
-### 4.1 插件包结构
+| 层 | 选型 | 理由 |
+|---|---|---|
+| 壳 | Tauri 2（Rust） | 体积小、capability 权限模型细、CSP 可控 |
+| 编辑器 | Monaco | VS Code 内核，Markdown 高亮、查找替换、多光标、折叠白送；现有 `setup.ts` 可直接平移 |
+| 渲染 | markdown-it | 插件的 fence / container 挂载点天然，生态成熟 |
+| DOM 增量 | morphdom | 按块 diff，不重建未变节点 |
+| 数学 | KaTeX（离线） | 快、无 CDN 依赖 |
+| 图表 | Mermaid（离线） | 对比页共识项 |
+| 构建 | Vite + TypeScript | 标准 |
+| 文件监听 | notify | Rust 生态标准实现 |
+| 预览服务 | tiny_http 或 axum | 只服务静态资源，无需框架能力 |
+
+**Monaco 的已知约束**：靠 Web Worker 做语法分析，Tauri 的 CSP 会拦 `blob:` worker，必须放行 `worker-src blob:`。这是 Wails 下不会暴露、Tauri 下必然遇到的差异。
+
+---
+
+## 5. 插件体系（核心契约）
+
+### 5.1 三条设计原则
+
+1. **插件只产内容，不产结构。** 块包裹、`data-line` 锚点、错误卡片一律由管线生成，插件无法介入。这样「第三方插件渲染完丢掉行号、点击跳转失效」这个必然出现的 bug 在架构上被杜绝，而不是靠文档约束。
+2. **能力按「用了哪个口子」划分，不按作者自述。** 等级由运行时检测得出：用了 `onMount` 即 L2，用了 `ctx.net` 即 L3。manifest 里的 `permissions` 只用于「安装时提示」，不参与授权判断。
+3. **`ctx` 字段全部是 getter。** 插件若缓存 `ctx.config`，用户改配置后它将不响应。每次读取都必须拿到最新值。
+
+### 5.2 包结构
 
 ```
 plugins/mermaid/
-├── manifest.json
-├── renderer.js        # 入口，暴露 register()
-└── style.css          # 插件样式（可选）
+├─ manifest.json
+├─ entry.js            # ES module，必须导出 register(md, ctx)
+├─ style.css           # 可选，注入预览外壳，作用于 .ge-plugin-mermaid 作用域
+└─ assets/             # 可选，通过 ctx.assets.url() 引用
 ```
 
-### 4.2 manifest.json
+### 5.3 manifest.json
 
 ```json
 {
   "id": "mermaid",
   "name": "Mermaid 图表",
-  "version": "1.0.0",
-  "match": {
-    "fence": ["mermaid", "mmd", "flowchart"]
-  },
-  "entry": "renderer.js",
+  "version": "1.4.2",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "流程图、时序图、甘特图",
+  "trust": "builtin",
+  "entry": "entry.js",
   "style": "style.css",
+  "match": {
+    "fence": ["mermaid", "mmd"],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": ["dom", "libs:mermaid"],
   "config": {
-    "theme": { "type": "select", "default": "auto",
-               "options": ["auto","default","dark","forest","neutral","base"] },
-    "curve": { "type": "select", "default": "basis",
-               "options": ["basis","linear","step","natural","monotoneX"] },
-    "palette": { "type": "select", "default": "default",
-                 "options": ["default","mono"] },
-    "securityLevel": { "type": "select", "default": "strict",
-                       "options": ["strict","loose","antiscript"] }
-  }
+    "theme": { "type": "select", "default": "auto", "options": ["auto", "default", "dark", "neutral"] },
+    "curve": { "type": "select", "default": "basis", "options": ["basis", "linear", "step"] }
+  },
+  "preview": "preview.png",
+  "source": { "type": "builtin" }
 }
 ```
 
-字段说明：
-- `match`：触发方式，**三种可组合**（迁移自现有两个 VSCode 插件的实际触发形式）：
-  - `fence`：围栏语言名命中，如 `["mermaid"]`（对应 ```mermaid）
-  - `container`：`::: name ... :::` 容器名命中，如 `["dialogue"]`（迁移自 vscode-dialogue）
-  - `delimiter`：行内/块级定界符，如 `{"inline": "$...$", "block": "$$...$$"}`（迁移自 latex 插件）
-- `entry`：JS 入口，必须导出 `register(md, ctx)`。
-- `style`：插件样式（可选）。
-- `config`：插件自有设置项；设置页按 schema 自动生成表单，用户改完持久化。schema 类型：`boolean / select / number / string`。
+字段规则：
 
-### 4.3 renderer.js 约定
+- `apiVersion` 必须等于宿主支持的版本，否则拒绝加载并在插件页标注「需要更新宿主」。
+- `trust` 取 `builtin` / `local`。仅 `builtin` 可取用 `ctx.onCoreRule`。
+- `match` 三类可组合：`fence`（```lang）、`container`（`::: name`）、`delimiter`（`$...$` 等定界符）。
+- `config` 的 schema 类型限定 `boolean / select / number / string / textarea`，插件页据此自动渲染表单。
+- `source` 记录来源，`builtin` / `local` / 预留 `remote`。
 
-```js
-// markdown-it 实例 + 上下文
-export function register(md, ctx) {
-  // 方式一：替换围栏渲染规则（同步、简单插件用这个）
-  md.renderer.rules.fence = wrapFence(md.renderer.rules.fence, (info, code) => {
-    if (info === 'mermaid') {
-      return `<div class="ge-mermaid" data-code="${escape(code)}"></div>`;
-    }
-  });
+### 5.4 能力分级
 
-  // 方式二：挂载后异步渲染（需要 canvas/SVG 初始化的用这个）
-  ctx.onMount('.ge-mermaid', async (el, code, config) => {
-    const { svg } = await ctx.libs.mermaid.render(el.id, code, config);
-    el.innerHTML = svg;
-  });
+| 等级 | 判定条件 | 能力 | 安装提示 |
+|---|---|---|---|
+| L0 | 只有 `style.css`，无 `entry.js` | 纯样式覆盖 | 无风险 |
+| L1 | 只用 `onFence / onContainer / onDelimiter`，且回调为纯函数 | 同步返回 HTML 字符串，可在 Worker 中执行 | 低 |
+| L2 | 使用 `onMount` | 可操作自己容器内的 DOM | 中 |
+| L3 | 使用 `ctx.net` 或 `ctx.fs` | 可发起网络请求 / 读取白名单目录 | 高，需二次确认 |
+
+检测在加载时进行：对 `ctx` 的受限成员使用 Proxy 记录访问，`register` 结束后按访问记录计算等级并写入诊断面板。
+
+### 5.5 PluginContext 契约
+
+```ts
+export interface PluginContext {
+  readonly env: { apiVersion: 1; hostVersion: string; locale: string; scope: 'worker' | 'main' };
+  readonly config: Readonly<Record<string, unknown>>;   // getter，每次读取取最新值
+  readonly doc: Readonly<{ path: string; name: string; dir: string; frontmatter: Record<string, unknown> }>;
+  readonly theme: Readonly<{ mode: 'light' | 'dark'; tokens: Readonly<Record<string, string>> }>;
+
+  onFence(langs: string[], fn: (info: string, code: string, ctx: PluginContext) => string): void;
+  onContainer(names: string[], fn: (name: string, body: string, attrs: Record<string, string>, ctx: PluginContext) => string): void;
+  onDelimiter(kind: 'inline' | 'block', fn: (text: string, ctx: PluginContext) => string): void;
+
+  onMount(selector: string, fn: (el: HTMLElement, payload: unknown, ctx: PluginContext) => void | (() => void)): void;
+
+  assets: { url(rel: string): string };
+  libs: { load(name: 'mermaid' | 'katex'): Promise<unknown> };
+  log(level: 'info' | 'warn' | 'error', message: string, detail?: unknown): void;
+
+  // 仅 trust === 'builtin'
+  onCoreRule?(fn: (state: unknown) => void): void;
 }
 ```
 
-`ctx` 提供的能力（一期冻结）：
-- `ctx.libs`：插件共享的库句柄（mermaid、katex 等重库只加载一次）
-- `ctx.onMount(selector, fn)`：预览 DOM 更新后，对匹配节点执行挂载
-- `ctx.config`：当前插件配置
-- `ctx.bus`：事件总线（文档切换、主题切换通知插件）
+**双环境约定（必须遵守）**：同一份 `entry.js` 会在 Worker 与主线程各执行一次 `register`。
 
-### 4.4 插件生命周期
+- Worker 中 `ctx.scope === 'worker'`：`onMount` 注册为空操作；`onFence / onContainer / onDelimiter` 正常生效。因此这类回调**必须是纯函数**，不得引用 DOM、`window`、模块级可变状态。
+- 主线程中 `ctx.scope === 'main'`：`onFence` 等注册为空操作（渲染已在 Worker 完成）；`onMount` 正常生效。
+- 插件若在两个环境行为必须不同，用 `ctx.scope` 分支，不要探测 `typeof window`。
 
+**禁止清单**（宿主不提供，且 CSP 层拦截）：`fetch` / `XMLHttpRequest` / `WebSocket`（除 L3 代理）、`localStorage`、`window.parent`、`document.cookie`、任何 Tauri API。
+
+### 5.6 块与锚点归属
+
+管线在 Worker 侧按 markdown-it 顶层 token 切块，每块输出：
+
+```ts
+interface Block {
+  key: string;        // hash(源码 + 影响它的插件 id@version + theme.mode)
+  html: string;       // 插件 L1 输出，未包裹
+  line: number;       // token.map[0] + 1
+  pending: string[];  // 需要主线程 mount 的插件 id
+}
 ```
-启动 → 扫描内置 + 用户目录
-     → 读 manifest，校验 id/version/match
-     → 按设置页勾选状态决定启用
-     → 对启用插件：加载 style.css、执行 renderer.js 的 register(md, ctx)
-     → markdown-it 管线装配完成
-编辑输入 → markdown-it 转 HTML → 注入预览容器
-       → ctx.onMount 钩子对特殊节点做异步渲染
+
+主线程负责包裹：
+
+```html
+<section class="ge-block" data-key="{key}" data-line="{line}" data-plugins="mermaid">
+  <!-- 插件返回的 html -->
+</section>
 ```
 
-### 4.5 安全
+**插件不得输出 `data-line`、不得自带外层 `<section>`**；管线会剥离插件返回内容中的 `data-line` 属性并记一条 warn。
 
-- 第三方插件 JS 有风险：预览用户贴的 HTML 时用 iframe 沙箱（`sandbox="allow-scripts"`）隔离。
-- 插件默认**不能**直接调 Go 绑定；需要文件/系统能力时走显式白名单 API（二期再扩）。
+### 5.7 错误、超时与降级
 
----
-
-## 5. 主题模型（左黑右白）
-
-- 编辑区（Monaco）：独立 dark 主题 `Golden Dark`，CSS 作用域 `.ge-editor`。
-- 预览区：独立 light 主题，CSS 作用域 `.ge-preview`，默认亮色排版。
-- 两区主题**解耦**：用户可分别切换；设置里默认 `editor=dark, preview=light`。
-- 预览区暗色只是切一个 class（`.ge-preview.dark`），不影响编辑区。
-- 自定义 CSS：用户可在设置里追加自己的预览 CSS（Typora 式皮肤）。
-
----
-
-## 6. 渲染管线细节
-
-1. Monaco 内容变化 → 防抖 200ms → 交给 `pipeline.render(mdText)`。
-2. `markdown-it`（已被所有启用插件注册过规则）输出 HTML 字符串。
-3. 写入预览容器 `innerHTML`。
-4. `ctx.onMount` 队列执行：mermaid/katex 这类异步渲染把占位 div 换成真实 SVG。
-5. 滚动同步：编辑光标所在行 → 找预览中对应 `data-line` 锚点 → 滚动对齐。
-6. 大文件（>500KB）：分片渲染 + 预览虚拟滚动，避免主线程卡死。
-
----
-
-## 7. Go 端 Bind 接口（一期冻结）
-
-前端通过 Wails 调的方法，一期只暴露这些：
-
-| 方法 | 作用 |
+| 场景 | 行为 |
 |---|---|
-| `fs.OpenVault(dir)` | 打开/注册一个 vault，返回目录树 |
-| `fs.ListFiles(dir)` | 列 .md 文件 |
-| `fs.ReadFile(path)` | 读文件内容 |
-| `fs.WriteFile(path, content)` | 写回 |
-| `fs.Watch(dir)` | 监听外部改动，推送事件给前端 |
-| `fs.RecentVaults() / fs.AddRecent(...)` | 最近 vault |
-| `settings.Get() / settings.Set(partial)` | 读写设置（含插件启停状态） |
-| `export.HTML(path, out)` | 导出单文件 HTML |
-| `export.PDF(path, out)` | 导出 PDF |
-| `platform.PickVaultDir()` | 弹原生选目录对话框 |
-| `platform.OpenExternal(url)` | 浏览器打开链接 |
+| `register` 抛错 | 该插件标记「加载失败」，其余插件照常；插件页显示红色状态 |
+| L1 渲染抛错 | 该块降级为纯文本源码，附错误条；不影响其它块 |
+| `onMount` 抛错 | 容器内显示错误卡片（错误信息 + 原始代码 + 重试按钮） |
+| `onMount` 超过 3s 未完成 | 显示「渲染超时」，保留重试入口 |
+| `register` 超过 2s | 中止该插件加载 |
+| 插件样式缺失 | 不视为错误 |
 
-二期接口（先建空文件，方法签名定好）：
-- `sync.Provider`：`Pull(ctx) / Push(ctx) / WatchRemote(ctx)`
-- `collab.Session`：`Join(docId) / Apply(op)`
+任何情况下**不允许整页白屏**，这是硬性验收标准。
+
+### 5.8 主题变量契约
+
+插件所有颜色必须使用 `--ge-*` 变量，禁止硬编码色值。
+
+```css
+:root {
+  --ge-bg, --ge-bg-subtle, --ge-fg, --ge-fg-muted,
+  --ge-border, --ge-accent, --ge-accent-fg,
+  --ge-code-bg, --ge-code-fg, --ge-link,
+  /* 语义色 */
+  --ge-note, --ge-tip, --ge-warn, --ge-danger, --ge-success
+}
+```
+
+插件如需在运行时绘制（Mermaid、Canvas），从 `ctx.theme.tokens` 读取同名变量值，不要解析 CSS。
+
+### 5.9 安装与扫描
+
+扫描三处，后者覆盖前者（同 id 时用户在插件页看到「覆盖」标记）：
+
+1. 应用资源目录 `plugins/`（内置，只读）
+2. 用户数据目录 `<appdata>/GoldenEdit/plugins/<id>/`
+3. 当前 vault 下 `.goldenedit/plugins/<id>/`（可选，默认关闭，便于项目自带插件）
+
+安装方式：拖入文件夹、选择文件夹、从 zip 解压。安装仅做「复制到用户目录 + 校验 manifest」，不执行任何脚本。
+
+### 5.10 启停与重载
+
+勾选状态变化时，**重建整个预览 iframe**，而不是热替换 `register`。理由：重建能消除一切残留状态（定时器、缓存、全局变量），代价是一次重新渲染（<100ms）。插件文件 mtime 变化同样触发重建。
 
 ---
 
-## 8. 一期功能范围
+## 6. 渲染管线
 
-**做：**
-- Monaco 编辑 + 左右分栏 + 三种布局切换（分栏 / 纯编辑 / 纯预览）
-- vault 文件树、多标签、未保存标记、最近文件
-- markdown-it 基础渲染 + 内置 7 插件（全部从现有 VSCode 插件迁移）：
-  代码块工具条/复制、KaTeX 公式、Mermaid 图表、Obsidian callout、标题编号+TOC、GFM 表格、对白容器(dialogue)
-- 插件设置页（勾选启停、插件配置表单）
-- 左黑右白主题，预览自定义 CSS
-- HTML / PDF 导出
-- 滚动同步
+### 6.1 主链路
 
-**不做（二期，仅留契约）：**
-- 云同步（GitHub/Drive/OneDrive）
-- 多人实时协作
-- Vim/Emacs 键位（Monaco 扩展点已留）
-- DOCX / EPUB / LaTeX 导出（`export.Exporter` 接口已留）
+```
+Monaco change
+  └─(150ms 防抖 + 代际号 gen++)→ L2 发送 {type:'doc', gen, text, path}
+        └─ L3 shell 收到 → 若 gen < 当前代际则丢弃
+              └─ Worker: markdown-it 解析 → L1 插件渲染 → 切块 → 计算 key
+                    └─ 主线程：morphdom 按 key diff → 对 pending 块执行 onMount
+                          └─ 首屏后 requestIdleCallback 继续渲染剩余块
+```
 
----
+### 6.2 四层性能策略（全部实现）
 
-## 9. 技术选型
-
-| 层 | 选型 | 理由 |
+| 层 | 机制 | 解决的问题 |
 |---|---|---|
-| 壳 | Wails v2 | Go 后端 + WebView2，单 exe |
-| 编辑器 | Monaco | VSCode 内核，语法高亮/大纲白送 |
-| Markdown | markdown-it（前端） | 插件规则挂载点天然 |
-| 代码高亮 | Shiki（首版可用 highlight.js 降级） | 效果好 |
-| 数学 | KaTeX | 对比页共识 |
-| 图表 | Mermaid | 对比页里差异化点 |
-| 构建 | Vite + TS | 前端 SPA 标准 |
-| 设置 | appdata JSON | 简单可读 |
+| 1 | **块级 morphdom** | 全量 `innerHTML` 造成的 mermaid 重绘、折叠状态丢失、滚动跳变 |
+| 2 | **分片渲染** | 首屏只渲染前 200 块，其余空转插入，打开大文档不冻结 |
+| 3 | **防抖 + 代际取消** | 连续输入时旧的渲染结果覆盖新的；用 `gen` 单调递增，L3 丢弃过期批次 |
+| 4 | **Worker 解析** | 主线程不被 markdown-it 阻塞；L1 插件在 Worker 内执行，L2 块回主线程 mount |
+
+第 4 层的边界必须写清：**Worker 里没有 DOM**，因此 L2 插件在 Worker 阶段只产出占位容器，由主线程 `onMount` 填充。这也是 5.5 双环境约定的由来。
+
+### 6.3 块 key 算法
+
+```
+key = base36( fnv1a( blockSource + "\u0000" + sortedPluginIds + "\u0000" + themeMode ) )
+```
+
+- `blockSource`：该 token 对应的原始 Markdown 片段
+- `sortedPluginIds`：当前启用且 `match` 命中的插件 `id@version`，排序后拼接
+- `themeMode`：切换主题时强制重建（Mermaid 需要按新配色重绘）
+
+key 相同 → 节点原地保留，DOM 状态（折叠、选中、SVG）全部保住。
+
+### 6.4 阈值策略
+
+| 文档大小 | 策略 |
+|---|---|
+| < 200 KB | 全量渲染，不分片、不 morph（开销小于收益） |
+| 200 KB – 2 MB | 块级 morphdom + 分片 |
+| 2 MB – 10 MB | 追加：只渲染视口上下各 2 屏，滚动时补齐 |
+| > 10 MB | 预览默认收起，顶部提示「文档较大，预览已暂停」，提供手动渲染按钮 |
+
+编辑器不受此限制（Monaco 自身按行虚拟化）。
+
+### 6.5 跳转与滚动同步
+
+- 每个块有 `data-line`；L3 在块左侧渲染行号角标（hover 才显示）。
+- 点击角标 → `postMessage({type:'jump', line})` → L2 调用 `monaco.revealLineInCenter`。
+- 正文区域**不拦截点击**，保持原生选区 / 双击选词行为。
+- 滚动同步默认关闭，作为可选项；实现方式为 L2 取 Monaco 首个可见行，L3 滚动到对应块。
 
 ---
 
-## 10. 待确认 / 风险
+## 7. 主题模型
 
-1. **Wails v2**：已定，一期用 v2。
-2. **大文件**：>2MB 的 md 渲染性能要早做压测。
-3. **插件热更新**：设置页勾选后是否需要重启窗口？建议一期"即时重载插件注册"，二期再做。
+### 7.1 四档预设
+
+| 预设 | 编辑器 | 预览 |
+|---|---|---|
+| 跟随系统 | 系统 | 系统 |
+| 写作模式 | 暗 | 亮 |
+| 全亮 | 亮 | 亮 |
+| 全暗 | 暗 | 暗 |
+
+另提供「高级」：编辑器与预览各有一个独立下拉，可任意组合。
+
+### 7.2 变量来源
+
+L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 `{type:'theme', mode, tokens}` 推给 L3。L3 只做 `document.documentElement.style.setProperty`，不加载任何样式表变量文件。
+
+设计意图：预览主题与应用主题可完全解耦，`golden-light` 皮肤与 `golden-dark` 皮肤只是两组 token。
 
 ---
 
-## 11. 现有项目迁移清单
+## 8. 布局与交互契约
 
-两个 VSCode 插件的渲染逻辑直接迁成 GoldenEdit 内置插件。
+| 元素 | 行为 |
+|---|---|
+| 文件树 | 常驻左侧，190px，可折叠为图标栏；懒加载子目录 |
+| 大纲 | 右侧浮层抽屉，**overlay 不挤压内容**；`Ctrl+Shift+O`；跳转后不自动关闭 |
+| 预览 | 常驻可收起；收起为 34px 竖向把手；`Ctrl+Shift+V`；双击分隔条切换 |
+| 分栏比例 | 按文件记忆；拖动过程只改内存，松手落盘；两侧最小宽度 320 / 280 |
+| 同层抽屉 | 同一时刻只允许一个浮层（大纲 / 插件 / 导出）打开 |
+| 状态条 | 字数、预计阅读时长、记忆的分栏比例、行列号、编码、语言 |
 
-### 11.1 来源：vscode-markdown-extended
+**收起后编辑区最大宽度 1100px 居中**：行宽过长影响可读性，「只看源码」模式必须可用。
 
-| 现有文件 | GoldenEdit 插件目录 | 触发方式 | 说明 |
-|---|---|---|---|
-| `src/plugins/callout.js` + `callout-shared.js` | `frontend/plugins/callout/` | blockquote `> [!NOTE]` | Obsidian 风格提示框，含图标/中文标题/别名表 |
-| `src/plugins/admonition.js` | 并入 callout 插件 | `!!!note{标题} ... !!!` | 旧语法，callout 插件内开关控制 |
-| `src/plugins/heading.js` | `frontend/plugins/heading-number/` | 渲染所有 `#` 标题 | 多级编号 1.1.1 + 锚点 id |
-| `src/plugins/mermaid.js` | `frontend/plugins/mermaid/` | fence `mermaid` | 解析期产占位 div，挂载期异步绘图 |
-| `src/plugins/codeblock.js` | `frontend/plugins/codebar/` | fence + code_block + code_inline | 工具条/复制按钮/行内代码强调 |
-| `src/plugins/latex.js` | `frontend/plugins/katex/` | delimiter `$...$` / `$$...$$` | markdown-it-texmath + KaTeX |
-| `src/plugins/theme.js` | `frontend/src/theme/`（非插件） | 包装 md.render | 亮/暗配色接管 |
-| `media/vendor/mermaid.min.js` | `frontend/plugins/mermaid/vendor/` | — | 3.5MB 运行时，复用 |
-| `media/katex.min.css` + `media/fonts/*.woff2` | `frontend/plugins/katex/vendor/` | — | KaTeX 样式+字体，复用 |
-| `media/preview.css` / `styles/markdown-theme.css` | `frontend/src/theme/preview.css` | — | 预览排版，迁到独立作用域 |
+---
 
-### 11.2 来源：vscode-dialogue
+## 9. Rust 侧契约
 
-| 现有文件 | GoldenEdit 插件目录 | 触发方式 | 说明 |
-|---|---|---|---|
-| `src/md-plugin.js` | `frontend/plugins/dialogue/` | container `::: dialogue ... :::` | 零依赖 container 解析器，直接搬 |
-| `src/dialogue.css` | `frontend/plugins/dialogue/style.css` | — | 左右分栏+树状批注样式 |
-| `src/renderer.js` | 不迁 | — | VSCode webview 专用，GoldenEdit 用自己的 pipeline |
+### 9.1 命令清单
 
-### 11.3 迁移注意点
+前端**永远不传绝对路径**，只传相对 vault 的路径或用户显式选择后的句柄。
 
-- 现有插件用 CommonJS（`module.exports`），GoldenEdit 前端是 Vite + ESM，迁移时改成 `export function register(md, ctx)`。
-- 现有配置读取是 `ctx.getOptions()` 惰性函数；GoldenEdit 改成 `ctx.config` 直接拿当前插件配置（设置页勾选时持久化）。
-- 现有 mermaid 依赖 VSCode webview 注入的 `media/preview.js` 做异步绘图；GoldenEdit 把这部分并进 `ctx.onMount` 钩子。
-- 现有 `readConfig()` 里的所有字段直接作为各插件 `manifest.config` schema 的初始值。
-- 不迁移：`test/`、`scripts/`、`.vsix` 产物、`extension.js`（VSCode 入口）。
+| 命令 | 签名 | 说明 |
+|---|---|---|
+| `open_vault` | `(path: String) → VaultInfo` | 记录根路径，返回名称与首层条目 |
+| `list_dir` | `(rel: String) → Entry[]` | 懒加载，按需展开 |
+| `read_doc` | `(rel: String) → { text, mtime, hash }` | 超过 32 MB 拒绝并返回错误码 |
+| `write_doc` | `(rel, text, expectedMtime) → { mtime }` | `expectedMtime` 不匹配返回 `CONFLICT` |
+| `create_entry` / `rename_entry` / `delete_entry` | `(rel, …)` | 删除走系统回收站 |
+| `reveal_in_explorer` | `(rel)` | |
+| `watch_vault` / `unwatch_vault` | `()` | 事件回推 `vault:changed` |
+| `get_settings` / `set_settings` | `(patch) → Settings` | 深合并 |
+| `scan_plugins` | `() → PluginManifest[]` | 三处扫描合并 |
+| `install_plugin` / `remove_plugin` | `(src) / (id)` | 安装只复制与校验，不执行 |
+| `save_export` | `(path, bytes) → ()` | 内容由前端生成 |
+| `start_preview_server` | `() → { port, token, origin }` | 端口 0，随机 token |
+| `stop_preview_server` | `()` | 退出时自动调用 |
+| `open_external` | `(url)` | 仅 http / https / mailto |
+| `pick_folder` / `pick_file` / `save_dialog` | | 原生对话框 |
+| `get_app_info` | `→ { version, platform }` | |
+
+### 9.2 路径守卫
+
+所有接收 `rel` 的命令必须经过 `paths::resolve_in_vault()`：
+
+1. 拒绝绝对路径、盘符、UNC（`\\`）、`..` 段。
+2. `canonicalize` 后校验 `starts_with(vault_root)`。
+3. Windows 下比较前统一小写并处理长路径前缀 `\\?\`。
+4. 符号链接一律解析后校验，解析失败即拒绝。
+
+**这是唯一允许拼接路径的模块**，其它模块不得自行 `Path::join` 用户输入。
+
+### 9.3 事件
+
+| 事件 | 载荷 | 触发 |
+|---|---|---|
+| `vault:changed` | `{ paths: string[] }` | 文件系统监听 |
+| `doc:external_changed` | `{ rel, mtime }` | 当前打开文件被外部修改 |
+| `server:ready` | `{ origin }` | 预览服务启动完成 |
+
+### 9.4 预览 HTTP 服务
+
+- 绑定 `127.0.0.1:0`，由系统分配端口，随机 32 字节 token。
+- 路由：
+  - `GET /p/{token}/shell` → 预览外壳页（内联 CSP，`script-src 'self'; style-src 'self' 'unsafe-inline'`）
+  - `GET /p/{token}/plugin/{id}/{path}` → 插件文件（仅允许 `entry.js` / `style.css` / `assets/*`）
+  - `GET /p/{token}/asset?p={rel}` → vault 内图片与字体（仅白名单扩展名）
+  - 其它 → 404
+- token 校验失败一律 403，不泄露路由是否存在。
+- 服务进程内运行，随应用退出销毁；`stop_preview_server` 后可重新生成 token。
+
+**为什么不用 `asset://`**：`sandbox="allow-scripts"` 的 iframe 是 opaque origin，自定义协议在该场景下行为不一致，图片与字体会加载失败。走本地 HTTP 后资源与外壳同源，问题整体消失，同时 CSP 完全由自己掌控。
+
+### 9.5 导出
+
+- **HTML**：由 L3 渲染完整文档（含样式与插件 CSS），L2 通过预览服务取回图片/字体并 base64 内联，拼成单文件字符串，调用 `save_export` 落盘。**Rust 不参与 HTML 生成**——预览与导出共用同一段渲染代码，像素一致是结构性保证，而非靠对齐维护。
+- **PDF**：Windows 走 WebView2 `ICoreWebView2_7::PrintToPdfAsync`，静默输出；其它平台降级为系统打印对话框。
+- **PNG**：一期不做，预留。
+
+### 9.6 明确不暴露的能力
+
+- `read_file` / `write_file`（任意路径）
+- `exec` / `spawn`（进程执行）
+- `http_request`（通用代理；L3 插件需要的网络能力必须走独立、可审计的 `net_fetch` 命令并受域名白名单约束，一期不实现）
+
+---
+
+## 10. 存储
+
+| 文件 | 位置 | 内容 |
+|---|---|---|
+| `settings.json` | `<appdata>/GoldenEdit/` | 主题、插件启停与配置、最近 vault、导出默认项 |
+| `ui-state.json` | `<appdata>/GoldenEdit/` | 按 `vaultId + relPath` 记忆分栏比例、预览收起状态、滚动位置 |
+| 插件 | `<appdata>/GoldenEdit/plugins/<id>/` | 用户安装的插件 |
+
+**禁止向用户文档目录写入任何隐藏文件**（`.goldenedit/` 仅在用户显式开启「项目级插件」时创建）。
+
+---
+
+## 11. 安全模型
+
+| 威胁 | 防线 |
+|---|---|
+| 第三方插件读取任意文件 | 插件运行于 opaque origin，无 IPC；资源仅能通过带 token 的 `/asset` 取，且限制在 vault 内 |
+| 第三方插件外发文档内容 | CSP 禁止 `connect-src`；`fetch` 不可用；L3 级网络请求需显式授权并走可审计命令 |
+| 文档内嵌 `<script>` | 预览外壳不执行文档内脚本（渲染结果中 `<script>` 被剥离），沙箱本身亦无同源权限 |
+| 路径穿越 | 统一 `resolve_in_vault`，符号链接解析后校验 |
+| 预览 iframe 反向控制宿主 | `postMessage` 双向校验 `event.origin === previewOrigin`；只接受白名单消息类型 |
+| 导出的 HTML 携带恶意脚本 | 导出时剥离 `<script>`，保留 `<style>` 与内联 SVG |
+
+---
+
+## 12. 一致性检查清单
+
+提交前逐条对照：
+
+- [ ] 新增 / 修改的插件能力是否已在 5.5 更新类型定义？
+- [ ] 新增的 Rust 命令是否已在 9.1 登记，并经过 `paths::resolve_in_vault`？
+- [ ] 是否引入任何 `frontend/src` 下除 `bridge/` 外的 Tauri API 依赖？
+- [ ] 插件是否硬编码了颜色？（应使用 `--ge-*`）
+- [ ] 新的渲染块是否带 `data-line` 且由管线包裹？
+- [ ] 是否新增了「整页白屏」的可能路径？
+- [ ] `Features.md` / `ChangeLog.md` 是否同步？
+- [ ] 架构层面的改动是否先更新了本文？
+
+---
+
+## 13. 已知风险与验证方式
+
+| 风险 | 验证方式 | 处置 |
+|---|---|---|
+| 预览 iframe 与外层 postMessage 时序错乱 | 冷启动、快速切换文件、插件重载三种场景压测 | 用 `gen` 代际号 + `ready` 握手 |
+| Monaco worker 被 CSP 拦截 | Tauri 打包后首启检查控制台 | 放行 `worker-src blob:` |
+| 大文件渲染卡顿 | 准备 200KB / 2MB / 8MB 三份样本 | 按 6.4 阈值降级 |
+| PDF 分页样式不可控 | 导出含代码块、表格、长图的样本 | 用 `@page` 控制纸张与边距；页码后置 |
+| 插件在 Worker 与主线程行为不一致 | 内置插件全部跑双环境 | 强制 `ctx.scope` 分支约定 |
+
+---
+
+## 14. 迁移映射（自 Wails 版）
+
+旧实现已归档为 `GoldenEdit.7z`，不作为运行依赖。可复用的部分：
+
+| 旧资产 | 去向 |
+|---|---|
+| `frontend/src/editor/setup.ts` | 原样平移，补 `worker-src` CSP |
+| `frontend/plugins/*/register.ts` | 按 5.5 契约改造（拆 L1 / L2，去掉 VSCode 专属逻辑） |
+| `media/` 下 KaTeX 字体、Mermaid bundle | 随内置插件打包，经 `ctx.libs` 加载 |
+| `internal/fs`、`internal/settings` | 用 Rust 重写，契约以 9.1 为准 |
+| Wails 绑定与 `wailsjs/` | 废弃 |

@@ -1,25 +1,13 @@
-# Go
-/bin/
-*.exe
-*.test
-*.out
-
-# Wails
-/build/
-/frontend/dist/
-
-# Node
 node_modules/
-npm-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+dist/
+.vite/
 
-# Editor / OS
-.vscode/
-.idea/
+src-tauri/target/
+src-tauri/gen/
+
+*.7z
+
+.workbuddy/
 .DS_Store
 Thumbs.db
-
-# Local env
-.env
-.env.local
+*.log
