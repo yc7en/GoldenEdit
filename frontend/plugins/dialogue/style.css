@@ -1,4 +1,16 @@
+/*
+ * 对白气泡。配色对齐微信：对方浅灰底、自己绿底，两边都是深色文字。
+ *
+ * 配色变量定义在自己的容器选择器上，不放 :root、也不写进外壳的 plugins.css：
+ * 1) 插件自包含——改外观只改这一个文件，保存后热重载即生效，不必重建前端；
+ * 2) 作用域只在 .ge-dialogue 内，不污染全局变量；
+ * 3) 明暗主题共用同一组值（就是「聊天截图」的样子），容器底色与框线仍跟随主题。
+ */
+
 .ge-dialogue {
+  --ge-bubble-in: #e9e9eb;
+  --ge-bubble-out: #95ec69;
+  --ge-bubble-fg: #191919;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -12,7 +24,7 @@
 .ge-bubble {
   display: flex;
   flex-direction: column;
-  max-width: 80%;
+  max-width: 76%;
 }
 
 .ge-bubble--left {
@@ -24,9 +36,9 @@
 }
 
 .ge-bubble__name {
-  font-size: 0.8em;
+  font-size: 0.75em;
   color: var(--ge-fg-muted);
-  margin-bottom: 4px;
+  margin: 0 6px 4px;
 }
 
 .ge-bubble--right .ge-bubble__name {
@@ -34,21 +46,28 @@
 }
 
 .ge-bubble__msg {
-  padding: 8px 14px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
   font-size: 0.95em;
   line-height: 1.5;
+  color: var(--ge-bubble-fg, #191919);
+  background: var(--ge-bubble-in, #e9e9eb);
+  /* 尖角那一侧的圆角收小，指回说话人 */
+  border-bottom-left-radius: 2px;
+  /* 气泡内的段落不要额外撑开高度 */
+  word-break: break-word;
 }
 
-.ge-bubble--left .ge-bubble__msg {
-  background: var(--ge-bg);
-  border: 1px solid var(--ge-border);
-  color: var(--ge-fg);
-  border-bottom-left-radius: 2px;
+.ge-bubble__msg > :first-child {
+  margin-top: 0;
+}
+
+.ge-bubble__msg > :last-child {
+  margin-bottom: 0;
 }
 
 .ge-bubble--right .ge-bubble__msg {
-  background: var(--ge-accent);
-  color: var(--ge-accent-fg);
+  background: var(--ge-bubble-out, #95ec69);
+  border-bottom-left-radius: 6px;
   border-bottom-right-radius: 2px;
 }

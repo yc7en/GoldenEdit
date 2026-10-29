@@ -68,7 +68,8 @@ export class EditorHost {
       cursorBlinking: 'smooth',
       padding: { top: 14, bottom: 24 },
       scrollbar: { verticalScrollbarSize: 9, horizontalScrollbarSize: 9 },
-      contextmenu: true,
+      // 右键菜单完全由命令表提供（§8.3）：原生菜单是英文、且接不进命令表
+      contextmenu: false,
       quickSuggestions: false,
       suggestOnTriggerCharacters: false,
       occurrencesHighlight: 'off',
@@ -88,14 +89,25 @@ export class EditorHost {
       store.setCursor(e.position.lineNumber, e.position.column);
     });
 
-    this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      void store.save().then((ok) => {
-        if (ok) store.toast('已保存');
-      });
-    });
+    // Ctrl+S 交给命令表（file.save），这里不再单独 addCommand：
+    // 两套绑定并存时，改键位只对其中一套生效（§8.4）
 
     bus.on('active', () => this.syncModel());
     bus.on('settings', () => this.applyTheme());
+
+    // 右键菜单由命令表提供（§8.3）。用 Monaco 的 onContextMenu 而不是裸 DOM，
+    // 因为它带得动「右键位置」——先移光标再弹菜单，操作对象才和用户点的那行一致。
+    this.editor.onContextMenu((e) => {
+      e.event.preventDefault();
+      if (e.target.position) this.editor.setPosition(e.target.position);
+      this.contextHandler?.({ x: e.event.posx, y: e.event.posy });
+    });
+  }
+
+  private contextHandler: ((pos: { x: number; y: number }) => void) | null = null;
+
+  setContextMenuHandler(fn: (pos: { x: number; y: number }) => void): void {
+    this.contextHandler = fn;
   }
 
   private modelFor(rel: string, text: string): monaco.editor.ITextModel {
@@ -143,6 +155,23 @@ export class EditorHost {
     this.editor.focus();
   }
 
+  /** 命令系统判上下文用：编辑区是否持有文本焦点（§8.2） */
+  hasTextFocus(): boolean {
+    return this.editor.hasTextFocus();
+  }
+
+  /** 编辑区是否有选区（复制 / 剪切菜单项据此置灰） */
+  hasSelection(): boolean {
+    const sel = this.editor.getSelection();
+    return Boolean(sel && !sel.isEmpty());
+  }
+
+  /** 触发 Monaco 内置 action。复制粘贴走这条路，命令系统不自己碰剪贴板（§8.3） */
+  trigger(action: string): void {
+    this.editor.trigger('goldenedit-command', action, null);
+    this.editor.focus();
+  }
+
   layout(): void {
     this.editor.layout();
   }
@@ -151,4 +180,77 @@ export class EditorHost {
   activeText(): string {
     return this.editor.getValue();
   }
+
+  /** 插件命令的受限门面（§5.11）。写操作一律走 executeEdits，保证一个命令一个 undo 单元。 */
+  facade(): EditorFacade {
+    const editor = this.editor;
+    return {
+      getText: () => editor.getValue(),
+      lineCount: () => editor.getModel()?.getLineCount() ?? 0,
+      getLine: (n) => {
+        const model = editor.getModel();
+        if (!model) return '';
+        return model.getLineContent(Math.min(Math.max(1, n), model.getLineCount()));
+      },
+      getCursorLine: () => editor.getPosition()?.lineNumber ?? 1,
+      getSelection: () => {
+        const model = editor.getModel();
+        const sel = editor.getSelection();
+        if (!model || !sel) return { text: '', startLine: 1, endLine: 1, empty: true };
+        return {
+          text: model.getValueInRange(sel),
+          startLine: sel.startLineNumber,
+          endLine: sel.endLineNumber,
+          empty: sel.isEmpty(),
+        };
+      },
+      replaceLines: (from, to, lines) => {
+        const model = editor.getModel();
+        if (!model) return;
+        const last = model.getLineCount();
+        const start = Math.min(Math.max(1, from), last);
+        const end = Math.min(Math.max(start, to), last);
+        const range = new monaco.Range(start, 1, end, model.getLineMaxColumn(end));
+        this.applyEdit(range, lines.join('\n'));
+      },
+      replaceSelection: (text) => {
+        const sel = editor.getSelection();
+        if (!sel) return;
+        this.applyEdit(sel, text);
+      },
+      onSelectionChange: (fn) => {
+        const sub = editor.onDidChangeCursorSelection(() => fn());
+        return () => sub.dispose();
+      },
+    };
+  }
+
+  /** 单次编辑 + 前后撤销停止点：用户按一次 Ctrl+Z 就能整条回退 */
+  private applyEdit(range: monaco.Range, text: string): void {
+    this.editor.pushUndoStop();
+    this.editor.executeEdits('goldenedit-plugin', [{ range, text, forceMoveMarkers: true }]);
+    this.editor.pushUndoStop();
+  }
+}
+
+export interface FacadeSelection {
+  text: string;
+  startLine: number;
+  endLine: number;
+  empty: boolean;
+}
+
+/**
+ * 插件只能看到这一组方法（ARCHITECTURE §5.11）：
+ * 没有文件读写、没有 DOM、没有 Monaco 实例本身——否则「插件只能改文本」这条边界形同虚设。
+ */
+export interface EditorFacade {
+  getText(): string;
+  lineCount(): number;
+  getLine(n: number): string;
+  getCursorLine(): number;
+  getSelection(): FacadeSelection;
+  replaceLines(from: number, to: number, lines: string[]): void;
+  replaceSelection(text: string): void;
+  onSelectionChange(fn: () => void): () => void;
 }

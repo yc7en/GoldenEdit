@@ -161,6 +161,7 @@ textarea {
 /* 图标（纯 CSS，避免图标字体依赖） */
 .i-cmd,
 .i-panel,
+.i-side,
 .i-gear,
 .i-plus,
 .i-folder,
@@ -1500,4 +1501,231 @@ textarea {
 
 .hidden {
   display: none !important;
+}
+
+/* ───────── 上下文菜单（§8.3） ───────── */
+
+.ctxmenu {
+  position: fixed;
+  z-index: 80;
+  min-width: 190px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  font-size: 12px;
+  color: var(--t1);
+  animation: ctx-in 0.1s ease;
+}
+@keyframes ctx-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+.ctxmenu__i {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ctxmenu__i:hover:not(:disabled) {
+  background: var(--gold-bg);
+}
+.ctxmenu__i:disabled {
+  color: var(--t3);
+  cursor: default;
+}
+.ctxmenu__t {
+  flex: 1;
+  white-space: nowrap;
+}
+.ctxmenu__k {
+  color: var(--t3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+.ctxmenu__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}
+.ctxmenu__empty {
+  padding: 8px 9px;
+  color: var(--t3);
+}
+
+/* ───────── 快捷键弹窗（§8.4） ───────── */
+
+.modal__card--wide {
+  width: 880px;
+}
+.keys__search {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.keys__table {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.keys__head,
+.keys__row {
+  display: grid;
+  grid-template-columns: 1fr 200px 130px 120px;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+}
+.keys__head {
+  background: var(--bg2);
+  font-size: 11px;
+  color: var(--t3);
+  border-bottom: 1px solid var(--line);
+}
+.keys__list {
+  max-height: 52vh;
+  overflow: auto;
+}
+.keys__row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.keys__row:last-child {
+  border-bottom: 0;
+}
+.keys__row:hover {
+  background: var(--bg2);
+}
+.keys__row.is-recording {
+  background: var(--gold-bg);
+}
+.keys__k kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  background: var(--bg2);
+}
+.keys__none {
+  color: var(--t3);
+}
+.keys__k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* 「原生」：键位在编辑器手里，不接受录制 */
+.keys__native {
+  font-size: 10px;
+  color: var(--t3);
+  border: 1px dashed var(--line2);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.keys__row.is-locked {
+  cursor: default;
+}
+.keys__row.is-locked:hover {
+  background: transparent;
+}
+.keys__w,
+.keys__s {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--t3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.keys__empty {
+  padding: 14px 10px;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+/* ───────── 左栏收起（§8.1） ───────── */
+
+.side {
+  transition: width 0.16s ease;
+}
+.app.side-collapsed .side {
+  width: 0;
+  border-right: 0;
+  overflow: hidden;
+}
+.app.side-collapsed .page {
+  left: 0;
+}
+
+/* 左栏与编辑区之间的拖动分隔条：比 `.splitter` 更窄，收进左栏的边线里 */
+.side-splitter {
+  width: 5px;
+  flex: none;
+  margin-left: -3px;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  z-index: 3;
+}
+.side-splitter::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.side-splitter:hover::before,
+.app.is-resizing-side .side-splitter::before {
+  background: var(--gold-line);
+}
+/* 收起后边界贴着窗口左沿，留一条隐形的可拖区，双击或右拖即可拉回 */
+.app.side-collapsed .side-splitter {
+  margin-left: 0;
+}
+/* 拖动期间关掉宽度过渡：带着 0.16s 缓动拖，指针和边线会明显脱节 */
+.app.is-resizing-side .side {
+  transition: none;
+}
+.app.is-resizing-side {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* 左栏图标：`.i-panel` 的镜像，竖线在左 */
+.i-side {
+  border: 1.2px solid currentColor;
+  border-radius: 3px;
+}
+.i-side::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  border-left: 1.2px solid currentColor;
+}
+.i-side::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 9px;
+  left: 0;
+  background: currentColor;
+  opacity: 0.5;
 }

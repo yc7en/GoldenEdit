@@ -90,6 +90,8 @@ export type PreviewMessage =
   | { type: 'jump'; line: number }
   | { type: 'open-external'; url: string }
   | { type: 'copy'; text: string }
+  /** 预览区右键：坐标相对 iframe 视口，由宿主加上 iframe 偏移后弹菜单（§8.3） */
+  | { type: 'ctx-menu'; x: number; y: number; text: string }
   | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string }
   | { type: 'fatal'; message: string }
   | { type: 'exported'; id: number; html: string }

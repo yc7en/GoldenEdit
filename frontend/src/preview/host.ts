@@ -2,6 +2,16 @@ import type { PluginManifest, ServerInfo, Settings } from '../bridge/types';
 import type { PreviewMessage, PluginSpec, RenderOptions, ThemePayload } from '../../preview-shell/protocol';
 import { PREVIEW_TOKENS, resolveMode } from '../theme/tokens';
 
+import { isPluginEnabled } from '../store';
+
+/**
+ * 插件清单 → 预览侧 spec。内置插件默认启用（§5.9），
+ * 所以这里不能只看 settings.plugins.enabled 名单。
+ */
+function enabledPlugins(settings: Settings, plugins: PluginManifest[]): PluginManifest[] {
+  return plugins.filter((p) => isPluginEnabled(settings, p));
+}
+
 export interface RenderInfo {
   blocks: number;
   ms: number;
@@ -21,6 +31,8 @@ export interface PreviewCallbacks {
     info: RenderInfo & { plugins: string[]; errors: { message: string; line: number }[] }
   ) => void;  onLog: (level: string, message: string) => void;
   onOpenExternal: (url: string) => void;
+  /** 预览区右键：坐标已换算到主页面视口（§8.3） */
+  onContextMenu?: (info: { x: number; y: number; text: string }) => void;
   onPaused: (paused: boolean) => void;
   onFatal: (message: string) => void;
 }
@@ -224,11 +236,9 @@ export class PreviewHost {
 
   private pluginSpecs(): PluginSpec[] {
     if (!this.server) return [];
-    const enabled = new Set(this.settings.plugins.enabled);
     const cfg = this.settings.plugins.config;
     const base = `${this.server.origin}/p/${this.server.token}`;
-    return this.plugins
-      .filter((p) => enabled.has(p.id))
+    return enabledPlugins(this.settings, this.plugins)
       .map((p) => {
         const defaults: Record<string, unknown> = {};
         for (const [key, field] of Object.entries(p.config ?? {})) defaults[key] = field.default;
@@ -300,6 +310,16 @@ export class PreviewHost {
       case 'open-external':
         this.cb.onOpenExternal(msg.url);
         break;
+      case 'ctx-menu': {
+        // iframe 报的是相对它自己的坐标，弹菜单要用主页面的
+        const rect = this.iframe.getBoundingClientRect();
+        this.cb.onContextMenu?.({
+          x: rect.left + msg.x,
+          y: rect.top + msg.y,
+          text: msg.text,
+        });
+        break;
+      }
       case 'log':
         this.cb.onLog(msg.level, msg.message);
         break;

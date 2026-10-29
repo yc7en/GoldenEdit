@@ -1,29 +1,25 @@
-import { store } from '../store';
+/**
+ * 命令面板 UI（ARCHITECTURE §8.2）。
+ *
+ * 面板不再自己维护命令列表：条目来自命令表，键位提示来自键位表。
+ * 以前这里是 `hint: 'Ctrl N'` 这样的字面量，改键后提示不跟着变。
+ */
 
-export interface Command {
-  id: string;
-  title: string;
-  hint?: string;
-  run: () => void;
-}
+import { bindingLabel } from '../commands/keys';
+import { allCommands, runCommand, type CommandDef } from '../commands/registry';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
 
-let commands: Command[] = [];
-let filtered: Command[] = [];
+let filtered: CommandDef[] = [];
 let cursor = 0;
-
-export function registerCommands(list: Command[]): void {
-  commands = list;
-}
 
 export function openPalette(): void {
   const box = $('palette');
   box.hidden = false;
   const input = $('paletteInput') as HTMLInputElement;
   input.value = '';
-  filtered = commands.slice();
+  filtered = allCommands();
   cursor = 0;
   render();
   input.focus();
@@ -42,8 +38,17 @@ function render(): void {
   list.innerHTML = '';
   filtered.forEach((cmd, i) => {
     const item = document.createElement('div');
+    const label = bindingLabel(cmd.id);
     item.className = `pitem${i === cursor ? ' is-on' : ''}`;
-    item.innerHTML = `<span>${cmd.title}</span>${cmd.hint ? `<span class="pitem__k">${cmd.hint}</span>` : ''}`;
+    const title = document.createElement('span');
+    title.textContent = cmd.title;
+    item.appendChild(title);
+    if (label) {
+      const key = document.createElement('span');
+      key.className = 'pitem__k';
+      key.textContent = label;
+      item.appendChild(key);
+    }
     item.addEventListener('click', () => exec(cmd));
     item.addEventListener('mousemove', () => {
       if (cursor !== i) {
@@ -58,16 +63,19 @@ function render(): void {
   }
 }
 
-function exec(cmd: Command): void {
+function exec(cmd: CommandDef): void {
   closePalette();
-  cmd.run();
+  void runCommand(cmd.id);
 }
 
 export function mountPalette(): void {
   const input = $('paletteInput') as HTMLInputElement;
   input.addEventListener('input', () => {
     const q = input.value.trim().toLowerCase();
-    filtered = commands.filter((c) => `${c.title} ${c.id}`.toLowerCase().includes(q));
+    filtered = allCommands().filter((c) => {
+      const key = bindingLabel(c.id).toLowerCase();
+      return `${c.title} ${c.id} ${key}`.toLowerCase().includes(q);
+    });
     cursor = 0;
     render();
   });
@@ -89,46 +97,4 @@ export function mountPalette(): void {
     if (e.key === 'Enter' && filtered[cursor]) exec(filtered[cursor]);
   });
   document.querySelector('[data-close="palette"]')?.addEventListener('click', closePalette);
-}
-
-export function defaultCommands(actions: {
-  newFile: () => void;
-  openVault: () => void;
-  save: () => void;
-  closeTab: () => void;
-  togglePreview: () => void;
-  toggleOutline: () => void;
-  openPlugins: () => void;
-  openExport: () => void;
-  openSettings: () => void;
-  setPreset: (preset: 'system' | 'writing' | 'light' | 'dark') => void;
-  setLayout: (mode: 'split' | 'editor' | 'preview') => void;
-  runPerf?: () => void;
-}): Command[] {
-  return [
-    { id: 'file.new', title: '新建文档', hint: 'Ctrl N', run: actions.newFile },
-    { id: 'file.open', title: '打开文件夹…', hint: 'Ctrl K', run: actions.openVault },
-    { id: 'file.save', title: '保存当前文档', hint: 'Ctrl S', run: actions.save },
-    { id: 'tab.close', title: '关闭当前标签', hint: 'Ctrl W', run: actions.closeTab },
-    { id: 'view.split', title: '布局：分栏', hint: 'Ctrl 1', run: () => actions.setLayout('split') },
-    { id: 'view.editor', title: '布局：仅编辑', hint: 'Ctrl 2', run: () => actions.setLayout('editor') },
-    { id: 'view.preview', title: '布局：仅预览', hint: 'Ctrl 3', run: () => actions.setLayout('preview') },
-    { id: 'view.toggle', title: '切换预览面板', hint: 'Ctrl+Shift+V', run: actions.togglePreview },
-    { id: 'view.outline', title: '折叠 / 展开大纲', hint: 'Ctrl+Shift+O', run: actions.toggleOutline },
-    { id: 'page.plugins', title: '打开插件页', run: actions.openPlugins },
-    { id: 'page.export', title: '导出…', hint: 'Ctrl E', run: actions.openExport },
-    { id: 'page.settings', title: '设置', run: actions.openSettings },
-    { id: 'theme.system', title: '主题：跟随系统', run: () => actions.setPreset('system') },
-    { id: 'theme.writing', title: '主题：写作模式', run: () => actions.setPreset('writing') },
-    { id: 'theme.light', title: '主题：全亮', run: () => actions.setPreset('light') },
-    { id: 'theme.dark', title: '主题：全暗', run: () => actions.setPreset('dark') },
-    ...(actions.runPerf
-      ? [{ id: 'debug.perf', title: '诊断：渲染性能自检', run: actions.runPerf }]
-      : []),
-    {
-      id: 'debug.info',
-      title: '诊断：查看最近日志',
-      run: () => store.pushLog('info', `块 ${store.renderInfo.blocks} · ${store.renderInfo.ms}ms`),
-    },
-  ];
 }

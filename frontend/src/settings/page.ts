@@ -1,3 +1,4 @@
+import { openKeysDialog } from '../commands/keysDialog';
 import { bus, store } from '../store';
 import { escapeHtml } from '../ui/shell';
 
@@ -39,6 +40,8 @@ export function mountSettingsPage(): void {
     cssBox.value = '';
     void store.setSettingsPatch({ preview: { customCss: '' } }).then(() => store.toast('已清除自定义样式'));
   });
+
+  $('btnOpenKeys').addEventListener('click', () => openKeysDialog());
 
   bus.on('settings', render);
   render();

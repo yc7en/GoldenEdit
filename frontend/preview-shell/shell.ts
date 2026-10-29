@@ -303,6 +303,19 @@ ${css}
 </html>`;
 }
 
+// 预览区右键交给宿主弹菜单（§8.3）：iframe 里弹会被面板边界裁剪，
+// 也拿不到宿主的主题变量。这里只负责报坐标与文本。
+window.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const sel = window.getSelection();
+  const selected = sel && !sel.isCollapsed ? sel.toString().trim() : '';
+  const all =
+    document.getElementById('ge-doc')?.innerText ??
+    document.getElementById('ge-root')?.innerText ??
+    '';
+  send({ type: 'ctx-menu', x: e.clientX, y: e.clientY, text: selected || all });
+});
+
 window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
   if (ev.source !== window.parent) return;
   const msg = ev.data;

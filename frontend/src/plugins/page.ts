@@ -1,5 +1,5 @@
 import * as api from '../bridge';
-import { bus, store } from '../store';
+import { bus, isPluginEnabled, store } from '../store';
 import type { ConfigField, PluginManifest } from '../bridge/types';
 import { escapeHtml, toast } from '../ui/shell';
 
@@ -30,10 +30,11 @@ function render(): void {
   const box = $('pluginCards');
   box.innerHTML = '';
   const list = store.plugins.filter((p) => match(p, query));
-  $('pluginsSub').textContent = `${store.plugins.length} 个已安装 · ${
-    store.settings.plugins.enabled.length
-  } 个已启用${query ? ` · 过滤出 ${list.length} 个` : ''}`;
-  $('navPluginCount').textContent = String(store.settings.plugins.enabled.length);
+  const onCount = store.plugins.filter((p) => isPluginEnabled(store.settings, p)).length;
+  $('pluginsSub').textContent = `${store.plugins.length} 个已安装 · ${onCount} 个已启用${
+    query ? ` · 过滤出 ${list.length} 个` : ''
+  }`;
+  $('navPluginCount').textContent = String(onCount);
 
   for (const plugin of list) {
     box.appendChild(card(plugin));
@@ -50,7 +51,7 @@ function match(p: PluginManifest, q: string): boolean {
 }
 
 function card(plugin: PluginManifest): HTMLElement {
-  const enabled = store.settings.plugins.enabled.includes(plugin.id);
+  const enabled = isPluginEnabled(store.settings, plugin);
   const el = document.createElement('div');
   el.className = `card${enabled ? '' : ' is-off'}`;
 

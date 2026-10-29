@@ -20,6 +20,9 @@
           </div>
         </div>
         <div class="titlebar__right">
+          <button class="iconbtn iconbtn--toggle is-on" id="btnSide" title="左栏 (Ctrl+B)">
+            <span class="i-side"></span>
+          </button>
           <button class="iconbtn" id="btnPalette" title="命令面板 (Ctrl+Shift+P)">
             <span class="i-cmd"></span>
           </button>
@@ -92,6 +95,8 @@
             </button>
           </div>
         </aside>
+
+        <div class="side-splitter" id="sideSplitter" title="拖动调整左栏宽度 · 双击收起"></div>
 
         <main class="workspace" id="workspace">
           <div class="pane pane--editor" id="paneEditor">
@@ -214,6 +219,13 @@
                 <span class="grow"></span>
                 <button class="btn" id="customCssClear">清空</button>
                 <button class="btn btn--dark" id="customCssSave">应用</button>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting__t">键盘快捷方式</div>
+              <div class="setting__d">所有菜单项都注册为命令，菜单、命令面板与快捷键共用同一张表。点开可逐条改键。</div>
+              <div class="setting__row">
+                <button class="btn" id="btnOpenKeys">键盘快捷方式…</button>
               </div>
             </div>
             <div class="setting">

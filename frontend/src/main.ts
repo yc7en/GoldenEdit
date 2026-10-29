@@ -3,7 +3,16 @@ import './styles/app.css';
 
 import * as api from './bridge';
 import type { LayoutMode } from './bridge/types';
+import { applyKeybindings, installKeyHandler } from './commands/keys';
+import { openKeysDialog } from './commands/keysDialog';
+import { registerEditCommands } from './commands/edit';
+import { registerFileCommands } from './commands/files';
+import { registerPreviewCommands } from './commands/preview';
+import { setContextArgProvider, setEditorProbe } from './commands/registry';
+import { registerSystemCommands } from './commands/system';
+import { openContextMenu } from './commands/menu';
 import { EditorHost } from './editor';
+import { loadEditorPlugins, refreshEditorPlugins, setEditorFacade } from './editor/plugins';
 import { openExportDialog } from './export/dialog';
 import { bench, benchCurrent, settle, type BenchRow } from './perf';
 import { mountPluginsPage } from './plugins/page';
@@ -11,15 +20,8 @@ import { PreviewHost } from './preview/host';
 import { mountSettingsPage } from './settings/page';
 import { bus, store } from './store';
 import { PREVIEW_TOKENS, resolveMode } from './theme/tokens';
-import {
-  closePalette,
-  defaultCommands,
-  isPaletteOpen,
-  mountPalette,
-  openPalette,
-  registerCommands,
-} from './ui/palette';
-import { escapeHtml, mountShell, closeModal, openModal, setPreviewCollapsed, toast } from './ui/shell';
+import { closePalette, isPaletteOpen, mountPalette, openPalette } from './ui/palette';
+import { escapeHtml, mountShell, closeModal, openModal, setPreviewCollapsed, shellToggleSide, applySideState, toast } from './ui/shell';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
@@ -90,6 +92,9 @@ const preview = new PreviewHost($('preview') as HTMLIFrameElement, {
   },
   onLog: (level, message) => store.pushLog(level, message),
   onOpenExternal: (url) => void api.openExternal(url),
+  onContextMenu: (info) => {
+    openContextMenu({ x: info.x, y: info.y, ctx: 'preview', arg: { text: info.text } });
+  },
   onPaused: (paused) => {
     const banner = $('previewStatText');
     banner.textContent = paused ? '文档较大，预览已暂停（点击恢复）' : '就绪';
@@ -144,6 +149,12 @@ function toggleOutline(): void {
   if (!closed) group.scrollIntoView({ block: 'nearest' });
 }
 
+/** 左栏收起 / 展开（§8.1）。拖动与落盘在 ui/shell 里，这里只管命令入口。 */
+function toggleSide(): void {
+  shellToggleSide();
+  editorHost.layout();
+}
+
 function setPreset(preset: 'system' | 'writing' | 'light' | 'dark'): void {
   const map = {
     system: { editor: 'system', preview: 'system' },
@@ -154,37 +165,52 @@ function setPreset(preset: 'system' | 'writing' | 'light' | 'dark'): void {
   void store.setSettingsPatch({ theme: { preset, ...map[preset] } });
 }
 
-registerCommands(
-  defaultCommands({
-    newFile: () => $('navNew').click(),
-    openVault: () => void store.openVaultDialog(),
-    save: () => void store.save(),
-    closeTab: () => store.activeRel && store.closeTab(store.activeRel),
-    togglePreview: () => togglePreview(),
-    toggleOutline,
-    openPlugins: () => showPage('plugins'),
-    openExport: () => openExportDialog(preview),
-    openSettings: () => showPage('settings'),
-    setPreset,
-    setLayout,
-    runPerf: () => {
-      void (async () => {
-        try {
-          const row = await benchCurrent(preview);
-          if (!row) {
-            toast('先打开一篇文档再做性能自检', 'err');
-            return;
-          }
-          const text = `${row.name} · ${row.kb}KB · ${row.blocks} 块 · 内核 ${row.kernelMs}ms · 墙钟 ${row.wallMs}ms`;
-          store.pushLog('info', `性能自检：${text}`);
-          toast(text);
-        } catch (err) {
-          toast(`性能自检失败：${(err as Error).message}`, 'err');
+registerSystemCommands({
+  openVault: () => void store.openVaultDialog(),
+  save: () => void store.save(),
+  closeTab: () => {
+    if (store.activeRel) store.closeTab(store.activeRel);
+  },
+  setLayout,
+  togglePreview: () => togglePreview(),
+  toggleOutline,
+  toggleSide,
+  openPalette,
+  openPlugins: () => showPage('plugins'),
+  openExport: () => openExportDialog(preview),
+  openSettings: () => showPage('settings'),
+  openKeys: () => openKeysDialog(),
+  setPreset,
+  runPerf: () => {
+    void (async () => {
+      try {
+        const row = await benchCurrent(preview);
+        if (!row) {
+          toast('先打开一篇文档再做性能自检', 'err');
+          return;
         }
-      })();
-    },
-  })
-);
+        const text = `${row.name} · ${row.kb}KB · ${row.blocks} 块 · 内核 ${row.kernelMs}ms · 墙钟 ${row.wallMs}ms`;
+        store.pushLog('info', `性能自检：${text}`);
+        toast(text);
+      } catch (err) {
+        toast(`性能自检失败：${(err as Error).message}`, 'err');
+      }
+    })();
+  },
+});
+registerFileCommands();
+registerPreviewCommands();
+registerEditCommands({
+  trigger: (action) => editorHost.trigger(action),
+  hasSelection: () => editorHost.hasSelection(),
+});
+
+// 键盘进来的命令没有菜单那样的目标，只能按焦点推断（文件树里就是当前文件）
+setContextArgProvider((ctx) => {
+  if (ctx !== 'fileTree') return undefined;
+  const rel = store.activeRel;
+  return rel ? { rel, isFile: true } : { rel: '', isFile: false };
+});
 
 /* ───────── 启动 ───────── */
 
@@ -202,63 +228,23 @@ function wireWidthPresets(): void {
   });
 }
 
+/**
+ * 键盘（§8.4）：键位分发在 commands/keys.ts，这里只留三件不属于命令的事——
+ * 安装监听、Esc 关面板/模态、以及「弹窗开着时不抢键」。
+ */
 function wireKeyboard(): void {
+  installKeyHandler();
   window.addEventListener('keydown', (e) => {
-    const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.shiftKey && e.key.toLowerCase() === 'p') {
-      e.preventDefault();
-      openPalette();
+    if (e.key !== 'Escape') return;
+    if (isPaletteOpen()) {
+      closePalette();
       return;
     }
-    if (mod && e.shiftKey && e.key.toLowerCase() === 'v') {
-      e.preventDefault();
-      togglePreview();
+    if (!$('modal').hidden) {
+      closeModal();
       return;
     }
-    if (mod && e.shiftKey && e.key.toLowerCase() === 'o') {
-      e.preventDefault();
-      toggleOutline();
-      return;
-    }
-    if (mod && e.shiftKey && e.key.toLowerCase() === 'i') {
-      e.preventDefault();
-      showPage('plugins');
-      return;
-    }
-    if (mod && !e.shiftKey) {
-      switch (e.key.toLowerCase()) {
-        case 'k':
-          e.preventDefault();
-          void store.openVaultDialog();
-          return;
-        case 'e':
-          e.preventDefault();
-          openExportDialog(preview);
-          return;
-        case 'w':
-          e.preventDefault();
-          if (store.activeRel) store.closeTab(store.activeRel);
-          return;
-        case '1':
-          e.preventDefault();
-          setLayout('split');
-          return;
-        case '2':
-          e.preventDefault();
-          setLayout('editor');
-          return;
-        case '3':
-          e.preventDefault();
-          setLayout('preview');
-          return;
-        default:
-          break;
-      }
-    }
-    if (e.key === 'Escape') {
-      if (isPaletteOpen()) closePalette();
-      if (activePage !== 'main') showPage('main');
-    }
+    if (activePage !== 'main') showPage('main');
   });
 }
 
@@ -418,6 +404,11 @@ async function boot(): Promise<void> {  mountShell({
   mountSettingsPage();
   wireWidthPresets();
   wireKeyboard();
+  setEditorProbe(() => editorHost.hasTextFocus());
+  setEditorFacade(editorHost.facade());
+  editorHost.setContextMenuHandler((pos) => {
+    openContextMenu({ x: pos.x, y: pos.y, ctx: 'editor', emptyText: '没有可用命令' });
+  });
   wireExternalChanges();
   wireDragDrop();
   wireDrafts();
@@ -429,8 +420,15 @@ async function boot(): Promise<void> {  mountShell({
   bind('navExport', () => openExportDialog(preview));
   bind('btnSettings', () => showPage('settings'));
 
-  bus.on('settings', applyTheme);
-  bus.on('plugins', () => preview.rebuild(store.settings, store.plugins));
+  bus.on('settings', () => {
+    applyTheme();
+    applyKeybindings(store.settings.keybindings);
+  });
+  bus.on('plugins', () => {
+    preview.rebuild(store.settings, store.plugins);
+    // 编辑器插件与预览插件是同一批 manifest，但跑在主页面——停用后命令要一起下架
+    if (store.previewServer) void refreshEditorPlugins(store.plugins);
+  });
   bus.on('active', () => {
     showPage('main');
     const tab = store.activeTab;
@@ -460,6 +458,9 @@ async function boot(): Promise<void> {  mountShell({
   } catch (err) {
     toast(`初始化失败：${(err as Error).message}`, 'err');
   }
+  // 键位表要在设置读完后再应用；此前命令表已就绪，只是用各自的 default
+  applyKeybindings(store.settings.keybindings);
+  applySideState();
   await store.refreshPlugins();
   applyTheme();
 
@@ -468,6 +469,8 @@ async function boot(): Promise<void> {  mountShell({
     store.previewServer = info;
     preview.configure(store.settings, store.plugins);
     await preview.attach(info);
+    // 编辑器命令插件也走同一个服务取 entry.js（CSP 已放行回环 script-src，§11.3）
+    await loadEditorPlugins(store.plugins, info);
   } catch (err) {
     toast(`预览服务启动失败：${(err as Error).message}`, 'err');
     store.pushLog('error', String(err));

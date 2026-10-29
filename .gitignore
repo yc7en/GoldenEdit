@@ -15,6 +15,9 @@ scripts/fixtures/perf/
 # 导出链路的实测产物（docs/demo.md 导出的 HTML），不入库
 docs/demo.html
 
+# 文档治理：docs-local/ 是独立私有 git 仓库，不随主仓库提交
+docs-local/
+
 .workbuddy/
 .DS_Store
 Thumbs.db

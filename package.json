@@ -1,7 +1,7 @@
 {
   "name": "goldenedit",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "把 Markdown 当源码，把预览当可插拔的渲染目标",
   "scripts": {

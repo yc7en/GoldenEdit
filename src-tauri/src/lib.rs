@@ -103,6 +103,7 @@ pub fn run() {
             commands::vault::list_dir,
             commands::vault::create_entry,
             commands::vault::rename_entry,
+            commands::vault::copy_entry,
             commands::vault::delete_entry,
             commands::vault::reveal_in_explorer,
             commands::vault::watch_vault,

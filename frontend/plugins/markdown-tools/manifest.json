@@ -1,0 +1,18 @@
+{
+  "id": "markdown-tools",
+  "name": "Markdown 文本工具",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "表格对齐与待办标记：正文区右键菜单与快捷键背后的命令实现",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "match": {
+    "fence": [],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": ["editor"],
+  "config": {},
+  "source": { "type": "builtin" }
+}

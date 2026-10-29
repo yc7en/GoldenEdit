@@ -115,11 +115,30 @@ export interface Settings {
   preview: PreviewSettings;
   export: ExportSettings;
   plugins: {
+    /** 本地插件的启用名单；内置插件默认启用，不看这个字段 */
     enabled: string[];
+    /** 被用户显式停用的插件（内置与本地都记这里） */
+    disabled: string[];
     config: Record<string, Record<string, unknown>>;
   };
+  /** 只存与命令默认值的差异；null 表示显式解绑（§8.4） */
+  keybindings: Record<string, string | null>;
+  /** 左栏宽度与收起状态（§8.1） */
+  layout: LayoutSettings;
+  /** 文本命令的行为参数（§8.5） */
+  markdown: MarkdownSettings;
   recents: string[];
   lastVault: string | null;
+}
+
+export interface LayoutSettings {
+  sideWidth: number;
+  sideHidden: boolean;
+}
+
+export interface MarkdownSettings {
+  /** 待办完成时追加的日期格式，占位符 YYYY MM DD HH mm */
+  taskDateFormat: string;
 }
 
 export interface FileFilter {

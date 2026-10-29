@@ -96,13 +96,15 @@ fn sniff_capability(dir: &Path, manifest: &Manifest) -> String {
     let Some(entry) = &manifest.entry else {
         return "L0".into();
     };
+    // 声明了 editor 权限的插件会在主页面注册编辑器命令，按 L2 计（§5.4）
+    let wants_editor = manifest.permissions.iter().any(|p| p == "editor");
     let Ok(code) = std::fs::read_to_string(dir.join(entry)) else {
-        return "L1".into();
+        return if wants_editor { "L2".into() } else { "L1".into() };
     };
     if code.contains("ctx.net") || code.contains("ctx.fs") {
         return "L3".into();
     }
-    if code.contains("onMount(") {
+    if wants_editor || code.contains("onMount(") || code.contains("commands.register") {
         return "L2".into();
     }
     "L1".into()

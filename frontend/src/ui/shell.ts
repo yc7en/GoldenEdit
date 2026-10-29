@@ -1,5 +1,7 @@
-import * as api from '../bridge';
+import { openContextMenu } from '../commands/menu';
+import { runCommand } from '../commands/registry';
 import { bus, store } from '../store';
+import { SIDE_DEFAULT, clampSideWidth, dragWidth, sameWidth } from './side';
 import type { Entry } from '../bridge/types';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
@@ -18,6 +20,7 @@ export function mountShell(d: ShellDeps): void {
   wireGroups();
   wireTabs();
   wireSplitter();
+  wireSideSplitter();
   wireNav();
   wireTreeDelegation();
   wirePreviewToggle();
@@ -196,100 +199,20 @@ function wireTreeDelegation(): void {
   box.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const row = (e.target as HTMLElement).closest('.row') as HTMLElement | null;
-    openTreeMenu(e.clientX, e.clientY, row?.dataset.rel ?? '', row?.dataset.kind !== 'dir');
+    const rel = row?.dataset.rel ?? '';
+    openContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      ctx: 'fileTree',
+      arg: { rel, isFile: row?.dataset.kind === 'file' },
+      emptyText: '打开文件夹后可用',
+    });
   });
 
   $('btnNewFile').addEventListener('click', (e) => {
     e.stopPropagation();
-    void createFilePrompt('');
+    void runCommand('file.newFile', { rel: '', isFile: false }, 'fileTree');
   });
-}
-
-function openTreeMenu(x: number, y: number, rel: string, isFile: boolean): void {
-  closeMenu();
-  const parent = isFile && rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : isFile ? '' : rel;
-  const menu = document.createElement('div');
-  menu.className = 'ctxmenu';
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
-  const items: [string, () => void][] = [
-    ['新建文件', () => void createFilePrompt(parent)],
-    ['新建文件夹', () => void createFolderPrompt(parent)],
-  ];
-  if (rel) {
-    items.push(
-      ['重命名', () => void renamePrompt(rel)],
-      ['在资源管理器中显示', () => void api.revealInExplorer(rel)],
-      ['删除', () => void deletePrompt(rel)]
-    );
-  }
-  for (const [label, action] of items) {
-    const item = document.createElement('button');
-    item.className = 'ctxmenu__i';
-    item.textContent = label;
-    item.addEventListener('click', () => {
-      closeMenu();
-      action();
-    });
-    menu.appendChild(item);
-  }
-  document.body.appendChild(menu);
-  const close = () => closeMenu();
-  setTimeout(() => {
-    document.addEventListener('click', close, { once: true });
-  }, 0);
-}
-
-function closeMenu(): void {
-  document.querySelectorAll('.ctxmenu').forEach((el) => el.remove());
-}
-
-async function createFilePrompt(parent: string): Promise<void> {
-  const name = window.prompt('新文件名（含扩展名）', 'untitled.md');
-  if (!name) return;
-  try {
-    await store.createFile(name, parent);
-  } catch (err) {
-    toast(`创建失败：${(err as Error).message}`, 'err');
-  }
-}
-
-async function createFolderPrompt(parent: string): Promise<void> {
-  const name = window.prompt('新文件夹名', 'notes');
-  if (!name) return;
-  const rel = parent ? `${parent}/${name}` : name;
-  try {
-    await api.createEntry(rel, 'dir');
-    store.tree.delete(parent);
-    await store.loadDir(parent);
-  } catch (err) {
-    toast(`创建失败：${(err as Error).message}`, 'err');
-  }
-}
-
-async function renamePrompt(rel: string): Promise<void> {
-  const name = window.prompt('新名称', rel.split('/').pop() ?? rel);
-  if (!name) return;
-  const parent = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
-  const to = parent ? `${parent}/${name}` : name;
-  try {
-    await api.renameEntry(rel, to);
-    store.tree.clear();
-    await store.loadDir('');
-    bus.emit('tree');
-  } catch (err) {
-    toast(`重命名失败：${(err as Error).message}`, 'err');
-  }
-}
-
-async function deletePrompt(rel: string): Promise<void> {
-  if (!window.confirm(`确定删除 ${rel}？（移入回收站）`)) return;
-  try {
-    await store.deleteEntry(rel);
-    toast('已移入回收站');
-  } catch (err) {
-    toast(`删除失败：${(err as Error).message}`, 'err');
-  }
 }
 
 /* ───────── 大纲 / 版本 ───────── */
@@ -417,19 +340,95 @@ export function setPreviewCollapsed(hidden: boolean): void {
   renderStatus();
 }
 
+/* ───────── 左栏宽度与收起（§8.1） ───────── */
+
+/** 当前生效的左栏宽度：以 CSS 变量为准，它才是屏幕上真正的值 */
+function sideWidth(): number {
+  const raw = parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue('--side-w'),
+    10
+  );
+  return clampSideWidth(Number.isFinite(raw) ? raw : SIDE_DEFAULT);
+}
+
+/** 把设置里的宽度与收起状态贴到 DOM 上；settings 读完才调用 */
+export function applySideState(): void {
+  const cfg = store.settings.layout;
+  document.documentElement.style.setProperty(
+    '--side-w',
+    `${clampSideWidth(cfg.sideWidth || SIDE_DEFAULT)}px`
+  );
+  $('app').classList.toggle('side-collapsed', cfg.sideHidden);
+  $('btnSide').classList.toggle('is-on', !cfg.sideHidden);
+}
+
+/** 收起 / 展开左栏。按钮、Ctrl+B、分隔条双击都走这一条路径，免得三处状态各自漂移 */
+export function shellToggleSide(): void {
+  const app = $('app');
+  // 先按按钮自己的状态算目标值，不去读 settings：settings 可能落后于刚被点击的 DOM
+  const collapsed = app.classList.toggle('side-collapsed');
+  $('btnSide').classList.toggle('is-on', !collapsed);
+  void store.setSettingsPatch({ layout: { ...store.settings.layout, sideHidden: collapsed } });
+}
+
+/**
+ * 左栏与编辑区之间的拖动分隔条。
+ * 拖动过程只改 CSS 变量（不写设置、不重排 React 式的状态），
+ * 松手时才把最终宽度落盘——否则每一帧都是一次 settings.json 写入。
+ */
+function wireSideSplitter(): void {
+  const bar = $('sideSplitter');
+  const app = $('app');
+  const root = document.documentElement;
+
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  bar.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    // 收起状态下没有可拖的边界，先展开再拖，手感上等于「拖一下就回来」
+    if (app.classList.contains('side-collapsed')) shellToggleSide();
+    startX = e.clientX;
+    startW = sideWidth();
+    dragging = true;
+    bar.setPointerCapture(e.pointerId);
+    app.classList.add('is-resizing-side');
+    e.preventDefault();
+  });
+
+  bar.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    root.style.setProperty('--side-w', `${dragWidth(startW, e.clientX - startX)}px`);
+  });
+
+  const finish = (e: PointerEvent): void => {
+    if (!dragging) return;
+    dragging = false;
+    if (bar.hasPointerCapture(e.pointerId)) bar.releasePointerCapture(e.pointerId);
+    app.classList.remove('is-resizing-side');
+    const w = sideWidth();
+    // 停在边界上再继续拖，宽度其实没变；这时候不该写盘
+    if (!sameWidth(w, store.settings.layout.sideWidth)) {
+      void store.setSettingsPatch({ layout: { ...store.settings.layout, sideWidth: w } });
+    }
+  };
+  bar.addEventListener('pointerup', finish);
+  bar.addEventListener('pointercancel', finish);
+
+  // 双击收起 / 展开，与 `.splitter` 的双击语义保持一致
+  bar.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    shellToggleSide();
+  });
+
+  $('btnSide').addEventListener('click', () => shellToggleSide());
+}
+
 /* ───────── 导航区 ───────── */
 
 function wireNav(): void {
-  $('navNew').addEventListener('click', () => {
-    if (!store.vault) {
-      toast('先打开一个文件夹', 'err');
-      return;
-    }
-    const parent = store.activeTab?.rel.includes('/')
-      ? store.activeTab.rel.slice(0, store.activeTab.rel.lastIndexOf('/'))
-      : '';
-    void createFilePrompt(parent);
-  });
+  $('navNew').addEventListener('click', () => void runCommand('file.new'));
   $('navOpen').addEventListener('click', () => void store.openVaultDialog());
   $('emptyOpen').addEventListener('click', () => void store.openVaultDialog());
   $('emptyNew').addEventListener('click', () => $('navNew').click());

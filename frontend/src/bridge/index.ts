@@ -56,6 +56,8 @@ export const writeDoc = (rel: string, text: string, expectedMtime: number | null
 export const createEntry = (rel: string, kind: 'file' | 'dir') =>
   call<Entry>('create_entry', { rel, kind });
 export const renameEntry = (rel: string, to: string) => call<Entry>('rename_entry', { rel, to });
+/** 复制到目录；同名后缀由宿主决定，返回值带实际使用的相对路径 */
+export const copyEntry = (rel: string, toDir: string) => call<Entry>('copy_entry', { rel, toDir });
 export const deleteEntry = (rel: string) => call<void>('delete_entry', { rel });
 export const revealInExplorer = (rel: string) => call<void>('reveal_in_explorer', { rel });
 export const watchVault = () => call<void>('watch_vault');

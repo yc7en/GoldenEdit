@@ -42,7 +42,9 @@ type EventName =
   | 'doc-text'
   | 'log'
   | 'toast'
-  | 'draft';
+  | 'draft'
+  | 'commands'
+  | 'keybindings';
 
 type Handler = (payload?: unknown) => void;
 
@@ -70,13 +72,28 @@ const EMPTY_SETTINGS: Settings = {
     inlinePluginCss: true,
     inlinePluginScripts: false,
   },
-  plugins: { enabled: [], config: {} },
+  plugins: { enabled: [], disabled: [], config: {} },
+  keybindings: {},
+  layout: { sideWidth: 208, sideHidden: false },
+  markdown: { taskDateFormat: 'YYYY年M月D日 HH:mm' },
   recents: [],
   lastVault: null,
 };
 
-class Store {
-  appVersion = '0.1.0';
+/**
+ * 插件是否启用（§5.9）。
+ *
+ * 内置插件**默认启用**——早先的实现只在「启用名单为空」时补一次默认值，
+ * 结果是「后加的内置插件对老用户永远不可见」（markdown-tools 就是这么被漏掉的）。
+ * 用户的显式停用记在 disabled 里，与「本地插件要先安装才能用」区分开。
+ */
+export function isPluginEnabled(settings: Settings, plugin: PluginManifest): boolean {
+  if ((settings.plugins.disabled ?? []).includes(plugin.id)) return false;
+  if (plugin.source.type === 'builtin') return true;
+  return settings.plugins.enabled.includes(plugin.id);
+}
+
+class Store {  appVersion = '0.1.0';
   dataDir = '';
   vault: VaultInfo | null = null;
   tabs: Tab[] = [];
@@ -91,6 +108,8 @@ class Store {
   renderInfo = { blocks: 0, ms: 0, plugins: 0, errors: 0 };
   logs: { level: string; message: string }[] = [];
   previewServer: ServerInfo | null = null;
+  /** 文件级剪贴板：只在应用内有效，不落盘、不跨实例（§8.3） */
+  fileClip: { mode: 'copy' | 'cut'; rels: string[] } | null = null;
   private uiLoaded = false;
   private draftTimer: number | null = null;
 
@@ -184,14 +203,13 @@ class Store {
       this.plugins = [];
       console.error(err);
     }
-    if (this.settings.plugins.enabled.length === 0) {
-      // 首次打开：默认启用内置插件（按 manifest 声明顺序）
-      this.settings.plugins.enabled = this.plugins
-        .filter((p) => p.source.type === 'builtin')
-        .map((p) => p.id);
-      await api.setSettings({ plugins: { enabled: this.settings.plugins.enabled } });
-    }
     bus.emit('plugins');
+  }
+
+  /** 某个插件当前是否生效（§5.9 的判定，供预览与命令插件共用） */
+  pluginEnabled(id: string): boolean {
+    const plugin = this.plugins.find((p) => p.id === id);
+    return plugin ? isPluginEnabled(this.settings, plugin) : false;
   }
 
   enabledPlugins(): PluginManifest[] {
@@ -407,6 +425,61 @@ class Store {
     bus.emit('tree');
   }
 
+  /* ───────── 文件级剪贴板（§8.3） ───────── */
+
+  setFileClip(mode: 'copy' | 'cut', rels: string[]): void {
+    this.fileClip = rels.length > 0 ? { mode, rels: [...rels] } : null;
+    bus.emit('status');
+  }
+
+  clearFileClip(): void {
+    this.fileClip = null;
+    bus.emit('status');
+  }
+
+  /**
+   * 粘贴到目录。复制走 copy_entry（同名后缀由宿主决定），剪切走 rename。
+   * 返回实际改动过的相对路径，供调用方决定要不要打开新文件。
+   */
+  async pasteInto(dir: string): Promise<string[]> {
+    const clip = this.fileClip;
+    if (!clip) return [];
+    const touched: string[] = [];
+    const dirtyDirs = new Set<string>([dir]);
+
+    for (const rel of clip.rels) {
+      const sourceDir = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '';
+      dirtyDirs.add(sourceDir);
+      const name = rel.split('/').pop() ?? rel;
+      const target = dir ? `${dir}/${name}` : name;
+
+      if (clip.mode === 'copy') {
+        const entry = await api.copyEntry(rel, dir);
+        touched.push(entry.rel);
+      } else if (target !== rel) {
+        await api.renameEntry(rel, target);
+        touched.push(target);
+        // 剪切的源文件若正开着，标签路径要跟着改
+        const tab = this.tabs.find((t) => t.rel === rel);
+        if (tab) tab.rel = target;
+        if (this.activeRel === rel) this.activeRel = target;
+      }
+    }
+
+    if (clip.mode === 'cut') this.clearFileClip();
+    for (const d of dirtyDirs) this.tree.delete(d);
+    for (const d of dirtyDirs) {
+      try {
+        await this.loadDir(d);
+      } catch {
+        /* 源目录可能已被整个移走 */
+      }
+    }
+    bus.emit('tree');
+    bus.emit('tabs');
+    return touched;
+  }
+
   async setTheme(patch: Partial<Settings['theme']>): Promise<void> {
     this.settings = { ...this.settings, theme: { ...this.settings.theme, ...patch } };
     await api.setSettings({ theme: this.settings.theme });
@@ -419,11 +492,22 @@ class Store {
   }
 
   async togglePlugin(id: string, on: boolean): Promise<void> {
-    const set = new Set(this.settings.plugins.enabled);
-    if (on) set.add(id);
-    else set.delete(id);
-    this.settings.plugins.enabled = [...set];
-    await api.setSettings({ plugins: { enabled: this.settings.plugins.enabled } });
+    const plugin = this.plugins.find((p) => p.id === id);
+    if (!plugin) return;
+    const enabled = new Set(this.settings.plugins.enabled);
+    const disabled = new Set(this.settings.plugins.disabled ?? []);
+    if (plugin.source.type === 'builtin') {
+      // 内置插件默认开，所以「关」要记进 disabled，「开」就是把它移出来
+      if (on) disabled.delete(id);
+      else disabled.add(id);
+    } else if (on) {
+      enabled.add(id);
+    } else {
+      enabled.delete(id);
+    }
+    this.settings.plugins.enabled = [...enabled];
+    this.settings.plugins.disabled = [...disabled];
+    await api.setSettings({ plugins: { enabled: [...enabled], disabled: [...disabled] } });
     bus.emit('plugins');
   }
 
