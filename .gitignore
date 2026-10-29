@@ -17,6 +17,8 @@ docs/demo.html
 
 # 文档治理：docs-local/ 是独立私有 git 仓库，不随主仓库提交
 docs-local/
+# 指向统一文档仓库的快捷方式（含本机绝对路径，不入库）
+docs-local.lnk
 
 .workbuddy/
 .DS_Store
