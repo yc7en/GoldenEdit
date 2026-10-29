@@ -43,6 +43,22 @@ function applyTheme(theme: ThemePayload): void {
   for (const [k, v] of Object.entries(theme.tokens)) root.style.setProperty(k, v);
   root.dataset.mode = theme.mode;
   root.style.colorScheme = theme.mode;
+  applyCustomCss(theme.customCss ?? '');
+}
+
+/** 用户自定义预览 CSS：单独一个 <style>，清空即移除（§7.3） */
+function applyCustomCss(css: string): void {
+  let el = document.getElementById('ge-custom-css') as HTMLStyleElement | null;
+  if (!css.trim()) {
+    el?.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'ge-custom-css';
+    document.head.appendChild(el);
+  }
+  el.textContent = css;
 }
 
 function injectStyle(id: string, url: string): void {
@@ -63,11 +79,23 @@ const pipeline = new Pipeline(root, {
 
 let worker: Worker | null = null;
 let inited = false;
+/**
+ * 渲染代际号必须由宿主发号、外壳原样带回。
+ * 早先两侧各自 `gen += 1`，主题重渲染只让外壳加号，两边立刻错位——宿主那边的
+ * 「等这次渲染完成」就永远等不到（表现为预览卡在渲染中，探针一律超时）。
+ */
 let gen = 0;
+/** 宿主最近一次发来的号：主题变更、重挂这类由外壳自己发起的渲染复用它，不加号 */
+let lastGen = 0;
 let lastText: string | null = null;
 let mainRegistry: RuntimeRegistry | null = null;
 let options: RenderOptions = { paused: false, fullRenderLimit: 200 * 1024, shardLimit: 2 * 1024 * 1024 };
 let themeMode: 'light' | 'dark' = 'light';
+/** 按需渲染的请求号：Worker 回包按 id 对应 */
+let expandSeq = 0;
+/** 收到 doc 的时刻，用来把「传输 + 解析」与「建 DOM」分开计时（§13.1） */
+let tDoc = 0;
+const pendingExpand = new Map<number, (blocks: { key: string; html: string; plugins: string[] }[]) => void>();
 
 function modeFor(text: string): RenderMode {
   const size = text.length;
@@ -82,7 +110,20 @@ function startWorker(specs: PluginSpec[], doc: HostMessage & { type: 'init' }): 
   worker.onmessage = (ev: MessageEvent) => {
     const msg = ev.data as
       | { type: 'ready' }
-      | { type: 'result'; gen: number; ms: number; blocks: Block[]; outline: never[]; errors: never[]; plugins: string[] }
+      | {
+          type: 'result';
+          gen: number;
+          ms: number;
+          chars: number;
+          parseMs: number;
+          loopMs: number;
+          rules: Record<string, number>;
+          blocks: Block[];
+          outline: never[];
+          errors: never[];
+          plugins: string[];
+        }
+      | { type: 'expanded'; id: number; blocks: { key: string; html: string; plugins: string[] }[] }
       | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string }
       | { type: 'fatal'; message: string };
     if (msg.type === 'log') {
@@ -96,6 +137,12 @@ function startWorker(specs: PluginSpec[], doc: HostMessage & { type: 'init' }): 
     if (msg.type === 'ready') {
       inited = true;
       if (lastText !== null) requestRender(lastText);
+      return;
+    }
+    if (msg.type === 'expanded') {
+      const resolve = pendingExpand.get(msg.id);
+      pendingExpand.delete(msg.id);
+      resolve?.(msg.blocks);
       return;
     }
     if (msg.type === 'result') {
@@ -118,18 +165,31 @@ function startWorker(specs: PluginSpec[], doc: HostMessage & { type: 'init' }): 
 async function onResult(msg: {
   gen: number;
   ms: number;
+  chars: number;
+  parseMs: number;
+  loopMs: number;
+  rules: Record<string, number>;
   blocks: Block[];
   outline: { level: number; text: string; line: number }[];
   errors: { plugin?: string; line: number; message: string }[];
   plugins: string[];
 }): Promise<void> {
   const mode = modeFor(lastText ?? '');
+  const tDom = performance.now();
   const { mounted } = await pipeline.render(msg.blocks, mode);
+  const domMs = Math.round(performance.now() - tDom);
   send({ type: 'outline', items: msg.outline });
   send({
     type: 'rendered',
     gen: msg.gen,
     ms: Math.round(msg.ms),
+    submitted: (lastText ?? '').length,
+    chars: msg.chars,
+    parseMs: msg.parseMs,
+    loopMs: msg.loopMs,
+    rules: msg.rules,
+    xferMs: Math.round(tDom - tDoc),
+    domMs,
     blocks: msg.blocks.length,
     plugins: msg.plugins,
     errors: msg.errors,
@@ -139,11 +199,26 @@ async function onResult(msg: {
   }
 }
 
-function requestRender(text: string): void {
+function requestRender(text: string, hostGen?: number): void {
   lastText = text;
-  gen += 1;
+  if (hostGen !== undefined) lastGen = hostGen;
+  gen = lastGen;
+  tDoc = performance.now();
   if (!worker) return;
-  worker.postMessage({ type: 'doc', gen, text });
+  worker.postMessage({ type: 'doc', gen, text, mode: modeFor(text) });
+}
+
+/** 视口补齐：把请求转给 Worker，等回包（同一批 key 合并成一次请求） */
+function requestBlocks(keys: string[]): Promise<{ key: string; html: string; plugins: string[] }[]> {
+  if (!worker) return Promise.resolve([]);
+  return new Promise((resolve) => {
+    const id = ++expandSeq;
+    pendingExpand.set(id, resolve);
+    worker!.postMessage({ type: 'expand', id, keys });
+    window.setTimeout(() => {
+      if (pendingExpand.delete(id)) resolve([]);
+    }, 10_000);
+  });
 }
 
 async function init(msg: Extract<HostMessage, { type: 'init' }>): Promise<void> {
@@ -163,6 +238,7 @@ async function init(msg: Extract<HostMessage, { type: 'init' }>): Promise<void> 
   await mainRegistry.loadAll(msg.plugins, msg.doc, msg.theme, { utils: {} });
   pipeline.attachRegistry(mainRegistry);
 
+  pipeline.setBlockLoader(requestBlocks);
   startWorker(msg.plugins, msg);
   if (lastText !== null) requestRender(lastText);
 }
@@ -238,10 +314,12 @@ window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
       break;
     case 'doc':
       if (!inited) {
+        // 握手前到的文档：连代际号一起记下来，否则唤醒后回代的号对不上
         lastText = msg.text;
+        lastGen = msg.gen;
         return;
       }
-      requestRender(msg.text);
+      requestRender(msg.text, msg.gen);
       break;
     case 'doc-meta':
       mainRegistry?.setDoc(msg.doc);

@@ -98,6 +98,8 @@ export interface PreviewSettings {
   syncScroll: boolean;
   /** >10MB 文档默认不渲染 */
   pauseAboveMb: number;
+  /** 用户自定义预览 CSS，注入到预览外壳的 <style> 里（§7.3） */
+  customCss: string;
 }
 
 export interface ExportSettings {
@@ -130,7 +132,11 @@ export interface DocState {
   previewHidden?: boolean;
   width?: number;
   scrollTop?: number;
+  /** 三布局：分栏 / 仅编辑 / 仅预览 */
+  layout?: LayoutMode;
 }
+
+export type LayoutMode = 'split' | 'editor' | 'preview';
 
 export interface VaultUiState {
   docs?: Record<string, DocState>;

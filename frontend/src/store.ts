@@ -2,6 +2,7 @@ import * as api from './bridge';
 import type {
   Commit,
   Entry,
+  LayoutMode,
   PluginManifest,
   ServerInfo,
   Settings,
@@ -38,8 +39,10 @@ type EventName =
   | 'settings'
   | 'status'
   | 'render'
+  | 'doc-text'
   | 'log'
-  | 'toast';
+  | 'toast'
+  | 'draft';
 
 type Handler = (payload?: unknown) => void;
 
@@ -59,7 +62,7 @@ export const bus = new Bus();
 
 const EMPTY_SETTINGS: Settings = {
   theme: { preset: 'writing', editor: 'dark', preview: 'light' },
-  preview: { width: 980, syncScroll: false, pauseAboveMb: 10 },
+  preview: { width: 980, syncScroll: false, pauseAboveMb: 10, customCss: '' },
   export: {
     format: 'html',
     width: 980,
@@ -89,6 +92,7 @@ class Store {
   logs: { level: string; message: string }[] = [];
   previewServer: ServerInfo | null = null;
   private uiLoaded = false;
+  private draftTimer: number | null = null;
 
   get activeTab(): Tab | null {
     return this.tabs.find((t) => t.rel === this.activeRel) ?? null;
@@ -241,6 +245,12 @@ class Store {
     void api.setActiveDoc(rel);
     bus.emit('tabs');
     bus.emit('active');
+
+    // 崩溃恢复：磁盘内容与草稿不一致时，让用户决定用哪一份（§10.3）
+    const draft = this.draft(rel);
+    if (draft && draft.text !== doc.text) {
+      bus.emit('draft', { rel, at: draft.at, text: draft.text });
+    }
   }
 
   activate(rel: string): void {
@@ -269,8 +279,69 @@ class Store {
     if (!tab) return;
     tab.text = text;
     tab.dirty = text !== tab.savedText;
+    this.scheduleDraft(tab);
     bus.emit('status');
     bus.emit('tabs');
+  }
+
+  /* ───────── 崩溃恢复：未保存内容写入草稿 ───────── */
+
+  private draftKey(rel: string): string | null {
+    if (!this.vault) return null;
+    return `ge:draft:v1:${this.vault.id}:${rel}`;
+  }
+
+  /**
+   * 输入后 500ms 落一次草稿。刻意用 localStorage：草稿属于界面状态，
+   * 不应出现在用户的工作区目录里（§10「不污染用户仓库」）。
+   */
+  private scheduleDraft(tab: Tab): void {
+    if (this.draftTimer !== null) clearTimeout(this.draftTimer);
+    this.draftTimer = window.setTimeout(() => {
+      this.draftTimer = null;
+      const key = this.draftKey(tab.rel);
+      if (!key) return;
+      if (!tab.dirty) {
+        localStorage.removeItem(key);
+        return;
+      }
+      try {
+        localStorage.setItem(
+          key,
+          JSON.stringify({ text: tab.text, savedText: tab.savedText, at: Date.now() })
+        );
+      } catch {
+        /* 配额满：草稿是尽力而为，不能影响编辑本身 */
+      }
+    }, 500);
+  }
+
+  draft(rel: string): { text: string; at: number; savedText?: string } | null {
+    const key = this.draftKey(rel);
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as { text: string; at: number }) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  clearDraft(rel: string): void {
+    const key = this.draftKey(rel);
+    if (key) localStorage.removeItem(key);
+  }
+
+  /** 用草稿覆盖当前标签内容（保持 dirty，等待用户保存） */
+  restoreDraft(rel: string): void {
+    const draft = this.draft(rel);
+    const tab = this.tabs.find((t) => t.rel === rel);
+    if (!draft || !tab) return;
+    tab.text = draft.text;
+    tab.dirty = draft.text !== tab.savedText;
+    bus.emit('tabs');
+    bus.emit('status');
+    bus.emit('active');
   }
 
   setCursor(line: number, col: number): void {
@@ -289,6 +360,7 @@ class Store {
       tab.mtime = res.mtime;
       tab.savedText = tab.text;
       tab.dirty = false;
+      this.clearDraft(tab.rel);
       bus.emit('tabs');
       bus.emit('status');
       return true;
@@ -313,6 +385,7 @@ class Store {
     tab.savedText = doc.text;
     tab.mtime = doc.mtime;
     tab.dirty = false;
+    this.clearDraft(tab.rel);
     bus.emit('active');
     bus.emit('tabs');
   }
@@ -377,7 +450,13 @@ class Store {
     bus.emit('log');
   }
 
-  persistDocState(patch: { ratio?: number; previewHidden?: boolean; width?: number; scrollTop?: number }): void {
+  persistDocState(patch: {
+    ratio?: number;
+    previewHidden?: boolean;
+    width?: number;
+    scrollTop?: number;
+    layout?: LayoutMode;
+  }): void {
     if (!this.vault || !this.activeRel) return;
     Object.assign(this.docState(this.activeRel), patch);
     void this.persistUi();

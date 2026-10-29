@@ -227,7 +227,26 @@ pub fn scan_plugins(app: AppHandle, state: State<'_, AppState>) -> ApiResult<Vec
             .cmp(&rank(&b.source.r#type))
             .then_with(|| a.name.cmp(&b.name))
     });
+
+    // 插件目录监听只启动一次：每次刷新都重建 watcher 会让「改文件」变成「越改越多监听」
+    start_plugin_watch(&app, &state);
     Ok(list)
+}
+
+fn start_plugin_watch(app: &AppHandle, state: &State<'_, AppState>) {
+    let Ok(mut guard) = state.plugins_watch.lock() else {
+        return;
+    };
+    if guard.is_some() {
+        return;
+    }
+    let mut roots = builtin_roots(app);
+    roots.push(state.user_plugins_dir());
+    roots.dedup();
+    match crate::watcher::start_plugins(app.clone(), roots) {
+        Ok(handle) => *guard = Some(handle),
+        Err(err) => log::warn!("插件目录监听未启动：{err}"),
+    }
 }
 
 fn copy_dir(from: &Path, to: &Path) -> ApiResult<()> {

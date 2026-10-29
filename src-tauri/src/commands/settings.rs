@@ -9,7 +9,12 @@ use crate::state::AppState;
 pub fn default_settings() -> Value {
     json!({
         "theme": { "preset": "writing", "editor": "dark", "preview": "light" },
-        "preview": { "width": 980, "syncScroll": false, "pauseAboveMb": 10 },
+        "preview": {
+            "width": 980,
+            "syncScroll": false,
+            "pauseAboveMb": 10,
+            "customCss": ""
+        },
         "export": {
             "format": "html",
             "width": 980,

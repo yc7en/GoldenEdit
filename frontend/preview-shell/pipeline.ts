@@ -18,6 +18,14 @@ export interface PipelineHooks {
 
 const MOUNT_TIMEOUT = 3000;
 const FIRST_SCREEN_BLOCKS = 200;
+/**
+ * 视口模式下主线程最多先建这么多占位节点。
+ * 8MB 文档有 5 万多块，一次性建出来光 DOM 就要 4 秒——比解析还贵。
+ * 其余部分用一个「尾部间隔器」占高度，滚到哪儿再按批物化（§6.4）。
+ */
+const VIEWPORT_DOM_BLOCKS = 600;
+/** 一次物化的块数：太多会卡一帧，太少会频繁触发 */
+const TAIL_BATCH = 400;
 
 export class Pipeline {
   private article: HTMLElement;
@@ -29,6 +37,12 @@ export class Pipeline {
   private idleScheduled = false;
   /** 已完成的 mount，避免重复执行（§6.3：key 相同则节点保留） */
   private mounted = new WeakSet<Element>();
+  private loadBlocks: ((keys: string[]) => Promise<{ key: string; html: string; plugins: string[] }[]>) | null =
+    null;
+  private filling = new Set<string>();
+  /** 按顺序保留块，尾部物化要用 */
+  private ordered: Block[] = [];
+  private tailObserver: IntersectionObserver | null = null;
   stats = { blocks: 0, lazy: 0 };
 
   constructor(root: HTMLElement, hooks: PipelineHooks) {
@@ -55,8 +69,27 @@ export class Pipeline {
 
   /** 打印 / 导出前把懒加载块补齐，避免打印出空白页 */
   expandAll(): void {
-    const lazy = Array.from(this.article.querySelectorAll<HTMLElement>('.ge-block--lazy'));
-    for (const el of lazy) this.fill(el.dataset.key ?? '');
+    void (async () => {
+      // 先把尾部间隔器逐批物化，再多轮补渲染，直到没有遗留占位（打印不能有空白页）
+      let tail = this.article.querySelector<HTMLElement>('[data-tail]');
+      while (tail) {
+        await this.materializeTail();
+        tail = this.article.querySelector<HTMLElement>('[data-tail]');
+      }
+      for (let round = 0; round < 50; round++) {
+        const lazy = Array.from(this.article.querySelectorAll<HTMLElement>('.ge-block--lazy'));
+        if (lazy.length === 0) return;
+        await Promise.all(lazy.map((el) => this.fill(el.dataset.key ?? '')));
+      }
+    })();
+  }
+
+  /**
+   * 视口模式下尾块的 HTML 由 Worker 按需补渲染（§6.4 第 2 层）。
+   * 不给 loader 就退化为「占位永远空着」，但不会抛错。
+   */
+  setBlockLoader(loader: (keys: string[]) => Promise<{ key: string; html: string; plugins: string[] }[]>): void {
+    this.loadBlocks = loader;
   }
 
   private bindEvents(root: HTMLElement): void {
@@ -93,19 +126,31 @@ export class Pipeline {
   async render(blocks: Block[], mode: RenderMode): Promise<{ mounted: number; lazy: number }> {
     this.blocks = new Map(blocks.map((b) => [b.key, b]));
     this.stats = { blocks: blocks.length, lazy: 0 };
+    // 新一批内容作废上一批的懒填充队列：否则切到大文档时，旧文档的上万个填充任务
+    // 还在空闲队列里排队，会把这次渲染的首屏拖后几秒（实测 2MB → 8MB 拖了 2.1s）
+    this.idleQueue.length = 0;
+    this.tailObserver?.disconnect();
+    this.tailObserver = null;
 
     const previous = new Map<string, Element>();
     for (const el of Array.from(this.article.children)) {
       if (el instanceof HTMLElement) previous.set(el.dataset.key ?? '', el);
     }
 
+    this.ordered = blocks;
     const limit =
       mode === 'full' ? blocks.length : mode === 'shard' ? Math.min(FIRST_SCREEN_BLOCKS, blocks.length) : 0;
+    const headCount = mode === 'viewport' ? Math.min(VIEWPORT_DOM_BLOCKS, blocks.length) : blocks.length;
 
     const holder = document.createElement('div');
-    holder.innerHTML = blocks
-      .map((b, i) => (i < limit ? this.blockHtml(b) : this.placeholderHtml(b, mode)))
-      .join('');
+    const parts: string[] = [];
+    for (let i = 0; i < headCount; i++) {
+      parts.push(i < limit ? this.blockHtml(blocks[i]) : this.placeholderHtml(blocks[i], mode));
+    }
+    if (mode === 'viewport' && blocks.length > headCount) {
+      parts.push(this.tailHtml(headCount));
+    }
+    holder.innerHTML = parts.join('');
 
     const changed: Element[] = [];
     morphdom(this.article, holder, {
@@ -135,6 +180,9 @@ export class Pipeline {
       if (!this.mounted.has(el) || previous.get(key) !== el) targets.push(el);
     }
 
+    const tail = this.article.querySelector<HTMLElement>('[data-tail]');
+    if (tail) this.observeTail(tail);
+
     let mounted = 0;
     for (const el of targets) {
       const did = await this.mountBlock(el);
@@ -152,7 +200,7 @@ export class Pipeline {
   }
 
   private placeholderHtml(block: Block, mode: RenderMode): string {
-    const lines = Math.max(1, block.source.split('\n').length);
+    const lines = Math.max(1, block.lines);
     const height = Math.min(600, 12 + lines * 22);
     return (
       `<section class="ge-block ge-block--lazy" data-key="${block.key}" data-line="${block.line}" data-lazy="1"` +
@@ -161,15 +209,78 @@ export class Pipeline {
     );
   }
 
+  /** 尾部间隔器：按剩余块的估算高度占位，避免出现「滚动条突然变短」 */
+  private tailHtml(from: number): string {
+    return `<section class="ge-block ge-block--tail" data-tail="1" data-tail-from="${from}" style="min-height:${this.tailHeightFrom(from)}px"></section>`;
+  }
+
+  private observeTail(tail: HTMLElement): void {
+    this.tailObserver?.disconnect();
+    this.tailObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) void this.materializeTail();
+        }
+      },
+      { rootMargin: '300% 0px 300% 0px' }
+    );
+    this.tailObserver.observe(tail);
+  }
+
+  /** 把尾部下一批块变成真正的占位节点，剩余部分继续用间隔器顶着 */
+  private async materializeTail(): Promise<void> {
+    const tail = this.article.querySelector<HTMLElement>('[data-tail]');
+    if (!tail) return;
+    const from = Number(tail.dataset.tailFrom ?? '0');
+    if (from >= this.ordered.length) {
+      // 兜底：块数变少时尾部已无事可做，必须摘掉间隔器，否则 expandAll 会空转
+      tail.remove();
+      this.tailObserver?.disconnect();
+      return;
+    }
+    const to = Math.min(from + TAIL_BATCH, this.ordered.length);
+
+    const frag = document.createElement('div');
+    frag.innerHTML = this.ordered
+      .slice(from, to)
+      .map((b) => this.placeholderHtml(b, 'viewport'))
+      .join('');
+    const nodes = Array.from(frag.children);
+    for (const node of nodes) tail.before(node);
+
+    if (to >= this.ordered.length) {
+      tail.remove();
+      this.tailObserver?.disconnect();
+    } else {
+      tail.dataset.tailFrom = String(to);
+      tail.style.minHeight = `${this.tailHeightFrom(to)}px`;
+    }
+    this.stats.lazy += nodes.length;
+    for (const node of nodes) this.observer?.observe(node);
+  }
+
+  private tailHeightFrom(from: number): number {
+    let height = 0;
+    for (let i = from; i < this.ordered.length; i++) {
+      height += Math.min(600, 12 + Math.max(1, this.ordered[i].lines) * 22);
+    }
+    return height;
+  }
+
   private enqueue(key: string): void {
     this.idleQueue.push(key);
+    this.scheduleIdle();
+  }
+
+  /** 分片模式的空闲填充：一批 40 块，填完再排下一批，避免长时间占住主线程 */
+  private scheduleIdle(): void {
     if (this.idleScheduled) return;
     this.idleScheduled = true;
     const run = () => {
       this.idleScheduled = false;
       const batch = this.idleQueue.splice(0, 40);
-      for (const k of batch) this.fill(k);
-      if (this.idleQueue.length) this.enqueue(this.idleQueue.shift()!);
+      for (const k of batch) void this.fill(k);
+      if (this.idleQueue.length) this.scheduleIdle();
     };
     if ('requestIdleCallback' in window) {
       (window as unknown as { requestIdleCallback: (cb: () => void, o?: unknown) => void }).requestIdleCallback(
@@ -181,18 +292,36 @@ export class Pipeline {
     }
   }
 
-  private fill(key: string): void {
+  private async fill(key: string): Promise<void> {
     const block = this.blocks.get(key);
     if (!block) return;
     const el = this.article.querySelector<HTMLElement>(`[data-key="${key}"]`);
     if (!el || el.dataset.lazy !== '1') return;
-    const badge = el.querySelector('.ge-line');
-    el.classList.remove('ge-block--lazy');
-    el.removeAttribute('data-lazy');
-    el.style.minHeight = '';
-    el.innerHTML = block.html;
-    if (badge) el.appendChild(badge);
-    void this.mountBlock(el);
+    if (this.filling.has(key)) return;
+    this.filling.add(key);
+    try {
+      let html = block.html;
+      if (!html) {
+        const loaded = (await this.loadBlocks?.([key])) ?? [];
+        html = loaded.find((b) => b.key === key)?.html ?? '';
+        if (!html) {
+          // 加载失败也要撤掉占位，否则会一直显示「空块」
+          el.textContent = '';
+          el.dataset.empty = '1';
+          return;
+        }
+        block.html = html;
+      }
+      const badge = el.querySelector('.ge-line');
+      el.classList.remove('ge-block--lazy');
+      el.removeAttribute('data-lazy');
+      el.style.minHeight = '';
+      el.innerHTML = html;
+      if (badge) el.appendChild(badge);
+      await this.mountBlock(el);
+    } finally {
+      this.filling.delete(key);
+    }
   }
 
   private async mountBlock(el: HTMLElement): Promise<boolean> {

@@ -102,13 +102,18 @@ export function defaultCommands(actions: {
   openExport: () => void;
   openSettings: () => void;
   setPreset: (preset: 'system' | 'writing' | 'light' | 'dark') => void;
+  setLayout: (mode: 'split' | 'editor' | 'preview') => void;
+  runPerf?: () => void;
 }): Command[] {
   return [
     { id: 'file.new', title: '新建文档', hint: 'Ctrl N', run: actions.newFile },
     { id: 'file.open', title: '打开文件夹…', hint: 'Ctrl K', run: actions.openVault },
     { id: 'file.save', title: '保存当前文档', hint: 'Ctrl S', run: actions.save },
     { id: 'tab.close', title: '关闭当前标签', hint: 'Ctrl W', run: actions.closeTab },
-    { id: 'view.preview', title: '切换预览面板', hint: 'Ctrl+Shift+V', run: actions.togglePreview },
+    { id: 'view.split', title: '布局：分栏', hint: 'Ctrl 1', run: () => actions.setLayout('split') },
+    { id: 'view.editor', title: '布局：仅编辑', hint: 'Ctrl 2', run: () => actions.setLayout('editor') },
+    { id: 'view.preview', title: '布局：仅预览', hint: 'Ctrl 3', run: () => actions.setLayout('preview') },
+    { id: 'view.toggle', title: '切换预览面板', hint: 'Ctrl+Shift+V', run: actions.togglePreview },
     { id: 'view.outline', title: '折叠 / 展开大纲', hint: 'Ctrl+Shift+O', run: actions.toggleOutline },
     { id: 'page.plugins', title: '打开插件页', run: actions.openPlugins },
     { id: 'page.export', title: '导出…', hint: 'Ctrl E', run: actions.openExport },
@@ -117,6 +122,9 @@ export function defaultCommands(actions: {
     { id: 'theme.writing', title: '主题：写作模式', run: () => actions.setPreset('writing') },
     { id: 'theme.light', title: '主题：全亮', run: () => actions.setPreset('light') },
     { id: 'theme.dark', title: '主题：全暗', run: () => actions.setPreset('dark') },
+    ...(actions.runPerf
+      ? [{ id: 'debug.perf', title: '诊断：渲染性能自检', run: actions.runPerf }]
+      : []),
     {
       id: 'debug.info',
       title: '诊断：查看最近日志',

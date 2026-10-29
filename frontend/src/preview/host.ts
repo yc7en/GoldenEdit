@@ -2,11 +2,24 @@ import type { PluginManifest, ServerInfo, Settings } from '../bridge/types';
 import type { PreviewMessage, PluginSpec, RenderOptions, ThemePayload } from '../../preview-shell/protocol';
 import { PREVIEW_TOKENS, resolveMode } from '../theme/tokens';
 
+export interface RenderInfo {
+  blocks: number;
+  ms: number;
+  chars: number;
+  parseMs: number;
+  loopMs: number;
+  rules: Record<string, number>;
+  xferMs: number;
+  domMs: number;
+  submitted: number;
+}
+
 export interface PreviewCallbacks {
   onJump: (line: number) => void;
   onOutline: (items: { level: number; text: string; line: number }[]) => void;
-  onRendered: (info: { blocks: number; ms: number; plugins: string[]; errors: { message: string; line: number }[] }) => void;
-  onLog: (level: string, message: string) => void;
+  onRendered: (
+    info: RenderInfo & { plugins: string[]; errors: { message: string; line: number }[] }
+  ) => void;  onLog: (level: string, message: string) => void;
   onOpenExternal: (url: string) => void;
   onPaused: (paused: boolean) => void;
   onFatal: (message: string) => void;
@@ -36,6 +49,19 @@ export class PreviewHost {
   private themeMode: 'light' | 'dark' = 'light';
   paused = false;
   private lastText = '';
+  /**
+   * 性能探针等待位。必须带代际号：晚到的旧批次 rendered 不能顶替这一次的结果
+   * （真机上就踩过：2MB 样本拿到的是启动文档的耗时）。
+   */
+  private renderWaiter: {
+    gen: number | null;
+    fn: (info: RenderInfo) => void;
+  } | null = null;
+  /**
+   * 主线程侧的分段计时（§13.1 诊断用）。
+   * wall = 防抖 + 投递 + xfer + 建 DOM + 回程，缺哪一段就是卡在哪一段。
+   */
+  timing = { pushAt: 0, firedAt: 0, sentAt: 0, renderedAt: 0 };
 
   constructor(iframe: HTMLIFrameElement, cb: PreviewCallbacks) {
     this.iframe = iframe;
@@ -97,6 +123,30 @@ export class PreviewHost {
     this.post({ type: 'theme', theme: this.themePayload() });
   }
 
+  /**
+   * 推一次内容并等这一次渲染完成。
+   * 性能探针专用：必须等到「这次 push」的结果，不能拿上一次渲染的耗时充数。
+   */
+  pushAndWait(
+    text: string,
+    timeoutMs = 60_000
+  ): Promise<RenderInfo> {
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        this.renderWaiter = null;
+        reject(new Error('渲染超时'));
+      }, timeoutMs);
+      this.renderWaiter = {
+        gen: null,
+        fn: (info) => {
+          clearTimeout(timer);
+          resolve(info);
+        },
+      };
+      this.push(text);
+    });
+  }
+
   push(text: string): void {
     this.lastText = text;
     const limit = (this.settings.preview.pauseAboveMb || 10) * 1024 * 1024;
@@ -110,15 +160,29 @@ export class PreviewHost {
       this.cb.onPaused(false);
     }
     if (this.timer !== null) clearTimeout(this.timer);
+    this.timing.pushAt = performance.now();
     this.timer = window.setTimeout(() => {
       this.timer = null;
+      this.timing.firedAt = performance.now();
       if (!this.inited) {
+        // 外壳还没握手：先存起来，init 时用同一个代际号补发（等待位在这里绑不上）
         this.pending = text;
         return;
       }
-      this.gen += 1;
-      this.post({ type: 'doc', gen: this.gen, text });
+      this.post({ type: 'doc', gen: this.nextGen(), text });
+      this.timing.sentAt = performance.now();
     }, DEBOUNCE);
+  }
+
+  /**
+   * 递增代际号，并把这次的号码绑到等待位上——晚到的旧批次（gen 更小）一律不消费。
+   * init 补发首次渲染时也必须走这里，否则「握手前就订阅了渲染完成」的等待位
+   * 永远对不上号，只能等到超时。
+   */
+  private nextGen(): number {
+    this.gen += 1;
+    if (this.renderWaiter && this.renderWaiter.gen === null) this.renderWaiter.gen = this.gen;
+    return this.gen;
   }
 
   /** 大文档暂停后手动恢复 */
@@ -151,7 +215,11 @@ export class PreviewHost {
   }
 
   private themePayload(): ThemePayload {
-    return { mode: this.themeMode, tokens: PREVIEW_TOKENS[this.themeMode] };
+    return {
+      mode: this.themeMode,
+      tokens: PREVIEW_TOKENS[this.themeMode],
+      customCss: this.settings.preview.customCss ?? '',
+    };
   }
 
   private pluginSpecs(): PluginSpec[] {
@@ -193,12 +261,35 @@ export class PreviewHost {
         this.init();
         break;
       case 'rendered':
+        this.timing.renderedAt = performance.now();
         this.cb.onRendered({
           blocks: msg.blocks,
           ms: msg.ms,
+          chars: msg.chars,
+          submitted: msg.submitted,
+          parseMs: msg.parseMs,
+          loopMs: msg.loopMs,
+          rules: msg.rules ?? {},
+          xferMs: msg.xferMs ?? 0,
+          domMs: msg.domMs ?? 0,
           plugins: msg.plugins,
           errors: msg.errors,
         });
+        if (this.renderWaiter && this.renderWaiter.gen === msg.gen) {
+          const waiter = this.renderWaiter;
+          this.renderWaiter = null;
+          waiter.fn({
+            blocks: msg.blocks,
+            ms: msg.ms,
+            chars: msg.chars,
+            submitted: msg.submitted,
+            parseMs: msg.parseMs,
+            loopMs: msg.loopMs,
+            rules: msg.rules ?? {},
+            xferMs: msg.xferMs ?? 0,
+            domMs: msg.domMs ?? 0,
+          });
+        }
         break;
       case 'outline':
         this.cb.onOutline(msg.items);
@@ -245,8 +336,7 @@ export class PreviewHost {
     this.post({ type: 'width', width: this.width });
     this.inited = true;
     if (text) {
-      this.gen += 1;
-      this.post({ type: 'doc', gen: this.gen, text });
+      this.post({ type: 'doc', gen: this.nextGen(), text });
     }
   }
 }

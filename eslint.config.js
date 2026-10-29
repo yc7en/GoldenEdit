@@ -50,6 +50,12 @@ export default tseslint.config(
         console: 'readonly',
         URL: 'readonly',
         __dirname: 'readonly',
+        // Node 18+ 内置，脚本里直接用，不引 polyfill
+        Buffer: 'readonly',
+        fetch: 'readonly',
+        WebSocket: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
   },

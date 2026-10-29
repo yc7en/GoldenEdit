@@ -60,3 +60,44 @@ pub fn start(app: AppHandle, root: PathBuf) -> ApiResult<WatchHandle> {
 
     Ok(WatchHandle { _watcher: watcher })
 }
+
+/// 监听插件目录（内置 + 用户），任一文件变化后 300ms 合并成一次 `plugins:changed`。
+/// 插件是「一个目录即一个插件」，改动 entry.js / style.css 后重扫即可生效（§5.10）。
+pub fn start_plugins(app: AppHandle, roots: Vec<PathBuf>) -> ApiResult<WatchHandle> {
+    let (tx, rx) = channel::<notify::Event>();
+
+    let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+        if let Ok(event) = res {
+            let _ = tx.send(event);
+        }
+    })
+    .map_err(ApiError::io)?;
+
+    let mut watched = 0usize;
+    for root in roots.iter().filter(|r| r.is_dir()) {
+        if watcher.watch(root, RecursiveMode::Recursive).is_ok() {
+            watched += 1;
+        }
+    }
+    if watched == 0 {
+        return Err(ApiError::new("NO_PLUGIN_DIR", "没有可监听的插件目录"));
+    }
+
+    std::thread::spawn(move || {
+        let mut touched = false;
+        loop {
+            match rx.recv_timeout(Duration::from_millis(300)) {
+                Ok(_event) => touched = true,
+                Err(RecvTimeoutError::Timeout) => {
+                    if touched {
+                        touched = false;
+                        let _ = app.emit("plugins:changed", ());
+                    }
+                }
+                Err(RecvTimeoutError::Disconnected) => break,
+            }
+        }
+    });
+
+    Ok(WatchHandle { _watcher: watcher })
+}

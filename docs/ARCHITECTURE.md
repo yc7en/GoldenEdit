@@ -332,7 +332,9 @@ interface Block {
 
 ### 5.10 启停与重载
 
-勾选状态变化时，**重建整个预览 iframe**，而不是热替换 `register`。理由：重建能消除一切残留状态（定时器、缓存、全局变量），代价是一次重新渲染（<100ms）。插件文件 mtime 变化同样触发重建。
+勾选状态变化时，**重建整个预览 iframe**，而不是热替换 `register`。理由：重建能消除一切残留状态（定时器、缓存、全局变量），代价是一次重新渲染（<100ms）。
+
+插件文件本身变化同样走重建：Rust 侧在首次扫描后对内置与用户插件目录起 `notify` 监听，300ms 合并一次并抛 `plugins:changed`；前端收到后重扫 manifest（`scan_plugins`）→ 刷新插件列表 → 触发同一套重建流程。重载失败不会回退到上一版本，而是由 `register` 抛错的三条降级规则兜底（§5.7）——保留旧版本需要缓存旧代码，代价大于收益。
 
 ---
 
@@ -348,6 +350,11 @@ Monaco change
                     └─ 主线程：morphdom 按 key diff → 对 pending 块执行 onMount
                           └─ 首屏后 requestIdleCallback 继续渲染剩余块
 ```
+
+**代际号必须由 L2 统一发号、L3 原样带回**（BugFix-261028-0012）。早先两侧各自 `gen++`，
+L3 在主题变更、重挂时也会发起渲染并加号，两边一旦错位，L2 的「等这次渲染完成」就永远等不到。
+现在 L3 只在收到 `doc` 时采用 L2 给的号；自己发起的渲染复用上一次的号，不加号。
+L3 的 Worker 若解析失败，也必须回一条 `result`（空 blocks + 错误条目），否则 L2 那边会一直等。
 
 ### 6.2 四层性能策略（全部实现）
 
@@ -377,9 +384,18 @@ key 相同 → 节点原地保留，DOM 状态（折叠、选中、SVG）全部�
 | 文档大小 | 策略 |
 |---|---|
 | < 200 KB | 全量渲染，不分片、不 morph（开销小于收益） |
-| 200 KB – 2 MB | 块级 morphdom + 分片 |
+| 200 KB – 2 MB | 块级 morphdom + 分片：首屏 200 块，其余占位后按空闲批次补渲染 |
 | 2 MB – 10 MB | 追加：只渲染视口上下各 2 屏，滚动时补齐 |
 | > 10 MB | 预览默认收起，顶部提示「文档较大，预览已暂停」，提供手动渲染按钮 |
+
+**两条硬约束**（都踩过，别再改回去）：
+
+1. **视口模式只建首屏的 DOM**。8MB 有 5.4 万块，一次性建出来光 DOM 就要近 4 秒——比解析还贵。
+   主线程先建 600 个占位节点，其余用一个「尾部间隔器」按估算高度占住滚动条，
+   滚到哪儿再按批（400 块）物化。
+2. **换新内容必须作废旧内容的后台工作**。分片模式的空闲填充队列是跨渲染存在的；
+   不清空的话，切到大文档时旧文档的上万个填充任务会继续占着 Worker 和主线程，
+   新文档的首屏被拖后数秒（BugFix-261028-0013）。`render()` 开头清 `idleQueue`、断尾部 observer。
 
 编辑器不受此限制（Monaco 自身按行虚拟化）。
 
@@ -411,6 +427,17 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 
 设计意图：预览主题与应用主题可完全解耦，`golden-light` 皮肤与 `golden-dark` 皮肤只是两组 token。
 
+### 7.3 自定义预览 CSS
+
+`settings.preview.customCss` 是一段原样保留的 CSS 文本，随 `{type:'theme'}` 一起下发（`ThemePayload.customCss`），L3 写进 `<style id="ge-custom-css">`：
+
+- 主题切换走同一条消息，不重建 iframe，改完立即生效；
+- 清空即移除该 `<style>`，不残留；
+- 导出时无需特殊处理：导出器遍历 `document.styleSheets` 收集全部规则，自定义样式天然包含在内——预览与导出仍是一份样式；
+- 只在预览侧生效，不写回文档，也不进编辑器。
+
+优先级上它排在 `--ge-*` 变量之后、行内样式之前，因此能覆盖插件外观但覆盖不了块内行内属性——这是有意的：让「换皮肤」不至于破坏插件渲染结果的语义。
+
 ---
 
 ## 8. 布局与交互契约
@@ -424,6 +451,7 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 | 折叠方向 | 顶部组向上收（分组头不动）；沉底组向下收（分组头回落到最下方）；高度过渡 220ms |
 | 分组滚动 | 仅分组区滚动；沉底组用 `margin-top:auto` 贴底，内容超出时退化为普通流 |
 | 预览 | 右侧面板，默认 46%；由标题栏最右端方形按钮开合（开启态高亮）；`Ctrl+Shift+V`；双击分隔条收起 |
+| 三布局 | `Ctrl+1` 分栏 / `Ctrl+2` 仅编辑 / `Ctrl+3` 仅预览。仅预览时编辑区与分隔条一起让位（`layout-preview`），预览吃满内容区；布局按文件记忆（`DocState.layout`），旧数据只有 `previewHidden` 时按它推导 |
 | 内容页 | 插件等导航页从侧栏右侧开始（`left:208px`），保留左栏、隐藏标签栏 |
 | 模态 | 导出以模态覆盖全窗；同一时刻只允许一个模态 |
 | 分栏比例 | 按文件记忆；拖动过程只改内存，松手落盘；两侧最小宽度 320 / 280 |
@@ -457,6 +485,10 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 | `open_external` | `(url)` | 仅 http / https / mailto |
 | `pick_folder` / `pick_file` / `save_dialog` | | 原生对话框 |
 | `get_app_info` | `→ { version, platform }` | |
+| `take_pending_open` | `() → String \| null` | 取走启动参数里的文件，取一次即清（§9.7） |
+| `open_plugins_dir` | `() → ()` | 打开用户插件目录（只读入口，不执行任何脚本） |
+| `perf_plan` | `() → { samples, out } \| null` | 只有设置了 `GE_PERF_MANIFEST` 才返回；否则恒 `null`，不读任何文件（§13.1） |
+| `perf_report` | `(out: String, rows: String)` | 写结果文件后退出进程；同样只在验收启动下被调用 |
 
 ### 9.2 路径守卫
 
@@ -476,6 +508,8 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 | `vault:changed` | `{ paths: string[] }` | 文件系统监听 |
 | `doc:external_changed` | `{ rel, mtime }` | 当前打开文件被外部修改 |
 | `server:ready` | `{ origin }` | 预览服务启动完成 |
+| `app:open-file` | `{ path: string }` | 第二个实例转交了文件，或命令行带参数（§9.7） |
+| `plugins:changed` | `null` | 内置 / 用户插件目录有文件变化，300ms 合并一次（§5.10） |
 
 ### 9.4 预览 HTTP 服务
 
@@ -493,7 +527,10 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 ### 9.5 导出
 
 - **HTML**：由 L3 渲染完整文档（含样式与插件 CSS），L2 通过预览服务取回图片/字体并 base64 内联，拼成单文件字符串，调用 `save_export` 落盘。**Rust 不参与 HTML 生成**——预览与导出共用同一段渲染代码，像素一致是结构性保证，而非靠对齐维护。
-- **PDF**：Windows 走 WebView2 `ICoreWebView2_7::PrintToPdfAsync`，静默输出；其它平台降级为系统打印对话框。
+- **PDF**：**一期走系统打印对话框**。L3 侧 `window.print()` 打印的是预览外壳自身文档，`@page` 已固定 A4 与页边距，用户在打印设置里选「另存为 PDF」即得到与预览一致的版面。
+
+  这条路径要求 iframe 具备 `allow-modals`（见 §11.1 第 5 条），否则 `window.print()` 会被浏览器静默丢弃——BugFix-261028-0009 即此缺陷。
+  静默输出（无对话框、直接落盘）需要额外开一个隐藏 WebView 走 `ICoreWebView2_16::PrintToPdfAsync`，一期不做：收益（少一次点击）远小于成本（第二个 webview 生命周期、文件服务路由、跨进程时序）。原本文档写的「已用 PrintToPdfAsync 静默输出」是计划而非实现，此处更正。
 - **PNG**：一期不做，预留。
 
 ### 9.6 明确不暴露的能力
@@ -502,6 +539,19 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 - `exec` / `spawn`（进程执行）
 - `http_request`（通用代理；L3 插件需要的网络能力必须走独立、可审计的 `net_fetch` 命令并受域名白名单约束，一期不实现）
 
+### 9.7 单实例与命令行打开
+
+双击 `.md` 关联、`goldenedit a.md`、重复启动三种入口必须落到**同一个窗口**，不能开第二个实例。
+
+实现不引第三方单实例插件，用回环端口做「实例锁 + 参数通道」：
+
+1. 启动时尝试 `bind(127.0.0.1:47821)`。成功即主实例，起线程 `accept`，把收到的路径通过 channel 交给 setup 后启动的转发线程。
+2. `bind` 失败时向该端口发一行 `GE1 <path>\n`。**只有读到 `OK` 才算转交成功**并退出——否则说明端口上跑的是别的程序，本进程必须继续启动（降级为「无单实例保护」），不能静默退出。
+3. 主实例收到路径后：取消最小化、聚焦窗口、`emit('app:open-file', { path })`。
+4. 本次启动自带的参数走 `pending_open`：前端在监听器就绪前收不到事件，所以由前端主动调用 `take_pending_open()` 取一次，取完即清。
+
+为什么不传绝对路径给渲染层：路径只在主页面用一次，用于「判断是否在当前 vault 内」或「先切 vault 再打开相对路径」，随后仍走 §9.2 的守卫。
+
 ---
 
 ## 10. 存储
@@ -509,8 +559,11 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 | 文件 | 位置 | 内容 |
 |---|---|---|
 | `settings.json` | `<appdata>/GoldenEdit/` | 主题、插件启停与配置、最近 vault、导出默认项 |
-| `ui-state.json` | `<appdata>/GoldenEdit/` | 按 `vaultId + relPath` 记忆分栏比例、预览收起状态、滚动位置 |
+| `ui-state.json` | `<appdata>/GoldenEdit/` | 按 `vaultId + relPath` 记忆分栏比例、三布局、预览宽度、分组折叠、滚动位置 |
 | 插件 | `<appdata>/GoldenEdit/plugins/<id>/` | 用户安装的插件 |
+| 未保存草稿 | WebView2 的 `localStorage`（键 `ge:draft:v1:<vaultId>:<rel>`） | 输入后 500ms 落一次；保存成功或用户丢弃即清 |
+
+**为什么草稿放 localStorage 而不是文件**：草稿属于界面状态，写进工作区就等于向用户仓库塞隐藏文件；写进 appdata 又要额外一套清理逻辑与服务端路由。localStorage 天然按应用隔离、随 webview 数据目录走，且不需要新命令。
 
 **禁止向用户文档目录写入任何隐藏文件**（`.goldenedit/` 仅在用户显式开启「项目级插件」时创建）。
 
@@ -543,6 +596,11 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 4. opaque origin 下 Vite 产物的 `<script crossorigin>` 会被浏览器按跨域请求处理，
    无 CORS 头时静默不执行——所以预览构建去掉了 `crossorigin`，且预览服务对所有
    GET 响应补 `Access-Control-Allow-Origin: *`（token 仍是唯一的访问凭证）。
+5. 沙箱还必须带 `allow-modals`：否则 `window.print()` 被浏览器**静默丢弃**
+   （控制台提示 "Ignored call to 'print()'"），PDF 导出链路整条失效（BugFix-261028-0009）。
+   代价是插件代码可以 `alert()` / `confirm()` 阻塞界面。可接受的理由：插件运行在同一
+   外壳内、本来就能改 DOM；而文档内脚本在渲染阶段已被 `stripScripts` 剥离，
+   外来 HTML 无法借此弹窗。升级复验时一并确认该标志未被移除。
 
 ### 11.2 预览服务的资源边界
 
@@ -578,11 +636,41 @@ L2 的 `theme/tokens.ts` 生成两套 CSS 变量（editor / preview），通过 
 | 插件在 Worker 与主线程行为不一致 | 内置插件全部跑双环境 | 强制 `ctx.scope` 分支约定 |
 | WebView2 / Tauri 升级后子框架 IPC 行为变化 | 重跑 §11.1 三条探针：① `typeof __TAURI_INTERNALS__`；② iframe 内 `invoke('set_ui_state')` 后主窗口读回状态确认无副作用；③ `new Worker` 是否可用 | 探针失败则禁止发布，直至重新评估沙箱策略 |
 
+### 13.1 性能验收脚本
+
+验收不是「跑起来看着不卡」，而是固定命令 + 固定阈值：
+
+```bash
+node scripts/gen-perf-samples.mjs   # 生成 200KB / 2MB / 8MB 三份样本（不入库）
+npm run build && npx tauri build --no-bundle
+node scripts/perf-check.mjs         # 真机跑三档，超预算返回非零
+```
+
+**一档一个进程**：脚本对每份样本单独拉起 release 版，用 `GE_PERF_MANIFEST` / `GE_PERF_OUT`
+两个环境变量把清单与结果路径交给应用。应用启动后由前端读样本（`perf_plan`）、用
+`PreviewHost.pushAndWait` 走**与手工编辑完全相同的渲染管线**跑一档、把结果写回（`perf_report`）
+并退出，脚本只负责递清单、等文件、打印表格。阈值：200KB ≤ 900ms、2MB ≤ 1600ms、
+8MB ≤ 2000ms（§6.4 的四档策略下，8MB 走视口模式，只渲染首屏）。
+
+两条约束写在代码注释里，改动前务必先读：
+
+- **不要改回远程调试端口（CDP）**。wry 建 WebView2 环境时总会以编程方式设置
+  `AdditionalBrowserArguments`，WebView2 因此忽略 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`，
+  调试端口时有时无（实测同一份二进制前后两次启动行为不一致）；为跑测试在发布版里固定开
+  调试端口更不可接受。
+- **不要改成同一进程连跑三档**。2MB 有 1.3 万个懒填充任务，会把下一档的首屏拖后数秒
+  （实测 8MB 被多算 9 秒）。验收要回答的是「打开这么大的文件要多久」，每档必须独立计量。
+
+每条结果除墙钟外还带分段（防抖 / 投递 / 传输 / 建 DOM / 回调）与「未归因」：
+墙钟超预算时先看分段，能直接判断是内核慢、DOM 慢，还是消息在两岸之间排队。
+`window.__ge.bench` / `settle` 仍保留给手工排查用，不加快捷命令、不写文件；它们是验收工具，
+不是产品 API。
+
 ### 13.2 探针操作方式
 
-以 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9333"` 启动应用，
-用 CDP `/json/list` 找到 `type: iframe` 目标，在其中 `Runtime.evaluate` 执行上述表达式。
-结论与日期记录到本节，替代记忆。
+手工排查用：打开「命令面板 → 诊断：渲染性能自检」，或从控制台调
+`window.__ge.bench(text)` / `window.__ge.settle()`。自动验收一律**不要**依赖远程调试端口
+（见 §13.1 第一条）。结论与日期记录到本节，替代记忆。
 
 ---
 

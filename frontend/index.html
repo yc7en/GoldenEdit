@@ -132,7 +132,7 @@
               <iframe
                 id="preview"
                 class="preview__frame"
-                sandbox="allow-scripts allow-same-origin"
+                sandbox="allow-scripts allow-same-origin allow-modals"
                 referrerpolicy="no-referrer"
                 title="预览"
               ></iframe>
@@ -148,6 +148,7 @@
             </div>
             <div class="page__acts">
               <input class="input" id="pluginSearch" placeholder="搜索插件 / 触发语法" />
+              <button class="btn" id="btnOpenPluginDir">打开插件目录</button>
               <button class="btn" id="btnInstallPlugin">从文件夹安装</button>
             </div>
           </div>
@@ -203,6 +204,16 @@
               <div class="setting__d">编辑区滚动时，预览跟随到对应块。默认关闭。</div>
               <div class="setting__row">
                 <label class="switch"><input type="checkbox" id="syncScroll" /><span></span></label>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting__t">自定义预览 CSS</div>
+              <div class="setting__d">追加到预览外壳的样式，只影响预览与导出，不改动文档本身。留空即关闭。</div>
+              <textarea class="ta" id="customCss" spellcheck="false" placeholder="例：.ge-doc { font-family: 'LXGW WenKai', serif; }"></textarea>
+              <div class="setting__row">
+                <span class="grow"></span>
+                <button class="btn" id="customCssClear">清空</button>
+                <button class="btn btn--dark" id="customCssSave">应用</button>
               </div>
             </div>
             <div class="setting">

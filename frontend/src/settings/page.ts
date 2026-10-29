@@ -29,6 +29,17 @@ export function mountSettingsPage(): void {
     void store.setSettingsPatch({ preview: { syncScroll: (e.target as HTMLInputElement).checked } });
   });
 
+  const cssBox = $('customCss') as unknown as HTMLTextAreaElement;
+  $('customCssSave').addEventListener('click', () => {
+    void store
+      .setSettingsPatch({ preview: { customCss: cssBox.value } })
+      .then(() => store.toast(cssBox.value.trim() ? '预览样式已应用' : '已清除自定义样式'));
+  });
+  $('customCssClear').addEventListener('click', () => {
+    cssBox.value = '';
+    void store.setSettingsPatch({ preview: { customCss: '' } }).then(() => store.toast('已清除自定义样式'));
+  });
+
   bus.on('settings', render);
   render();
 }
@@ -41,6 +52,9 @@ function render(): void {
   ($('editorTheme') as HTMLSelectElement).value = theme.editor;
   ($('previewTheme') as HTMLSelectElement).value = theme.preview;
   ($('syncScroll') as HTMLInputElement).checked = store.settings.preview.syncScroll;
+  const cssBox = $('customCss') as unknown as HTMLTextAreaElement;
+  // 正在输入时不要把用户打的字覆盖掉
+  if (document.activeElement !== cssBox) cssBox.value = store.settings.preview.customCss ?? '';
   $('dataPaths').innerHTML =
     `<div>应用数据：${escapeHtml(store.dataDir || '—')}</div>` +
     `<div>工作区：${escapeHtml(store.vault?.root ?? '未打开')}</div>`;

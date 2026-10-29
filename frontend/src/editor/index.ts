@@ -79,7 +79,9 @@ export class EditorHost {
     this.editor.onDidChangeModelContent(() => {
       const text = this.editor.getValue();
       store.updateText(text);
-      bus.emit('render');
+      // 'render' 是「渲染完成」的回执，不能拿来当「文档变了」用：
+      // 那样每次渲染完都会再推一次文档，形成无限重渲染（BugFix-261028-0010）
+      bus.emit('doc-text');
     });
 
     this.editor.onDidChangeCursorPosition((e) => {

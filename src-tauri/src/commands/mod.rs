@@ -1,5 +1,6 @@
 pub mod doc;
 pub mod export;
+pub mod perf;
 pub mod plugin;
 pub mod settings;
 pub mod system;

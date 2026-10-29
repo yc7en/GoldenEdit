@@ -25,8 +25,14 @@ export interface Block {
   line: number;
   /** 命中的插件 id（用于诊断） */
   plugins: string[];
-  /** 该块的源码，用于 lazy 渲染与调试 */
-  source: string;
+  /**
+   * 源码行数。占位块用它估高度。
+   * 刻意不下发源码：8MB 文档 5 万块时，只传 HTML 就已经是几十 MB，
+   * 再带上等量源码只会让 postMessage 变成瓶颈（§6.4）。
+   */
+  lines: number;
+  /** 是否还没渲染（视口模式下尾块按需补渲染） */
+  pending?: boolean;
 }
 
 /** FNV-1a 32bit，转 base36。碰撞代价只是多渲染一次，不需要密码学强度。 */

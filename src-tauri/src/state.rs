@@ -29,6 +29,10 @@ pub struct AppState {
     pub server: Mutex<Option<PreviewServer>>,
     /// 插件 id → 目录，预览服务据此路由 /plugin/{id}/*
     pub plugin_roots: PluginRoots,
+    /// 启动参数里的文件；前端取走一次后清空（§9.7）
+    pub pending_open: Mutex<Option<String>>,
+    /// 插件目录监听句柄：持有即监听，drop 即停止
+    pub plugins_watch: Mutex<Option<WatchHandle>>,
 }
 
 impl AppState {
@@ -41,6 +45,8 @@ impl AppState {
             vault_root: Arc::new(Mutex::new(None)),
             server: Mutex::new(None),
             plugin_roots: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            pending_open: Mutex::new(None),
+            plugins_watch: Mutex::new(None),
         }
     }
 

@@ -75,6 +75,7 @@ export const setUiState = (patch: UiState) => call<UiState>('set_ui_state', { pa
 export const scanPlugins = () => call<PluginManifest[]>('scan_plugins');
 export const installPlugin = (src: string) => call<PluginManifest>('install_plugin', { src });
 export const removePlugin = (id: string) => call<void>('remove_plugin', { id });
+export const openPluginsDir = () => call<void>('open_plugins_dir');
 
 /* ---------------- preview server ---------------- */
 
@@ -94,6 +95,25 @@ export const saveDialog = (defaultName: string, filters?: FileFilter[]) =>
 export const getAppInfo = () => call<AppInfo>('get_app_info');
 export const gitLog = (limit = 12) => call<Commit[]>('git_log', { limit });
 export const setActiveDoc = (rel: string | null) => call<void>('set_active_doc', { rel });
+/** 启动参数里的文件（双击 .md / 命令行）；取一次即清空 */
+export const takePendingOpen = () => call<string | null>('take_pending_open');
+
+/* ---------------- 性能验收（§13.1，仅 perf-check 脚本触发） ---------------- */
+
+export interface PerfSample {
+  name: string;
+  budget: number;
+  text: string;
+}
+export interface PerfPlan {
+  samples: PerfSample[];
+  /** 结果文件路径，写完就退出进程 */
+  out: string;
+}
+
+/** 普通启动返回 null；只有设置了 GE_PERF_MANIFEST 才会拿到验收清单 */
+export const perfPlan = () => call<PerfPlan | null>('perf_plan');
+export const perfReport = (out: string, rows: string) => call<void>('perf_report', { out, rows });
 
 /* ---------------- events ---------------- */
 
@@ -113,6 +133,8 @@ export type HostEventMap = {
   'doc:external_changed': DocExternalChangedPayload;
   'server:ready': ServerReadyPayload;
   'app:open-file': { path: string };
+  /** 内置 / 用户插件目录有文件变化（新增、编辑、删除） */
+  'plugins:changed': null;
 };
 
 export function on<K extends keyof HostEventMap>(

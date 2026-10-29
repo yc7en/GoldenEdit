@@ -2,8 +2,10 @@ import './styles/tokens.css';
 import './styles/app.css';
 
 import * as api from './bridge';
+import type { LayoutMode } from './bridge/types';
 import { EditorHost } from './editor';
 import { openExportDialog } from './export/dialog';
+import { bench, benchCurrent, settle, type BenchRow } from './perf';
 import { mountPluginsPage } from './plugins/page';
 import { PreviewHost } from './preview/host';
 import { mountSettingsPage } from './settings/page';
@@ -17,7 +19,7 @@ import {
   openPalette,
   registerCommands,
 } from './ui/palette';
-import { escapeHtml, mountShell, setPreviewCollapsed, toast } from './ui/shell';
+import { escapeHtml, mountShell, closeModal, openModal, setPreviewCollapsed, toast } from './ui/shell';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
@@ -112,10 +114,27 @@ const editorHost = new EditorHost($('editor'));
 /* ───────── 命令 ───────── */
 
 function togglePreview(collapse?: boolean): void {
-  const hidden = collapse ?? !$('workspace').classList.contains('preview-hidden');
-  setPreviewCollapsed(hidden);
-  store.persistDocState({ previewHidden: hidden });
+  const ws = $('workspace');
+  const hidden = collapse ?? !ws.classList.contains('preview-hidden');
+  // 手动开合时退出「仅预览」，否则预览收起后再点开还是看不见编辑区
+  if (hidden) ws.classList.remove('layout-preview');
+  applyLayout(hidden ? 'editor' : ws.classList.contains('layout-preview') ? 'preview' : 'split');
+}
+
+/**
+ * 三布局（§8.2）：分栏 / 仅编辑 / 仅预览。
+ * `persist` 为 false 时只改 DOM——用于「切标签时按记忆复原」，避免写回自己。
+ */
+function applyLayout(mode: LayoutMode, persist = true): void {
+  const ws = $('workspace');
+  ws.classList.toggle('layout-preview', mode === 'preview');
+  setPreviewCollapsed(mode === 'editor');
   editorHost.layout();
+  if (persist) store.persistDocState({ layout: mode, previewHidden: mode === 'editor' });
+}
+
+function setLayout(mode: LayoutMode): void {
+  applyLayout(mode);
 }
 
 function toggleOutline(): void {
@@ -147,6 +166,23 @@ registerCommands(
     openExport: () => openExportDialog(preview),
     openSettings: () => showPage('settings'),
     setPreset,
+    setLayout,
+    runPerf: () => {
+      void (async () => {
+        try {
+          const row = await benchCurrent(preview);
+          if (!row) {
+            toast('先打开一篇文档再做性能自检', 'err');
+            return;
+          }
+          const text = `${row.name} · ${row.kb}KB · ${row.blocks} 块 · 内核 ${row.kernelMs}ms · 墙钟 ${row.wallMs}ms`;
+          store.pushLog('info', `性能自检：${text}`);
+          toast(text);
+        } catch (err) {
+          toast(`性能自检失败：${(err as Error).message}`, 'err');
+        }
+      })();
+    },
   })
 );
 
@@ -205,18 +241,16 @@ function wireKeyboard(): void {
           return;
         case '1':
           e.preventDefault();
-          setPreviewCollapsed(false);
-          $('paneEditor').style.display = '';
-          break;
+          setLayout('split');
+          return;
         case '2':
           e.preventDefault();
-          setPreviewCollapsed(true);
-          $('paneEditor').style.display = '';
-          break;
+          setLayout('editor');
+          return;
         case '3':
           e.preventDefault();
-          setPreviewCollapsed(false);
-          break;
+          setLayout('preview');
+          return;
         default:
           break;
       }
@@ -307,8 +341,71 @@ function wireDragDrop(): void {
   });
 }
 
-async function boot(): Promise<void> {
-  mountShell({
+/** 草稿恢复提示：磁盘内容与上次未保存的草稿不一致时问一次（§10.3） */
+function wireDrafts(): void {
+  bus.on('draft', (payload) => {
+    const p = payload as { rel: string; at: number };
+    const when = new Date(p.at).toLocaleString();
+    const card = openModal(`
+      <div class="modal__title">发现未保存的修改</div>
+      <div class="modal__sub">${escapeHtml(p.rel)} 在 ${escapeHtml(when)} 有一份草稿，比磁盘上的内容新。要恢复吗？</div>
+      <div class="modal__foot">
+        <span class="grow"></span>
+        <button class="btn" id="draftDrop" data-close="modal">丢弃草稿</button>
+        <button class="btn btn--gold" id="draftKeep">恢复草稿</button>
+      </div>`);
+    card.querySelector('#draftKeep')?.addEventListener('click', () => {
+      store.restoreDraft(p.rel);
+      editorHost.refreshFromStore();
+      closeModal();
+      pushActiveDoc();
+    });
+    card.querySelector('#draftDrop')?.addEventListener('click', () => {
+      store.clearDraft(p.rel);
+      closeModal();
+    });
+  });
+}
+
+/** 打开宿主转来的绝对路径：在工作区里直接开，否则先切工作区（§9.7） */
+async function openExternalPath(path: string): Promise<void> {
+  const normalized = path.replace(/\\/g, '/');
+  const info = store.vault;
+  if (info) {
+    const root = info.root.replace(/\\/g, '/').replace(/\/+$/, '');
+    if (normalized.toLowerCase().startsWith(`${root.toLowerCase()}/`)) {
+      await store.openFile(normalized.slice(root.length + 1));
+      return;
+    }
+  }
+  const dir = normalized.replace(/\/[^/]*$/, '');
+  await store.openVaultPath(dir, true);
+  await store.openFile(normalized.slice(normalized.lastIndexOf('/') + 1));
+}
+
+function wireOpenFile(): void {
+  void api.on('app:open-file', (payload) => {
+    void openExternalPath(payload.path).catch((err) =>
+      toast(`打开失败：${(err as Error).message}`, 'err')
+    );
+  });
+}
+
+function wirePluginChanges(): void {
+  void api.on('plugins:changed', () => {
+    void (async () => {
+      try {
+        await store.refreshPlugins();
+        const n = store.settings.plugins.enabled.length;
+        toast(`插件目录已变更，重新加载 ${store.plugins.length} 个插件（启用 ${n} 个）`);
+      } catch (err) {
+        store.pushLog('error', `插件重扫失败：${(err as Error).message}`);
+      }
+    })();
+  });
+}
+
+async function boot(): Promise<void> {  mountShell({
     revealLine: (line) => {
       showPage('main');
       editorHost.revealLine(line);
@@ -323,6 +420,9 @@ async function boot(): Promise<void> {
   wireKeyboard();
   wireExternalChanges();
   wireDragDrop();
+  wireDrafts();
+  wireOpenFile();
+  wirePluginChanges();
 
   bind('btnPalette', openPalette);
   bind('navPlugins', () => showPage('plugins'));
@@ -338,7 +438,9 @@ async function boot(): Promise<void> {
     if (!tab) return;
     const state = store.docState(tab.rel);
     applyRatio(state.ratio ?? 0.46);
-    if (state.previewHidden !== undefined) setPreviewCollapsed(state.previewHidden);
+    // 布局记忆：旧版本只存 previewHidden，这里按它推导，兼容已有 ui-state.json
+    const layout: LayoutMode = state.layout ?? (state.previewHidden ? 'editor' : 'split');
+    applyLayout(layout, false);
     if (state.width !== undefined) {
       preview.setWidth(state.width);
       document.querySelectorAll('#widthPresets .seg').forEach((s) => {
@@ -348,7 +450,7 @@ async function boot(): Promise<void> {
     pushActiveDoc();
     renderRecentIfEmpty();
   });
-  bus.on('render', () => {
+  bus.on('doc-text', () => {
     if (store.activeTab) preview.push(store.activeTab.text);
   });
   bus.on('vault', () => showPage('main'));
@@ -375,6 +477,77 @@ async function boot(): Promise<void> {
   $('emptyState').hidden = store.tabs.length > 0;
   renderRecentIfEmpty();
   applyTheme();
+
+  // 启动参数里的文件：双击 .md 关联打开、`goldenedit a.md` 都走这里
+  try {
+    const pending = await api.takePendingOpen();
+    if (pending) await openExternalPath(pending);
+  } catch (err) {
+    toast(`打开启动参数失败：${(err as Error).message}`, 'err');
+  }
+
+  // 性能探针：scripts/perf-check.mjs 通过它驱动真实渲染管线（§13.1）
+  (window as unknown as Record<string, unknown>).__ge = {
+    bench: (text: string, name?: string) => bench(preview, text, name),
+    settle: () => settle(preview),
+    store,
+  };
+
+  await maybeRunPerfSuite();
+}
+
+/**
+ * 进程内性能验收：只有带着 `GE_PERF_MANIFEST` 启动时才走这条路（§13.1）。
+ * 走的是和用户完全相同的渲染管线，不额外开调试端口。
+ */
+async function maybeRunPerfSuite(): Promise<void> {
+  let plan: api.PerfPlan | null = null;
+  try {
+    plan = await api.perfPlan();
+  } catch (err) {
+    toast(`性能验收清单读取失败：${(err as Error).message}`, 'err');
+    return;
+  }
+  if (!plan) return;
+
+  const rows: (BenchRow & { budget: number })[] = [];
+  let error: string | null = null;
+  try {
+    // 先确认外壳已经握手：没就绪时每个样本都要空等到超时，脚本只会报「超时」
+    await preview.pushAndWait('# settle\n', 20_000);
+    for (const sample of plan.samples) {
+      // 每档前把预览打回空白：上一档遗留的懒填充会把这一档的首屏时间撑大
+      await settle(preview);
+      const row = await bench(preview, sample.text, sample.name);
+      rows.push({ ...row, budget: sample.budget });
+      store.pushLog(
+        'info',
+        `性能验收 ${sample.name}：墙钟 ${row.wallMs}ms / 预算 ${sample.budget}ms（内核 ${row.kernelMs}ms）`
+      );
+    }
+  } catch (err) {
+    // 失败也要把原因写回去，否则脚本只能报「超时」，看不出卡在哪
+    error = (err as Error).message;
+  }
+
+  try {
+    await api.perfReport(
+      plan.out,
+      JSON.stringify({
+        rows,
+        error,
+        // 失败时把现场一起带回去：脚本只报「超时」时根本看不出是哪一环挂了
+        diag: {
+          server: store.previewServer?.origin ?? null,
+          vault: store.vault?.root ?? null,
+          tabs: store.tabs.length,
+          logs: store.logs.slice(-12),
+        },
+      })
+    );
+  } catch (err) {
+    toast(`性能结果写入失败：${(err as Error).message}`, 'err');
+  }
 }
 
 function renderRecentIfEmpty(): void {

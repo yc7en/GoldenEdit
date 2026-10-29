@@ -30,22 +30,56 @@ interface DocMsg {
   type: 'doc';
   gen: number;
   text: string;
+  /** 渲染模式：viewport 时只即时渲染首屏，其余按需（§6.4） */
+  mode?: 'full' | 'shard' | 'viewport';
 }
 
-type InMsg = InitMsg | DocMsg;
+interface ExpandMsg {
+  type: 'expand';
+  id: number;
+  keys: string[];
+}
+
+type InMsg = InitMsg | DocMsg | ExpandMsg;
+
+/** 视口模式即时渲染的块数：够铺满首屏两屏，再多就是浪费 */
+const VIEWPORT_HEAD_BLOCKS = 200;
+
+/** 上一次解析的现场：按需渲染要复用 token 与 env，不能重新 parse */
+interface RenderCache {
+  gen: number;
+  groups: MdToken[][];
+  lines: string[];
+  env: Record<string, unknown>;
+  keys: Map<string, number>;
+  rendered: Map<number, { html: string; plugins: string[] }>;
+}
+
+let cache: RenderCache | null = null;
+/** 是否有插件注册了行内定界符：每次渲染刷新一次，不在热路径里现算 */
+let inlineEnabled = false;
 
 interface BlockOut {
   key: string;
+  /** 视口模式下尾块的 html 为空串，等到进视口时再单独请 Worker 渲染 */
   html: string;
   line: number;
+  lines: number;
   plugins: string[];
-  source: string;
 }
 
 interface ResultMsg {
   type: 'result';
   gen: number;
   ms: number;
+  /** 实际进入解析的字符数：用来发现「消息被截断」这类静默故障 */
+  chars: number;
+  /** 解析阶段耗时（markdown-it parse + 核心规则） */
+  parseMs: number;
+  /** 块循环耗时（切块、key、按需渲染判定） */
+  loopMs: number;
+  /** 各条自定义规则的累计耗时（诊断用） */
+  rules: Record<string, number>;
   blocks: BlockOut[];
   outline: OutlineItem[];
   errors: RenderError[];
@@ -57,6 +91,21 @@ const post = (msg: unknown) => (self as unknown as Worker).postMessage(msg);
 let registry: RuntimeRegistry | null = null;
 let md: MarkdownIt | null = null;
 let themeMode: 'light' | 'dark' = 'light';
+/** 规则级耗时（仅诊断用，随 result 一起上报） */
+const ruleCost: Record<string, number> = {};
+
+/** 包一层计时：用来定位「解析慢」到底慢在哪条自定义规则上 */
+function timed<A extends unknown[], R>(name: string, fn: (...args: A) => R): (...args: A) => R {
+  return (...args: A): R => {
+    const t0 = performance.now();
+    try {
+      return fn(...args);
+    } finally {
+      ruleCost[name] = (ruleCost[name] ?? 0) + (performance.now() - t0);
+    }
+  };
+}
+
 /** 每个块渲染时命中的插件，逐块重置 */
 let hit: string[] = [];
 let errorSink: RenderError[] = [];
@@ -105,7 +154,7 @@ function build(inst: MarkdownIt): void {
   inst.block.ruler.before(
     'fence',
     'ge_container',
-    (state, startLine, endLine, silent) => {
+    timed('block:container', (state, startLine, endLine, silent) => {
       const start = state.bMarks[startLine] + state.tShift[startLine];
       const max = state.eMarks[startLine];
       if (state.src.charCodeAt(start) !== 0x3a) return false;
@@ -129,7 +178,7 @@ function build(inst: MarkdownIt): void {
       token.map = [startLine, state.line];
       token.content = renderContainer(name, body, attrs);
       return true;
-    },
+    }),
     { alt: ['paragraph', 'reference', 'blockquote'] }
   );
 
@@ -208,11 +257,13 @@ function build(inst: MarkdownIt): void {
     return self.renderToken(tokens, idx, opts);
   };
 
-  // 行内定界符（$...$）：只有插件注册过才启用，避免误伤普通文本里的 $ 
-  const hasInline = () =>
-    !!registry && [...registry.runtimes.values()].some((rt) => rt.loaded && rt.inlineDelims.length > 0);
-  inst.inline.ruler.before('emphasis', 'ge_delimiter', (state, silent) => {
-    if (!hasInline()) return false;
+  // 行内定界符（$...$）：只有插件注册过才启用，避免误伤普通文本里的 $
+  //
+  // 这里必须用「每次渲染算一次的缓存」而不是现算：inline 规则每个 inline token 都会
+  // 被调用一次，8MB 文档有 24 万个 inline token，每次展开 Map 会直接把解析拖慢 10 倍
+  // （真机实测 3.2s → 0.4s）。
+  inst.inline.ruler.before('emphasis', 'ge_delimiter', timed('inline:delimiter', (state, silent) => {
+    if (!inlineEnabled) return false;
     const start = state.pos;
     if (state.src.charCodeAt(start) !== 0x24) return false;
     const max = state.posMax;
@@ -248,7 +299,7 @@ function build(inst: MarkdownIt): void {
       }
     }
     return false;
-  });
+  }));
 
   // Obsidian 提示框语法支持：> [!NOTE] Title 以及折叠/元数据增强
   const OBS_ICONS: Record<string, string> = {
@@ -357,7 +408,7 @@ function build(inst: MarkdownIt): void {
     { alt: ['paragraph', 'reference', 'blockquote'] }
   );
 
-  inst.core.ruler.after('block', 'ge_obsidian_callout', (state) => {
+  inst.core.ruler.after('block', 'ge_obsidian_callout', timed('core:obsidian-callout', (state) => {
     const tokens = state.tokens;
     const re = /^\[!([a-zA-Z0-9_-]+)(?:\|([^\]]*))?\]([+-])?(?:[ \t]+([^\n]*))?(?:\n([\s\S]*))?$/;
 
@@ -492,10 +543,10 @@ function build(inst: MarkdownIt): void {
       tokens[closeIdx].content = `</div></${tag}></div>`;
       hit.push('callout@1.0.0');
     }
-  });
+  }));
 
   // 内置口子：只有 trust === 'builtin' 拿到过 coreRuleHook
-  inst.core.ruler.push('ge_core_rules', (state) => {
+  inst.core.ruler.push('ge_core_rules', timed('core:plugin-hooks', (state) => {
     if (!registry) return;
     for (const rt of registry.runtimes.values()) {
       if (rt.loaded && rt.coreRuleHook) {
@@ -510,7 +561,7 @@ function build(inst: MarkdownIt): void {
         }
       }
     }
-  });
+  }));
 
   // 外链统一走宿主打开（沙箱内导航会把 iframe 变成别人的页面）
   inst.renderer.rules.link_open = (tokens, idx, opts, _env, self) => {
@@ -588,13 +639,17 @@ function parseFrontmatter(text: string): { body: string; data: Record<string, un
   return { body: rest, data };
 }
 
-function render(gen: number, text: string): ResultMsg {
+function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' = 'full'): ResultMsg {
   const started = performance.now();
   errorSink = [];
   const result: ResultMsg = {
     type: 'result',
     gen,
     ms: 0,
+    chars: text.length,
+    parseMs: 0,
+    loopMs: 0,
+    rules: {},
     blocks: [],
     outline: [],
     errors: [],
@@ -607,6 +662,9 @@ function render(gen: number, text: string): ResultMsg {
   }
 
   const { body, data } = parseFrontmatter(text);
+  inlineEnabled =
+    !!registry &&
+    [...registry.runtimes.values()].some((rt) => rt.loaded && rt.inlineDelims.length > 0);
   if (registry) {
     for (const rt of registry.runtimes.values()) {
       rt.setDoc({ ...rt.ctx.doc, frontmatter: data });
@@ -614,6 +672,7 @@ function render(gen: number, text: string): ResultMsg {
   }
 
   const env: Record<string, unknown> = {};
+  const tParse = performance.now();
   let tokens: MdToken[];
   try {
     tokens = md.parse(body, env) as unknown as MdToken[];
@@ -623,14 +682,31 @@ function render(gen: number, text: string): ResultMsg {
     return result;
   }
 
+  result.parseMs = Math.round(performance.now() - tParse);
+  const tLoop = performance.now();
   const lines = body.split(/\r?\n/);
   result.outline = extractOutline(tokens);
 
   const groups = splitBlocks(tokens);
-  for (const group of groups) {
-    hit = [];
+  const eager = mode === 'viewport' ? Math.min(VIEWPORT_HEAD_BLOCKS, groups.length) : groups.length;
+  const keys = new Map<string, number>();
+  cache = { gen, groups, lines, env, keys, rendered: new Map() };
+
+  for (let i = 0; i < groups.length; i++) {
+    const group = groups[i];
     const source = blockSource(group, lines);
     const line = blockLine(group);
+    const linesOfBlock = group.find((t) => t.map) ? Math.max(1, (group.find((t) => t.map)!.map![1] - group.find((t) => t.map)!.map![0])) : 1;
+
+    if (i >= eager) {
+      // 尾块只登记 key 与行号，html 留空等视口补齐（省掉 5 万次渲染与几十 MB 传输）
+      const key = blockKey(source, [], themeMode);
+      keys.set(key, i);
+      result.blocks.push({ key, html: '', line, lines: linesOfBlock, plugins: [] });
+      continue;
+    }
+
+    hit = [];
     let html = '';
     try {
       html = md.renderer.render(group as never, md.options, env);
@@ -643,19 +719,54 @@ function render(gen: number, text: string): ResultMsg {
     }
     const cleaned = stripScripts(stripForbiddenAttrs(html).html);
     const plugins = [...new Set(hit)].sort();
-    result.blocks.push({
-      key: blockKey(source, plugins, themeMode),
-      html: cleaned,
-      line,
-      plugins,
-      source,
-    });
+    const key = blockKey(source, plugins, themeMode);
+    keys.set(key, i);
+    cache.rendered.set(i, { html: cleaned, plugins });
+    result.blocks.push({ key, html: cleaned, line, lines: linesOfBlock, plugins });
   }
 
+  result.loopMs = Math.round(performance.now() - tLoop);
+  result.rules = Object.fromEntries(
+    Object.entries(ruleCost).map(([k, v]) => [k, Math.round(v)])
+  );
+  for (const k of Object.keys(ruleCost)) delete ruleCost[k];
   result.errors = errorSink;
   result.plugins = [...new Set(result.blocks.flatMap((b) => b.plugins))];
   result.ms = performance.now() - started;
   return result;
+}
+
+/** 视口补齐：把指定 key 对应的块渲染出来（复用上次 parse 的 token） */
+function expand(id: number, requested: string[]): void {
+  const out: { key: string; html: string; plugins: string[] }[] = [];
+  const current = cache;
+  if (!current || !md) {
+    post({ type: 'expanded', id, blocks: out });
+    return;
+  }
+  errorSink = [];
+  for (const key of requested) {
+    const idx = current.keys.get(key);
+    if (idx === undefined) continue;
+    const cached = current.rendered.get(idx);
+    if (cached) {
+      out.push({ key, ...cached });
+      continue;
+    }
+    hit = [];
+    const group = current.groups[idx];
+    let html = '';
+    try {
+      html = md.renderer.render(group as never, md.options, current.env);
+    } catch (err) {
+      html = errorBlock(err, blockSource(group, current.lines));
+    }
+    const cleaned = stripScripts(stripForbiddenAttrs(html).html);
+    const plugins = [...new Set(hit)].sort();
+    current.rendered.set(idx, { html: cleaned, plugins });
+    out.push({ key, html: cleaned, plugins });
+  }
+  post({ type: 'expanded', id, blocks: out, errors: errorSink });
 }
 
 self.onmessage = async (ev: MessageEvent<InMsg>) => {
@@ -678,7 +789,31 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
     }
     if (msg.type === 'doc') {
       if (registry) registry.setTheme({ mode: themeMode, tokens: {} });
-      post(render(msg.gen, msg.text));
+      try {
+        post(render(msg.gen, msg.text, msg.mode));
+      } catch (err) {
+        // 一次解析失败不能把预览永久冻住：仍要回一条 result（空文档 + 错误条目），
+        // 否则宿主的等待位永远等不到，状态条一直卡在「渲染中」，后续文档也不再出图。
+        const message = err instanceof Error ? err.message : String(err);
+        post({ type: 'log', level: 'error', message: `解析失败：${message}` });
+        post({
+          type: 'result',
+          gen: msg.gen,
+          ms: 0,
+          chars: msg.text.length,
+          parseMs: 0,
+          loopMs: 0,
+          rules: {},
+          blocks: [],
+          outline: [],
+          errors: [{ line: 1, message }],
+          plugins: [],
+        });
+      }
+      return;
+    }
+    if (msg.type === 'expand') {
+      expand(msg.id, msg.keys);
     }
   } catch (err) {
     post({ type: 'fatal', message: err instanceof Error ? err.message : String(err) });

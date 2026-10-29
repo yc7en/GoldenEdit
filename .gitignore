@@ -9,6 +9,12 @@ src-tauri/gen/
 
 *.7z
 
+# P13 性能样本按需生成（node scripts/gen-perf-samples.mjs）
+scripts/fixtures/perf/
+
+# 导出链路的实测产物（docs/demo.md 导出的 HTML），不入库
+docs/demo.html
+
 .workbuddy/
 .DS_Store
 Thumbs.db

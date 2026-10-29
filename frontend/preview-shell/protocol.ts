@@ -22,6 +22,8 @@ export interface PluginSpec {
 export interface ThemePayload {
   mode: 'light' | 'dark';
   tokens: Record<string, string>;
+  /** 用户自定义预览 CSS（§7.3）；空字符串表示不注入 */
+  customCss?: string;
 }
 
 export interface DocMeta {
@@ -62,7 +64,28 @@ export interface RenderOptions {
 /** L3 → L2 */
 export type PreviewMessage =
   | { type: 'ready'; protocol: number }
-  | { type: 'rendered'; gen: number; ms: number; blocks: number; plugins: string[]; errors: RenderError[] }
+  | {
+      type: 'rendered';
+      gen: number;
+      ms: number;
+      /** 外壳收到的字符数（宿主 → iframe 这一跳的结果） */
+      submitted: number;
+      /** Worker 实际解析的字符数（iframe → worker 这一跳的结果） */
+      chars: number;
+      /** 解析阶段耗时 */
+      parseMs: number;
+      /** 块循环耗时 */
+      loopMs: number;
+      /** 各条自定义规则的累计耗时（诊断用） */
+      rules?: Record<string, number>;
+      /** 从收到 doc 到 Worker 回结果（含两次跨线程传输 + 解析）——诊断用 */
+      xferMs?: number;
+      /** 主线程建 DOM（pipeline.render）耗时——诊断用 */
+      domMs?: number;
+      blocks: number;
+      plugins: string[];
+      errors: RenderError[];
+    }
   | { type: 'outline'; items: OutlineItem[] }
   | { type: 'jump'; line: number }
   | { type: 'open-external'; url: string }

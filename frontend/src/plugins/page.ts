@@ -14,6 +14,12 @@ export function mountPluginsPage(): void {
     render();
   });
   $('btnInstallPlugin').addEventListener('click', () => void install());
+  $('btnOpenPluginDir')?.addEventListener('click', () => {
+    void api
+      .openPluginsDir()
+      .then(() => toast('已打开插件目录：改完文件会自动重新加载'))
+      .catch((err: Error) => toast(`打开插件目录失败：${err.message}`, 'err'));
+  });
   bus.on('plugins', render);
   bus.on('render', renderDiag);
   bus.on('log', renderDiag);
