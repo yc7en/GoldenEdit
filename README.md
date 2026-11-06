@@ -50,7 +50,7 @@ npm run tauri build -- --no-bundle   # 只编二进制，开发期验证用
 |---|---|---|
 | Windows | `NSIS` `.exe` + `WiX` `.msi` | 本地可直接构建；MSI 需 `zh-CN` 代码页（已在 `tauri.conf.json` 配好） |
 | macOS | `.app` + `.dmg` | **只能在 macOS 上构建**（dmg 依赖 `hdiutil`，链接依赖 Xcode SDK），打包目标在 `src-tauri/tauri.macos.conf.json` |
-| macOS（universal） | `GoldenEdit_<版本>_universal.dmg` | 由 GitHub Actions 的 `macos-14` 任务产出，见 `.github/workflows/build.yml` |
+| macOS（universal） | `GoldenEdit_<版本>_universal.dmg` | 由 GitHub Actions 的 `macos-15` 任务产出，见 `.github/workflows/build.yml` |
 
 产物未签名、未公证：自编自用可用，分发到他人机器会被 Gatekeeper 拦。
 

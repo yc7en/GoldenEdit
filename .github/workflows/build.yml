@@ -16,7 +16,10 @@ concurrency:
 jobs:
   macos:
     name: macOS universal
-    runs-on: macos-14
+    # 不能用 macos-14：该镜像 2026-11-02 退役，job 会在分配机器前被判失败
+    # （注解 "The configuration 'macos-14-arm64-us-default' is not supported"）。
+    # 用 macos-15 而非 macos-latest，避免 Xcode 随镜像升级悄悄改变产物。
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
