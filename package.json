@@ -1,7 +1,7 @@
 {
   "name": "goldenedit",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "description": "把 Markdown 当源码，把预览当可插拔的渲染目标",
   "scripts": {
@@ -19,12 +19,13 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.9.0",
+    "abcjs": "^6.7.2",
     "katex": "^0.16.11",
     "markdown-it": "^14.1.0",
     "markdown-it-container": "^4.0.0",
-    "mermaid": "^11.2.0",
     "monaco-editor": "^0.52.0",
-    "morphdom": "^2.7.4"
+    "morphdom": "^2.7.4",
+    "pele": "^1.13.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

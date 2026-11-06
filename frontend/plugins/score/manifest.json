@@ -1,0 +1,19 @@
+{
+  "id": "score",
+  "name": "乐谱",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "ABC 记谱法渲染为五线谱，支持歌词、多声部与和弦",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "fence": ["music", "abc", "score"],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": ["dom", "libs:abcjs"],
+  "config": {},
+  "source": { "type": "builtin" }
+}

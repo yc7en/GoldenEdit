@@ -38,6 +38,15 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
+        /**
+         * abcjs 只有 UMD 构建（package.json 没有 module/exports 字段），
+         * 动态 import 会被当成 CJS 内联进 shell 主 chunk，主包凭空多 180KB。
+         * 显式分块后它仍按需加载：文档里出现乐谱块、`libs.load('abcjs')` 被调用时才取。
+         */
+        manualChunks(id) {
+          if (id.includes('node_modules/abcjs')) return 'abcjs';
+          return undefined;
+        },
       },
     },
   },

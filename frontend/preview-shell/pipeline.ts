@@ -67,21 +67,25 @@ export class Pipeline {
     this.article.style.maxWidth = width > 0 ? `${width}px` : '';
   }
 
-  /** 打印 / 导出前把懒加载块补齐，避免打印出空白页 */
-  expandAll(): void {
-    void (async () => {
-      // 先把尾部间隔器逐批物化，再多轮补渲染，直到没有遗留占位（打印不能有空白页）
-      let tail = this.article.querySelector<HTMLElement>('[data-tail]');
-      while (tail) {
-        await this.materializeTail();
-        tail = this.article.querySelector<HTMLElement>('[data-tail]');
-      }
-      for (let round = 0; round < 50; round++) {
-        const lazy = Array.from(this.article.querySelectorAll<HTMLElement>('.ge-block--lazy'));
-        if (lazy.length === 0) return;
-        await Promise.all(lazy.map((el) => this.fill(el.dataset.key ?? '')));
-      }
-    })();
+  /**
+   * 打印 / 导出前把懒加载块补齐，避免打印出空白页。
+   *
+   * 返回 Promise 而不是 fire-and-forget：调用方必须 `await` 它才能取 DOM 或调
+   * `window.print()`。此前用 `setTimeout(…, 60)` 当「应该渲染完了」的判据，
+   * 遇到乐谱这种单块 50–150ms 的渲染就会静默截到占位（ARCHITECTURE §9.5）。
+   */
+  async expandAll(): Promise<void> {
+    // 先把尾部间隔器逐批物化，再多轮补渲染，直到没有遗留占位（打印不能有空白页）
+    let tail = this.article.querySelector<HTMLElement>('[data-tail]');
+    while (tail) {
+      await this.materializeTail();
+      tail = this.article.querySelector<HTMLElement>('[data-tail]');
+    }
+    for (let round = 0; round < 50; round++) {
+      const lazy = Array.from(this.article.querySelectorAll<HTMLElement>('.ge-block--lazy'));
+      if (lazy.length === 0) return;
+      await Promise.all(lazy.map((el) => this.fill(el.dataset.key ?? '')));
+    }
   }
 
   /**

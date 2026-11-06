@@ -1,3 +1,11 @@
+/*
+ * 图表卡片 + Pele 主题映射（ARCHITECTURE §5.13）。
+ *
+ * Pele 输出的 SVG 里只有 var(--pele-*, 兜底值)，没有算死的色值，
+ * 所以变量一改颜色就变——换主题不需要重绘图表。
+ * 颜色一律取 --ge-*，本文件不出现硬编码色值。
+ */
+
 .ge-mermaid {
   display: flex;
   flex-direction: column;
@@ -9,17 +17,47 @@
   border: 1px solid var(--ge-border);
   border-radius: 6px;
   overflow-x: auto;
+
+  --pele-bg: var(--ge-bg);
+  --pele-fg: var(--ge-fg);
+  --pele-muted: var(--ge-fg-muted);
+  /* 连线与箭头：用 --ge-fg 会重到抢文字，用 muted 才像参考线 */
+  --pele-line: var(--ge-fg-muted);
+  --pele-surface: var(--ge-bg-subtle);
+  /* 子图填充必须与节点填充能区分，否则嵌套结构看不出层级 */
+  --pele-surface-alt: var(--ge-code-bg);
+  --pele-border: var(--ge-border);
+  --pele-accent: var(--ge-accent);
+  --pele-critical: var(--ge-danger);
+  --pele-error: var(--ge-danger);
+  --pele-radius: var(--ge-radius, 6px);
+  /* 必须与渲染时测量标签用的字体一致，否则宽度算不准会挤字 */
+  --pele-font: var(--ge-font, sans-serif);
+  --pele-font-mono: monospace;
+}
+
+/* 渲染完从「居中等待」切到「块级铺开」，SVG 才能在窄容器里正确收缩 */
+.ge-mermaid--ready {
+  display: block;
 }
 
 .ge-mermaid svg {
+  display: block;
   max-width: 100%;
   height: auto;
+  margin: 0 auto;
 }
 
 .ge-mermaid__loading {
   color: var(--ge-fg-muted);
   font-size: 0.9em;
   padding: 1em;
+}
+
+.ge-mermaid--empty {
+  color: var(--ge-fg-muted);
+  font-size: 0.9em;
+  padding: 1.5em 1em;
 }
 
 .ge-mermaid__error {
@@ -37,4 +75,6 @@
   font-size: 0.85em;
   max-width: 100%;
   overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
 }

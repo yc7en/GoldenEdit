@@ -66,6 +66,7 @@ export default tseslint.config(
         window: 'readonly',
         document: 'readonly',
         navigator: 'readonly',
+        getComputedStyle: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         console: 'readonly',

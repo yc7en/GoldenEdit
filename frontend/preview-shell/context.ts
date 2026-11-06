@@ -20,6 +20,27 @@ export type ContainerHandler = (
 export type DelimiterHandler = (text: string, ctx: PluginContext) => string;
 export type MountFn = (el: HTMLElement, payload: unknown, ctx: PluginContext) => void | (() => void);
 
+/**
+ * 宿主提供的第三方渲染库白名单（ARCHITECTURE §5.12）。
+ *
+ * 只有这里列出的库能被插件 `libs.load()` 拿到：库由宿主的打包产物按需分块提供，
+ * 插件目录里不允许自带第三方脚本——否则体积、许可、升级各自为政，审计也没有入口。
+ *
+ * 具体加载实现在 `libs.ts`：本文件被 Worker 共用，库的 `import()` 必须留在主线程路径上，
+ * 否则 Worker 打包会把整包内联进去。因此加载器由入口注入（见 `LibLoader`），
+ * 本文件不引用 `libs.ts`。
+ */
+import type { LibName } from './libs';
+export type { LibName };
+
+/**
+ * 库加载器。主线程入口传真实的 `loadLib`；Worker 入口不传。
+ *
+ * 之所以做成注入而不是在这里 `import('./libs')`：Vite 打包 Worker 时会把动态 import
+ * 内联进单文件产物，abcjs 500KB 会被塞进 worker bundle，每个文档渲染都要多解析一遍。
+ */
+export type LibLoader = (name: LibName) => Promise<unknown>;
+
 export interface PluginContext {
   readonly env: {
     apiVersion: 1;
@@ -35,7 +56,7 @@ export interface PluginContext {
   onDelimiter(kind: 'inline' | 'block', fn: DelimiterHandler): void;
   onMount(selector: string, fn: MountFn): void;
   assets: { url(rel: string): string };
-  libs: { load(name: 'mermaid' | 'katex'): Promise<unknown> };
+  libs: { load(name: LibName): Promise<unknown> };
   log(level: 'info' | 'warn' | 'error', message: string, detail?: unknown): void;
   onCoreRule?(fn: (state: unknown) => void): void;
 }
@@ -71,7 +92,9 @@ export class PluginRuntime {
     spec: PluginSpec,
     readonly scope: 'worker' | 'main',
     readonly baseUrl: string,
-    readonly events: RuntimeEvents
+    readonly events: RuntimeEvents,
+    /** 主线程入口注入；Worker 侧为 undefined，`libs.load` 会直接报错 */
+    readonly libLoader?: LibLoader
   ) {
     this.spec = spec;
     this.ctx = this.buildContext();
@@ -130,20 +153,6 @@ export class PluginRuntime {
   }
 }
 
-const libCache = new Map<string, Promise<unknown>>();
-
-function loadLib(name: 'mermaid' | 'katex'): Promise<unknown> {
-  let hit = libCache.get(name);
-  if (!hit) {
-    hit =
-      name === 'mermaid'
-        ? import('mermaid').then((m) => m.default)
-        : import('katex').then((m) => m.default);
-    libCache.set(name, hit);
-  }
-  return hit;
-}
-
 export function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);
@@ -167,13 +176,14 @@ export class RuntimeRegistry {
   constructor(
     private readonly scope: 'worker' | 'main',
     private readonly baseUrl: string,
-    private readonly events: RuntimeEvents
+    private readonly events: RuntimeEvents,
+    private readonly libLoader?: LibLoader
   ) {}
 
   async loadAll(specs: PluginSpec[], doc: DocMeta, theme: ThemePayload, mdFacade: unknown): Promise<void> {
     this.runtimes.clear();
     const jobs = specs.map(async (spec) => {
-      const rt = new PluginRuntime(spec, this.scope, this.baseUrl, this.events);
+      const rt = new PluginRuntime(spec, this.scope, this.baseUrl, this.events, this.libLoader);
       rt.setDoc(doc);
       rt.setTheme(theme);
       this.runtimes.set(spec.id, rt);
@@ -244,11 +254,14 @@ function createPluginContext(runtime: PluginRuntime): PluginContext {
       },
     },
     libs: {
-      async load(name: 'mermaid' | 'katex') {
+      async load(name: LibName) {
         if (runtime.scope === 'worker') {
           throw new Error('libs.load 只能在主线程调用');
         }
-        return loadLib(name);
+        if (!runtime.libLoader) {
+          throw new Error(`当前入口没有提供库加载器（${name}）`);
+        }
+        return runtime.libLoader(name);
       },
     },
     log(level, message, detail) {

@@ -1,0 +1,58 @@
+/*
+ * 乐谱卡片。
+ *
+ * 配色自带、定义在自己的容器选择器上（ARCHITECTURE §5.8 的「插件私有变量」）：
+ * 改外观只改这一个文件，保存后热重载即生效，不需要重建前端。
+ *
+ * 明暗主题下都是「白纸卡片」——乐谱是纸面语义，反色会把符头、符干、连音线、拍号
+ * 分别落在不同深浅上，很难调对；白底深字在暗色文档里反而像插进去的一页纸。
+ */
+
+.ge-score {
+  --ge-score-paper: #fffefb;
+  --ge-score-ink: #2b2a26;
+  --ge-score-line: #e3e2da;
+  --ge-score-muted: #6f6e66;
+  --ge-score-soft: #f6f5ef;
+  --ge-score-err: #a8443a;
+
+  margin: 1.2em 0;
+  padding: 14px 16px;
+  background: var(--ge-score-paper);
+  border: 1px solid var(--ge-score-line);
+  border-radius: 8px;
+  color: var(--ge-score-ink);
+  /* 极端窄屏下的兜底：缩不下去时横向滚动，而不是把谱子挤成一团 */
+  overflow-x: auto;
+}
+
+/* abcjs 会写 width / height 属性并给出 viewBox，这里只做等比收缩，不放大 */
+.ge-score svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.ge-score__loading,
+.ge-score__hint {
+  font-size: 13px;
+  color: var(--ge-score-muted);
+}
+
+.ge-score__error {
+  font-size: 13px;
+  color: var(--ge-score-err);
+}
+
+.ge-score__source {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: var(--ge-score-soft);
+  border-radius: 4px;
+  font-family: var(--ge-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ge-score-ink);
+  overflow-x: auto;
+  white-space: pre;
+}

@@ -312,6 +312,62 @@ mod tests {
     }
 
     #[test]
+    fn builtin_score_plugin_manifest_is_valid_and_l2() {
+        // 直接对着仓库里的真实插件跑：manifest 字段写错、或 entry.js 不再走 onMount，
+        // 这里就会红，不必等到真机才发现乐谱变成 L1（L1 意味着它会被塞进 Worker）。
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/score");
+        if !dir.is_dir() {
+            return; // 打包环境里没有源码目录时跳过
+        }
+        let manifest = read_manifest(&dir).expect("score 的 manifest 必须能被解析");
+        assert_eq!(manifest.id, "score");
+        assert!(
+            manifest
+                .r#match
+                .as_ref()
+                .is_some_and(|m| m.fence.iter().any(|s| s == "music")),
+            "score 必须认 music 围栏"
+        );
+        assert!(
+            manifest.permissions.iter().any(|p| p == "libs:abcjs"),
+            "score 必须声明 libs:abcjs，否则宿主白名单对不上"
+        );
+        assert_eq!(sniff_capability(&dir, &manifest), "L2");
+    }
+
+    #[test]
+    fn builtin_chart_plugin_renders_with_pele_and_stays_l2() {
+        // 对着仓库里的真实插件跑：换成 pele 之后如果 permissions 没跟着改、
+        // 或者哪天有人把 renderAsync 改回 mermaid.initialize，这里当场红。
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/mermaid");
+        if !dir.is_dir() {
+            return; // 打包环境里没有源码目录时跳过
+        }
+        let manifest = read_manifest(&dir).expect("mermaid 的 manifest 必须能被解析");
+        assert_eq!(manifest.id, "mermaid");
+        assert!(
+            manifest
+                .r#match
+                .as_ref()
+                .is_some_and(|m| m.fence.iter().any(|s| s == "mermaid")),
+            "围栏名必须保持 mermaid，用户的旧文档不能因此失效"
+        );
+        assert!(
+            manifest.permissions.iter().any(|p| p == "libs:pele"),
+            "图表插件必须声明 libs:pele"
+        );
+        assert!(
+            !manifest.permissions.iter().any(|p| p == "libs:mermaid"),
+            "mermaid.js 已从依赖里移除，白名单不该还留着它"
+        );
+        let code = std::fs::read_to_string(dir.join("entry.js")).unwrap();
+        assert!(code.contains("renderAsync"), "渲染必须走 pele 的 renderAsync");
+        assert!(!code.contains("mermaid.initialize"), "不该再调 mermaid.js 的 API");
+        // 判 L2 的理由是宽度（maxWidth），不是 DOM：这条断言防的是有人顺手把它降成 L1
+        assert_eq!(sniff_capability(&dir, &manifest), "L2");
+    }
+
+    #[test]
     fn capability_is_sniffed_from_entry() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("a");

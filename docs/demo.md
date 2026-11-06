@@ -51,7 +51,7 @@ sequenceDiagram
   participant E as 扩展
   participant P as 预览页
   U->>E: extendMarkdownIt(md)
-  E->>P: 注入 mermaid + KaTeX 资源
+  E->>P: 注入图表引擎 + KaTeX 资源
   P-->>U: 渲染图表与公式
 ```
 
@@ -251,3 +251,28 @@ AI: 采用 ES Module 运行在 Web Worker 与主线程双环境中，兼具高�
 测试人员: 我刚刚用覆盖全语法的 `demo.md` 完成了端到端回归，渲染正常无任何报错。
 产品经理: 很好，准予打包发布！
 :::
+
+## 乐谱
+
+围栏 `music` / `abc` / `score` 内的 **ABC 记谱法**会渲染成五线谱。下面是最小可用写法——`X` 编号、`T` 标题、`M` 拍号、`L` 默认音长、`K` 调号五行必须有：
+
+```music
+X:1
+T:小星星
+M:4/4
+L:1/4
+K:C
+C C G G | A A G2 | F F E E | D D C2 |
+w: 一 闪 一 闪 亮 晶 晶 满 天 都 是 小 星 星
+```
+
+和弦标记写在音符前引号里，调号、拍号、多声部都由 ABC 原生语法承担：
+
+```music
+X:2
+T:欢乐颂（片段）
+M:4/4
+L:1/4
+K:G
+"G"G G A B | "D"A A G2 | "G"G G A B | "D"A A G2 |
+```

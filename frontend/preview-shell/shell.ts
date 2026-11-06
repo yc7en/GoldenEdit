@@ -6,6 +6,7 @@ import './plugins.css';
 
 import type { Block } from './blocks';
 import { RuntimeRegistry } from './context';
+import { loadLib } from './libs';
 import { Pipeline, type RenderMode } from './pipeline';
 import {
   PROTOCOL_VERSION,
@@ -230,11 +231,18 @@ async function init(msg: Extract<HostMessage, { type: 'init' }>): Promise<void> 
     if (spec.styleUrl) injectStyle(spec.id, spec.styleUrl);
   }
 
-  mainRegistry = new RuntimeRegistry('main', baseUrl, {
-    log: (level, pluginId, message) => send({ type: 'log', level, message: `[${pluginId}] ${message}` }),
-    loadFail: (pluginId, message) =>
-      send({ type: 'log', level: 'error', message: `[${pluginId}] 主线程加载失败：${message}` }),
-  });
+  mainRegistry = new RuntimeRegistry(
+    'main',
+    baseUrl,
+    {
+      log: (level, pluginId, message) =>
+        send({ type: 'log', level, message: `[${pluginId}] ${message}` }),
+      loadFail: (pluginId, message) =>
+        send({ type: 'log', level: 'error', message: `[${pluginId}] 主线程加载失败：${message}` }),
+    },
+    // 库加载器由主线程注入：Worker 入口不传，因此它的依赖图里不含任何渲染库
+    loadLib
+  );
   await mainRegistry.loadAll(msg.plugins, msg.doc, msg.theme, { utils: {} });
   pipeline.attachRegistry(mainRegistry);
 
@@ -350,17 +358,20 @@ window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
       if (lastText !== null) requestRender(lastText);
       break;
     case 'export':
-      pipeline.expandAll();
-      window.setTimeout(() => {
+      // 必须等懒填充全部完成再取 DOM：定长等待会截到慢渲染块（乐谱）的占位
+      void (async () => {
+        await pipeline.expandAll();
         const title = msg.title || 'GoldenEdit Export';
         const html = buildExportHtml(title);
         send({ type: 'exported', id: msg.id, html });
-      }, 60);
+      })();
       break;
     case 'print':
-      // 打印前先等一帧，确保懒加载块已展开（pipeline 在 mode=viewport 时会延迟渲染）
-      pipeline.expandAll();
-      window.setTimeout(() => window.print(), 60);
+      // 同上：打印前必须确认所有块都已渲染，否则打印出空白页
+      void (async () => {
+        await pipeline.expandAll();
+        window.print();
+      })();
       break;
     default:
       break;
