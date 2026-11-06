@@ -6,6 +6,7 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'dist-preview/**',
+      '.trash/**',
       'node_modules/**',
       'src-tauri/**',
       'design/**',

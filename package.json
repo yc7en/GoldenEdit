@@ -6,7 +6,8 @@
   "description": "把 Markdown 当源码，把预览当可插拔的渲染目标",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:ui && npm run build:preview",
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && npm run build:ui && npm run build:preview",
     "build:ui": "vite build",
     "build:preview": "vite build --config vite.preview.config.ts",
     "typecheck": "tsc --noEmit",

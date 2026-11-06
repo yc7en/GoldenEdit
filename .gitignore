@@ -4,6 +4,11 @@ dist-preview/
 .vite/
 /plugins/
 
+# 构建清理的临时中转（scripts/clean.mjs 把旧产物改名到这里再删）
+.trash/
+dist.old-*/
+dist-preview.old-*/
+
 src-tauri/target/
 src-tauri/gen/
 
