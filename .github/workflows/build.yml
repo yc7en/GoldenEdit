@@ -99,7 +99,8 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          name: GoldenEdit ${{ github.ref_name }}
+          # ref_name 本身已带 GoldenEdit/ 前缀，不要再加一遍
+          name: ${{ github.ref_name }}
           draft: false
           generate_release_notes: true
           fail_on_unmatched_files: true
