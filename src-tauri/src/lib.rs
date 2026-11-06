@@ -47,6 +47,26 @@ fn open_plugins_dir(state: tauri::State<'_, AppState>) -> Result<(), error::ApiE
     open::that_detached(dir).map_err(error::ApiError::io)
 }
 
+/// macOS 打开文件走 LaunchServices 的 Apple Event，argv 里没有路径（ARCHITECTURE §9.7 第 5 条）。
+/// 两条通道都写：`pending_open` 兜冷启动（前端启动时取一次），事件兜「已运行再双击」。
+#[cfg(target_os = "macos")]
+fn deliver_opened(app: &tauri::AppHandle, urls: Vec<tauri::Url>) {
+    let Some(path) = urls.iter().find_map(|u| u.to_file_path().ok()) else {
+        return;
+    };
+    let value = path.to_string_lossy().to_string();
+    if let Some(state) = app.try_state::<AppState>() {
+        if let Ok(mut cell) = state.pending_open.lock() {
+            *cell = Some(value.clone());
+        }
+    }
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+    }
+    let _ = app.emit("app:open-file", serde_json::json!({ "path": value }));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let argv: Vec<String> = std::env::args().collect();
@@ -58,7 +78,7 @@ pub fn run() {
         instance::Acquired::Degraded => (None, false),
     };
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .setup(move |app| {
             let data_dir = app
                 .path()
@@ -93,6 +113,13 @@ pub fn run() {
                 });
             }
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // macOS 关窗不退出进程，留下的实例没有窗口可承载 app:open-file（§9.7 第 6 条）
+            if cfg!(target_os = "macos") && matches!(event, tauri::WindowEvent::CloseRequested { .. })
+            {
+                window.app_handle().exit(0);
+            }
         })
         .invoke_handler(tauri::generate_handler![
             get_app_info,
@@ -130,6 +157,18 @@ pub fn run() {
             commands::perf::perf_plan,
             commands::perf::perf_report,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running GoldenEdit");
+        .build(tauri::generate_context!())
+        .expect("error while building GoldenEdit");
+
+    // 不用 `.run(context)` 简写：简写拿不到运行事件，macOS 的 Apple Event 也就无处接
+    app.run(|handle, event| {
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = event {
+            deliver_opened(handle, urls);
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = (handle, event);
+        }
+    });
 }

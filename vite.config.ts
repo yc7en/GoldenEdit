@@ -17,7 +17,9 @@ export default defineConfig({
     // 输出目录由 `npm run clean` 清理；vite 自带的 emptyOutDir 会一次性批量删除，
     // 在部分受管环境下会被安全策略拦截（本项目遇到过），因此关掉它
     emptyOutDir: false,
-    target: 'chrome110',
+    // 两个内核都要支持：Windows 是 WebView2（Chromium），macOS 是 WKWebView（Safari）。
+    // 只写 chrome110 等于假设 WebView 一定是 Chromium，见 ARCHITECTURE §15.1
+    target: ['chrome110', 'safari16'],
     sourcemap: false,
     chunkSizeWarningLimit: 4096,
   },

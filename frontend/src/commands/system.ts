@@ -6,6 +6,7 @@
  */
 
 import type { LayoutMode } from '../bridge/types';
+import { isMac } from './chords';
 import { registerCommands, type CommandDef } from './registry';
 
 export interface SystemActions {
@@ -36,7 +37,9 @@ export function registerSystemCommands(a: SystemActions): void {
       id: 'tab.close',
       title: '关闭当前标签',
       group: '文件',
-      default: 'Ctrl+W',
+      // ⌘W 被 macOS 系统菜单的「关闭窗口」占用（原生 accelerator 优先于 keydown），
+      // 所以 mac 上退一格用 ⌘⇧W。见 ARCHITECTURE §8.4。
+      default: isMac() ? 'Ctrl+Shift+W' : 'Ctrl+W',
       run: a.closeTab,
     },
 

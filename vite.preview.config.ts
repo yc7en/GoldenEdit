@@ -30,7 +30,8 @@ export default defineConfig({
   build: {
     outDir: '../../dist-preview',
     emptyOutDir: false,
-    target: 'chrome110',
+    // 与主页面同一套基线：WKWebView 跟 Safari 走（ARCHITECTURE §15.1）
+    target: ['chrome110', 'safari16'],
     sourcemap: false,
     chunkSizeWarningLimit: 4096,
     rollupOptions: {

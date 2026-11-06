@@ -338,7 +338,7 @@ fn handle(request: tiny_http::Request, ctx: &Context) -> std::io::Result<()> {
         let rel = query
             .split('&')
             .find_map(|kv| kv.strip_prefix("p="))
-            .map(|v| percent_decode(v))
+            .map(percent_decode)
             .unwrap_or_default();
         let ext = Path::new(&rel)
             .extension()

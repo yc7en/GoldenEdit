@@ -3,7 +3,7 @@
 //! 四条规则：
 //! 1. 拒绝绝对路径、盘符、UNC（`\\`）、`..` 段；
 //! 2. `canonicalize` 后校验 `starts_with(vault_root)`；
-//! 3. Windows 下比较前统一小写并剥离长路径前缀 `\\?\`；
+//! 3. 比较前按平台归一：Windows 剥长路径前缀 `\\?\` 并统一小写，macOS 同样按大小写不敏感比较；
 //! 4. 符号链接一律解析后校验，解析失败即拒绝。
 
 use std::path::{Component, Path, PathBuf};
@@ -65,21 +65,31 @@ fn strip_verbatim(p: &Path) -> PathBuf {
     p.to_path_buf()
 }
 
+/// 路径归一：用于「是否在工作区内」的比较，不用于回写路径。
+///
+/// 分隔符归一必须跟随平台：Windows 认 `/` 与 `\`，unix 上反斜杠是合法文件名字符，
+/// 强行替换会把 `a\b.md` 与 `a/b.md` 判成同一条路径（ARCHITECTURE §9.2 第 3 条）。
+/// 大小写策略同理——macOS 的 APFS 默认大小写不敏感，与 Windows 同风险。
 fn norm(path: &Path) -> String {
-    let s = strip_verbatim(path).to_string_lossy().replace('/', "\\");
-    let s = s.trim_end_matches('\\').to_string();
-    if cfg!(windows) {
+    let s = strip_verbatim(path).to_string_lossy().to_string();
+    let s = if cfg!(windows) { s.replace('/', "\\") } else { s };
+    let s = s.trim_end_matches(std::path::MAIN_SEPARATOR).to_string();
+    if cfg!(any(windows, target_os = "macos")) {
         s.to_lowercase()
     } else {
         s
     }
 }
 
-/// 目标是否位于 root 之内（Windows 下大小写不敏感）。
+/// 目标是否位于 root 之内。
 pub fn is_inside(root: &Path, target: &Path) -> bool {
     let r = norm(root);
     let t = norm(target);
-    !r.is_empty() && (t == r || t.starts_with(&format!("{r}\\")))
+    if r.is_empty() {
+        // root 是文件系统根（`/`），归一后只剩空串
+        return t.starts_with(std::path::MAIN_SEPARATOR);
+    }
+    t == r || t.starts_with(&format!("{r}{}", std::path::MAIN_SEPARATOR))
 }
 
 /// 把用户传入的 `rel` 解析成绝对路径，并做全部校验。
@@ -222,6 +232,36 @@ mod tests {
         let upper = PathBuf::from(root.to_string_lossy().to_uppercase());
         assert!(is_inside(&upper, &root.join("docs/a.md")) || is_inside(&root, &upper.join("docs/a.md")));
         assert!(resolve_in_vault(&upper, "docs/a.md").is_ok());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn case_difference_is_tolerated_on_macos() {
+        // APFS 默认大小写不敏感，与 Windows 同风险，必须同样放行
+        let (_g, root) = vault();
+        let upper = PathBuf::from(root.to_string_lossy().to_uppercase());
+        assert!(is_inside(&upper, &root.join("docs/a.md")));
+        assert!(resolve_in_vault(&upper, "docs/a.md").is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unix_norm_keeps_backslash_as_filename_char() {
+        // a\b.md 在 unix 上是合法文件名，不能被归一成 a/b.md（§9.2 第 3 条）
+        let (_g, root) = vault();
+        assert_ne!(
+            norm(&root.join("a\\b.md")),
+            norm(&root.join("a").join("b.md"))
+        );
+    }
+
+    #[test]
+    fn root_itself_counts_as_inside_with_trailing_separator() {
+        let (_g, root) = vault();
+        let with_sep = PathBuf::from(format!("{}{}", root.display(), std::path::MAIN_SEPARATOR));
+        assert!(is_inside(&root, &root));
+        assert!(is_inside(&with_sep, &root));
+        assert!(is_inside(&with_sep, &root.join("docs/a.md")));
     }
 
     #[cfg(windows)]

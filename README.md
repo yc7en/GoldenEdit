@@ -27,16 +27,35 @@ Rust + Tauri 2 桌面 Markdown / HTML 编辑器。本地优先、离线可用、
 
 ## 状态
 
-版本 0.5.0。旧 Go + Wails 实现已归档为 `GoldenEdit.7z`，不作为构建依赖。
+版本 0.7.0。平台：Windows 10/11（WebView2）与 macOS 13+（WKWebView）。旧 Go + Wails 实现已归档为 `GoldenEdit.7z`，不作为构建依赖。
 
 ## 开发
 
 ```bash
-# 前端
-cd frontend && npm install && npm run dev
-
-# 桌面壳
-cargo tauri dev
+npm install     # 一次即可，前端与 Tauri CLI 都在根目录
+npm run dev     # 只起前端（Vite，1420 端口）
+npm run tauri dev   # 起桌面壳
 ```
 
-需要 Node 18+、Rust stable、WebView2（Windows 10/11 自带）。
+需要 Node 18+、Rust stable、系统 WebView（Windows 10/11 自带 WebView2，macOS 自带 WKWebView）。
+
+## 构建安装包
+
+```bash
+npm run tauri build            # 出本平台安装包
+npm run tauri build -- --no-bundle   # 只编二进制，开发期验证用
+```
+
+| 平台 | 产物 | 说明 |
+|---|---|---|
+| Windows | `NSIS` `.exe` + `WiX` `.msi` | 本地可直接构建；MSI 需 `zh-CN` 代码页（已在 `tauri.conf.json` 配好） |
+| macOS | `.app` + `.dmg` | **只能在 macOS 上构建**（dmg 依赖 `hdiutil`，链接依赖 Xcode SDK），打包目标在 `src-tauri/tauri.macos.conf.json` |
+| macOS（universal） | `GoldenEdit_<版本>_universal.dmg` | 由 GitHub Actions 的 `macos-14` 任务产出，见 `.github/workflows/build.yml` |
+
+产物未签名、未公证：自编自用可用，分发到他人机器会被 Gatekeeper 拦。
+
+## 已知平台差异
+
+- **PDF 导出只在 Windows 可用**：走系统打印对话框（`window.print()`）。macOS 的 WKWebView 不实现该 API，导出对话框会把 PDF 置灰，请改用单文件 HTML。
+- **`⌘W` 是关闭窗口**（系统菜单 accelerator），关闭标签在 macOS 用 `⌘⇧W`。
+- 关闭窗口即退出进程（单窗口模型），不留无窗口实例。

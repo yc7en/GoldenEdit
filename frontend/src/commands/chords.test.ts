@@ -80,12 +80,22 @@ describe('chordOf', () => {
 describe('formatChord', () => {
   it('修饰键顺序固定为 Ctrl → Shift → Alt', () => {
     const chord: Chord = { ctrl: true, shift: true, alt: true, key: 'X' };
-    expect(formatChord(chord)).toBe('Ctrl+Shift+Alt+X');
-    expect(formatChord(chord, true)).toBe('Ctrl + Shift + Alt + X');
+    // 平台显式传 false：默认值走 isMac()，在 macOS 上跑测试会变成另一套符号
+    expect(formatChord(chord, false, false)).toBe('Ctrl+Shift+Alt+X');
+    expect(formatChord(chord, true, false)).toBe('Ctrl + Shift + Alt + X');
   });
 
   it('解析再格式化能还原（大小写归一后）', () => {
-    expect(formatChord(parseChord('shift+ctrl+o')!)).toBe('Ctrl+Shift+O');
+    expect(formatChord(parseChord('shift+ctrl+o')!, false, false)).toBe('Ctrl+Shift+O');
+  });
+
+  it('macOS 用符号显示，存储格式不变', () => {
+    // 第三个参数显式传平台，避免依赖跑测试的机器（ARCHITECTURE §8.4）
+    expect(formatChord(parseChord('Ctrl+Shift+W')!, false, true)).toBe('⌘⇧W');
+    expect(formatChord(parseChord('Ctrl+Alt+K')!, false, true)).toBe('⌘⌥K');
+    expect(formatChord(parseChord('Ctrl+Shift+W')!, true, true)).toBe('⌘ ⇧ W');
+    // 存储与解析始终是 Ctrl 写法，换平台不会让设置文件失效
+    expect(formatChord(parseChord('Ctrl+Shift+W')!, false, false)).toBe('Ctrl+Shift+W');
   });
 });
 

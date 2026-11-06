@@ -1,0 +1,81 @@
+name: build
+
+# 触发：主干提交、版本标签（GoldenEdit/v*）、手动。
+# 为什么需要 CI 出 macOS 包：dmg 依赖 hdiutil、链接依赖 Xcode SDK，Windows 上无法交叉编译
+# （ARCHITECTURE §15.3）。
+on:
+  push:
+    branches: [main]
+    tags: ['GoldenEdit/v*']
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS universal
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Rust 工具链（含两个 macOS 目标）
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 前端依赖
+        run: npm ci
+
+      - name: 构建 universal dmg
+        uses: tauri-apps/tauri-action@v0
+        with:
+          # beforeBuildCommand 会自动跑 npm run build（主页面 + 预览外壳）
+          args: --target universal-apple-darwin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GoldenEdit-macos-universal
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  windows:
+    name: Windows NSIS + MSI
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 前端依赖
+        run: npm ci
+
+      - name: 构建 NSIS 与 MSI
+        uses: tauri-apps/tauri-action@v0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GoldenEdit-windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error

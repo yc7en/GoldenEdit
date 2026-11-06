@@ -97,7 +97,21 @@ export function sameChord(a: Chord, b: Chord): boolean {
   return a.ctrl === b.ctrl && a.shift === b.shift && a.alt === b.alt && a.key === b.key;
 }
 
-export function formatChord(chord: Chord, spaced = false): string {
+/**
+ * 当前是否 macOS。只影响**显示与少数默认值**，不影响存储格式
+ * （存储永远是 `Ctrl+…`，否则设置文件跨平台就废了）。见 ARCHITECTURE §8.4。
+ */
+export function isMac(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /mac/i.test(`${navigator.platform ?? ''} ${navigator.userAgent ?? ''}`);
+}
+
+export function formatChord(chord: Chord, spaced = false, mac = isMac()): string {
+  if (mac) {
+    // 顺序按用户口语习惯：⌘ ⇧ ⌥ + 键
+    const s = `${chord.ctrl ? '⌘' : ''}${chord.shift ? '⇧' : ''}${chord.alt ? '⌥' : ''}${chord.key}`;
+    return spaced ? [...s].join(' ') : s;
+  }
   const parts: string[] = [];
   for (const mod of MOD_ORDER) {
     if (mod === 'Ctrl' && chord.ctrl) parts.push('Ctrl');
