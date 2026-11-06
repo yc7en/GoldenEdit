@@ -53,6 +53,11 @@
         "description": "Markdown 文档",
         "role": "Editor"
       }
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
   }
 }
