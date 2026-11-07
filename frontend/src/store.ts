@@ -2,7 +2,6 @@ import * as api from './bridge';
 import type {
   Commit,
   Entry,
-  LayoutMode,
   PluginManifest,
   ServerInfo,
   Settings,
@@ -42,7 +41,6 @@ type EventName =
   | 'doc-text'
   | 'log'
   | 'toast'
-  | 'draft'
   | 'commands'
   | 'keybindings';
 
@@ -75,7 +73,7 @@ const EMPTY_SETTINGS: Settings = {
   },
   plugins: { enabled: [], disabled: [], config: {} },
   keybindings: {},
-  layout: { sideWidth: 208, sideHidden: false },
+  layout: { sideWidth: 208, sideHidden: false, mode: 'split' },
   markdown: { taskDateFormat: 'YYYY年M月D日 HH:mm' },
   recents: [],
   lastVault: null,
@@ -257,6 +255,13 @@ class Store {  appVersion = '0.1.0';
       line: 1,
       col: 1,
     };
+    // 崩溃恢复：草稿比磁盘新就直接用它建标签（P24 起不再弹窗询问），
+    // 必须在 bus.emit 之前——编辑器模型会以 tab.text 初始化
+    const draft = this.draft(rel);
+    if (draft && draft.text !== doc.text) {
+      tab.text = draft.text;
+      tab.dirty = true;
+    }
     this.tabs.push(tab);
     this.activeRel = rel;
     this.vaultUi.lastFile = rel;
@@ -264,11 +269,8 @@ class Store {  appVersion = '0.1.0';
     void api.setActiveDoc(rel);
     bus.emit('tabs');
     bus.emit('active');
-
-    // 崩溃恢复：磁盘内容与草稿不一致时，让用户决定用哪一份（§10.3）
-    const draft = this.draft(rel);
     if (draft && draft.text !== doc.text) {
-      bus.emit('draft', { rel, at: draft.at, text: draft.text });
+      this.toast(`已恢复未保存的修改（${new Date(draft.at).toLocaleString()}）`);
     }
   }
 
@@ -349,18 +351,6 @@ class Store {  appVersion = '0.1.0';
   clearDraft(rel: string): void {
     const key = this.draftKey(rel);
     if (key) localStorage.removeItem(key);
-  }
-
-  /** 用草稿覆盖当前标签内容（保持 dirty，等待用户保存） */
-  restoreDraft(rel: string): void {
-    const draft = this.draft(rel);
-    const tab = this.tabs.find((t) => t.rel === rel);
-    if (!draft || !tab) return;
-    tab.text = draft.text;
-    tab.dirty = draft.text !== tab.savedText;
-    bus.emit('tabs');
-    bus.emit('status');
-    bus.emit('active');
   }
 
   setCursor(line: number, col: number): void {
@@ -537,10 +527,8 @@ class Store {  appVersion = '0.1.0';
 
   persistDocState(patch: {
     ratio?: number;
-    previewHidden?: boolean;
     width?: number;
     scrollTop?: number;
-    layout?: LayoutMode;
   }): void {
     if (!this.vault || !this.activeRel) return;
     Object.assign(this.docState(this.activeRel), patch);

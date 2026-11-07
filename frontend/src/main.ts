@@ -21,7 +21,7 @@ import { mountSettingsPage } from './settings/page';
 import { bus, store } from './store';
 import { PREVIEW_TOKENS, resolveMode } from './theme/tokens';
 import { closePalette, isPaletteOpen, mountPalette, openPalette } from './ui/palette';
-import { escapeHtml, mountShell, closeModal, openModal, setPreviewCollapsed, shellToggleSide, applySideState, toast } from './ui/shell';
+import { escapeHtml, mountShell, closeModal, setPreviewCollapsed, shellToggleSide, applySideState, toast } from './ui/shell';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
@@ -188,14 +188,17 @@ function wireSyncScroll(): void {
 
 /**
  * 三布局（§8.2）：分栏 / 仅编辑 / 仅预览。
- * `persist` 为 false 时只改 DOM——用于「切标签时按记忆复原」，避免写回自己。
+ * 布局是全局状态（settings.layout.mode）：切换即落盘，切标签不复原（P24）。
+ * `persist` 为 false 时只改 DOM——用于启动时按全局记忆复原，避免写回自己。
  */
 function applyLayout(mode: LayoutMode, persist = true): void {
   const ws = $('workspace');
   ws.classList.toggle('layout-preview', mode === 'preview');
   setPreviewCollapsed(mode === 'editor');
   editorHost.layout();
-  if (persist) store.persistDocState({ layout: mode, previewHidden: mode === 'editor' });
+  if (persist) {
+    void store.setSettingsPatch({ layout: { ...store.settings.layout, mode } });
+  }
 }
 
 function setLayout(mode: LayoutMode): void {
@@ -397,32 +400,6 @@ function wireDragDrop(): void {
   });
 }
 
-/** 草稿恢复提示：磁盘内容与上次未保存的草稿不一致时问一次（§10.3） */
-function wireDrafts(): void {
-  bus.on('draft', (payload) => {
-    const p = payload as { rel: string; at: number };
-    const when = new Date(p.at).toLocaleString();
-    const card = openModal(`
-      <div class="modal__title">发现未保存的修改</div>
-      <div class="modal__sub">${escapeHtml(p.rel)} 在 ${escapeHtml(when)} 有一份草稿，比磁盘上的内容新。要恢复吗？</div>
-      <div class="modal__foot">
-        <span class="grow"></span>
-        <button class="btn" id="draftDrop" data-close="modal">丢弃草稿</button>
-        <button class="btn btn--gold" id="draftKeep">恢复草稿</button>
-      </div>`);
-    card.querySelector('#draftKeep')?.addEventListener('click', () => {
-      store.restoreDraft(p.rel);
-      editorHost.refreshFromStore();
-      closeModal();
-      pushActiveDoc();
-    });
-    card.querySelector('#draftDrop')?.addEventListener('click', () => {
-      store.clearDraft(p.rel);
-      closeModal();
-    });
-  });
-}
-
 /** 打开宿主转来的绝对路径：在工作区里直接开，否则先切工作区（§9.7） */
 async function openExternalPath(path: string): Promise<void> {
   const normalized = path.replace(/\\/g, '/');
@@ -481,7 +458,6 @@ async function boot(): Promise<void> {  mountShell({
   });
   wireExternalChanges();
   wireDragDrop();
-  wireDrafts();
   wireOpenFile();
   wireSyncScroll();
   wirePluginChanges();
@@ -510,9 +486,7 @@ async function boot(): Promise<void> {  mountShell({
     if (!tab) return;
     const state = store.docState(tab.rel);
     applyRatio(state.ratio ?? 0.46);
-    // 布局记忆：旧版本只存 previewHidden，这里按它推导，兼容已有 ui-state.json
-    const layout: LayoutMode = state.layout ?? (state.previewHidden ? 'editor' : 'split');
-    applyLayout(layout, false);
+    // 布局不再按文件复原（P24）：切标签保持当前布局，比例与宽度仍按文件记忆
     if (state.width !== undefined) {
       preview.setWidth(state.width);
       document.querySelectorAll('#widthPresets .seg').forEach((s) => {
@@ -550,7 +524,8 @@ async function boot(): Promise<void> {  mountShell({
     store.pushLog('error', String(err));
   }
 
-  setPreviewCollapsed(false);
+  // 三布局按全局记忆复原（P24）；此处同时会同步区域开关按钮状态
+  applyLayout(store.settings.layout.mode ?? 'split', false);
   $('emptyState').hidden = store.tabs.length > 0;
   renderRecentIfEmpty();
   applyTheme();

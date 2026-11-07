@@ -142,6 +142,8 @@ export interface Settings {
 export interface LayoutSettings {
   sideWidth: number;
   sideHidden: boolean;
+  /** 三布局，全局生效（P24 起不再按文件记忆） */
+  mode: LayoutMode;
 }
 
 export interface MarkdownSettings {
@@ -156,11 +158,8 @@ export interface FileFilter {
 
 export interface DocState {
   ratio?: number;
-  previewHidden?: boolean;
   width?: number;
   scrollTop?: number;
-  /** 三布局：分栏 / 仅编辑 / 仅预览 */
-  layout?: LayoutMode;
 }
 
 export type LayoutMode = 'split' | 'editor' | 'preview';

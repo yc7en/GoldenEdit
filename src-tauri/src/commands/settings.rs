@@ -30,7 +30,7 @@ pub fn default_settings() -> Value {
         // 键位：只存与命令默认值的差异，null 表示显式解绑（§8.4）
         "keybindings": {},
         // 左栏宽度与收起状态（§8.1）
-        "layout": { "sideWidth": 208, "sideHidden": false },
+        "layout": { "sideWidth": 208, "sideHidden": false, "mode": "split" },
         // 文本命令行为（§8.5）
         "markdown": { "taskDateFormat": "YYYY年M月D日 HH:mm" },
         "recents": [],
