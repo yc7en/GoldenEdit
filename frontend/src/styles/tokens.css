@@ -40,6 +40,17 @@
   --ed-line: #34343a;
   --ed-accent: #c9a24a;
   --ed-selection: #3a3a44;
+  /* 编辑区围栏高亮（P26）：与预览 --ge-hl-* 同分组、同暗色取值 */
+  --ed-hl-comment: #8b8f97;
+  --ed-hl-keyword: #c678dd;
+  --ed-hl-string: #98c379;
+  --ed-hl-title: #61afef;
+  --ed-hl-number: #d19a66;
+  --ed-hl-builtin: #e5c07b;
+  --ed-hl-meta: #7aa3c0;
+  --ed-hl-deletion: #e06c75;
+  --ed-hl-addition: #98c379;
+  --ed-hl-tag: #e06c75;
 }
 
 /* 编辑器主题：亮 */
@@ -52,4 +63,15 @@
   --ed-line: #e3e2da;
   --ed-accent: #a8802f;
   --ed-selection: #efe6cf;
+  /* 编辑区围栏高亮（P26）：与预览 --ge-hl-* 同分组、同亮色取值 */
+  --ed-hl-comment: #6a737d;
+  --ed-hl-keyword: #d73a49;
+  --ed-hl-string: #032f62;
+  --ed-hl-title: #6f42c1;
+  --ed-hl-number: #005cc5;
+  --ed-hl-builtin: #e36209;
+  --ed-hl-meta: #8a6a20;
+  --ed-hl-deletion: #b31d28;
+  --ed-hl-addition: #22863a;
+  --ed-hl-tag: #22863a;
 }

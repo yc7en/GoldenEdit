@@ -1732,3 +1732,41 @@ textarea {
   right: 5px;
   border-top: 1.2px solid currentColor;
 }
+
+/* ── 编辑区围栏代码高亮（P26）───────────────────────────────────────
+   Monaco 把 inlineClassName 追加到 token 的 <span> 上，而它自己的 .mtk* 规则
+   也带 color；这里必须 !important 才能压过分词器颜色，否则 keyword 仍是主题色。
+   分组与 frontend/shared/highlight.ts 的 HLJS_BUCKETS 一一对应，
+   颜色取自 tokens.css 的 --ed-hl-*（与预览 --ge-hl-* 亮暗两套同值）。
+   行内代码的深色文字色只属于右侧预览区，不在本文件定义。                  */
+.ge-hl-comment {
+  color: var(--ed-hl-comment) !important;
+  font-style: italic;
+}
+.ge-hl-keyword {
+  color: var(--ed-hl-keyword) !important;
+}
+.ge-hl-string {
+  color: var(--ed-hl-string) !important;
+}
+.ge-hl-title {
+  color: var(--ed-hl-title) !important;
+}
+.ge-hl-number {
+  color: var(--ed-hl-number) !important;
+}
+.ge-hl-builtin {
+  color: var(--ed-hl-builtin) !important;
+}
+.ge-hl-meta {
+  color: var(--ed-hl-meta) !important;
+}
+.ge-hl-deletion {
+  color: var(--ed-hl-deletion) !important;
+}
+.ge-hl-addition {
+  color: var(--ed-hl-addition) !important;
+}
+.ge-hl-tag {
+  color: var(--ed-hl-tag) !important;
+}

@@ -1,8 +1,10 @@
 import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 
+import { highlightRanges } from '../../shared/highlight';
 import { bus, store } from '../store';
 import { EDITOR_THEMES, resolveMode, type Mode } from '../theme/tokens';
+import { findFences, rangeToMonaco } from './fences';
 
 /** 与 settings.rs / store.ts 的默认值保持一致；用户可在设置页改成任意 CSS 字体栈 */
 export const DEFAULT_FONT_FAMILY = "'JetBrains Mono', 'Cascadia Code', Consolas, monospace";
@@ -39,10 +41,15 @@ const TOKEN_RULES: Record<Mode, monaco.editor.ITokenThemeRule[]> = {
   ],
 };
 
+/** 围栏高亮只算视口 ± 这么多行：大文档下成本与窗口大小成正比，不与文档长度成正比 */
+const HIGHLIGHT_MARGIN_LINES = 80;
+
 export class EditorHost {
   private editor: monaco.editor.IStandaloneCodeEditor;
   private models = new Map<string, monaco.editor.ITextModel>();
   private themeMode: Mode = 'dark';
+  private hlDecorations: monaco.editor.IEditorDecorationsCollection;
+  private hlTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(container: HTMLElement) {
     for (const mode of ['dark', 'light'] as Mode[]) {
@@ -80,12 +87,15 @@ export class EditorHost {
       guides: { indentation: false },
     });
 
+    this.hlDecorations = this.editor.createDecorationsCollection();
+
     this.editor.onDidChangeModelContent(() => {
       const text = this.editor.getValue();
       store.updateText(text);
       // 'render' 是「渲染完成」的回执，不能拿来当「文档变了」用：
       // 那样每次渲染完都会再推一次文档，形成无限重渲染（BugFix-261028-0010）
       bus.emit('doc-text');
+      this.scheduleHighlight();
     });
 
     this.editor.onDidChangeCursorPosition((e) => {
@@ -95,8 +105,15 @@ export class EditorHost {
     // Ctrl+S 交给命令表（file.save），这里不再单独 addCommand：
     // 两套绑定并存时，改键位只对其中一套生效（§8.4）
 
-    bus.on('active', () => this.syncModel());
+    // 高亮装饰只覆盖视口附近，滚动后要补算新进入的围栏（防抖在 scheduleHighlight）
+    this.editor.onDidScrollChange(() => this.scheduleHighlight(120));
+
+    bus.on('active', () => {
+      this.syncModel();
+      this.scheduleHighlight(0);
+    });
     bus.on('settings', () => this.applyTheme());
+    this.scheduleHighlight(0);
 
     // 右键菜单由命令表提供（§8.3）。用 Monaco 的 onContextMenu 而不是裸 DOM，
     // 因为它带得动「右键位置」——先移光标再弹菜单，操作对象才和用户点的那行一致。
@@ -140,6 +157,63 @@ export class EditorHost {
     if (!tab) return;
     const model = this.models.get(tab.rel);
     if (model) model.setValue(tab.text);
+    this.scheduleHighlight(0);
+  }
+
+  /**
+   * 编辑区的围栏关键词高亮（§6.6，P26）。
+   *
+   * 与预览共用 `shared/highlight.ts` 的语言注册与配色分桶；这里不做 HTML，
+   * 而是把 token 的字符偏移量换成 Monaco 行列，用 `inlineClassName` 装饰上色。
+   * 不用 Monaco 自带的 `rules` 改颜色：那是 Markdown 主题的分词器，改了会连带
+   * 影响标题、粗体等所有 markup token，且无法保证与预览的 hljs 分类一致。
+   */
+  private scheduleHighlight(delay = 180): void {
+    if (this.hlTimer !== null) clearTimeout(this.hlTimer);
+    this.hlTimer = setTimeout(() => {
+      this.hlTimer = null;
+      this.refreshHighlight();
+    }, delay);
+  }
+
+  private refreshHighlight(): void {
+    const model = this.editor.getModel();
+    if (!model) {
+      this.hlDecorations.set([]);
+      return;
+    }
+    const lines = model.getLinesContent();
+    const fences = findFences(lines);
+    if (!fences.length) {
+      this.hlDecorations.set([]);
+      return;
+    }
+    const visible = this.editor.getVisibleRanges();
+    const from = visible.length
+      ? Math.max(1, visible[0].startLineNumber - HIGHLIGHT_MARGIN_LINES)
+      : 1;
+    const to = visible.length
+      ? Math.min(lines.length, visible[visible.length - 1].endLineNumber + HIGHLIGHT_MARGIN_LINES)
+      : Math.min(lines.length, 200);
+
+    const decorations: monaco.editor.IModelDeltaDecoration[] = [];
+    for (const fence of fences) {
+      if (fence.closeLine < from || fence.openLine > to) continue;
+      const ranges = highlightRanges(fence.lines.join('\n'), fence.lang);
+      for (const r of ranges) {
+        const span = rangeToMonaco(fence, r.start, r.end);
+        decorations.push({
+          range: new monaco.Range(
+            span.startLineNumber,
+            span.startColumn,
+            span.endLineNumber,
+            span.endColumn
+          ),
+          options: { inlineClassName: `ge-hl-${r.bucket}` },
+        });
+      }
+    }
+    this.hlDecorations.set(decorations);
   }
 
   applyTheme(): void {

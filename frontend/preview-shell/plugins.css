@@ -28,6 +28,8 @@
   --ge-hl-builtin: #e36209;
   --ge-hl-meta: #8a6a20;
   --ge-hl-deletion: #b31d28;
+  --ge-hl-addition: #22863a;
+  --ge-hl-tag: #22863a;
 }
 
 :root[data-mode='dark'] {
@@ -55,9 +57,13 @@
   --ge-hl-builtin: #e5c07b;
   --ge-hl-meta: #7aa3c0;
   --ge-hl-deletion: #e06c75;
+  --ge-hl-addition: #98c379;
+  --ge-hl-tag: #e06c75;
 }
 
-/* highlight.js 产物只有 .hljs-* 类名、不带内联颜色：切主题只换上面的变量，无需重绘 */
+/* highlight.js 产物只有 .hljs-* 类名、不带内联颜色：切主题只换上面的变量，无需重绘。
+   下面的分组与 frontend/shared/highlight.ts 的 HLJS_BUCKETS 一一对应，
+   编辑区 app.css 的 .ge-hl-* 用同一分组，两边颜色恒等。 */
 .hljs-comment,
 .hljs-quote {
   color: var(--ge-hl-comment);
@@ -81,6 +87,7 @@
 .hljs-title,
 .hljs-title.class_,
 .hljs-title.function_,
+.hljs-function,
 .hljs-section,
 .hljs-name,
 .hljs-selector-id,
@@ -109,6 +116,12 @@
 }
 .hljs-deletion {
   color: var(--ge-hl-deletion);
+}
+.hljs-addition {
+  color: var(--ge-hl-addition);
+}
+.hljs-tag {
+  color: var(--ge-hl-tag);
 }
 .hljs-emphasis {
   font-style: italic;
@@ -278,7 +291,9 @@ img {
 }
 
 /* ── 代码 ── */
-/* P25：行内代码文字色固定 #141925（明暗统一，用户指定）；代码块基础色在 pre code 里恢复 */
+/* 行内代码文字色 #141925（用户指定，明暗统一）。
+   本文件只被右侧预览外壳加载，主窗口（中间 Monaco 编辑区）不受影响。
+   代码块基础色在 pre code 里显式恢复，避免被这个深色污染。 */
 code {
   font-family: var(--ge-mono);
   font-size: 0.88em;
