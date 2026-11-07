@@ -127,6 +127,23 @@ function togglePreview(collapse?: boolean): void {
 }
 
 /**
+ * 编辑区开关（§8.1 区域保留）。左栏不受限，但编辑区与预览区至少保留一个：
+ * 仅编辑布局下再关编辑区，内容区就一个都不剩了——按钮已被置灰，这里给快捷键路径兜底。
+ */
+function toggleEditor(): void {
+  const ws = $('workspace');
+  if (ws.classList.contains('layout-preview')) {
+    applyLayout('split');
+    return;
+  }
+  if (ws.classList.contains('preview-hidden')) {
+    toast('预览面板已收起，编辑区不能同时关闭', 'err');
+    return;
+  }
+  applyLayout('preview');
+}
+
+/**
  * 三布局（§8.2）：分栏 / 仅编辑 / 仅预览。
  * `persist` 为 false 时只改 DOM——用于「切标签时按记忆复原」，避免写回自己。
  */
@@ -173,6 +190,7 @@ registerSystemCommands({
   },
   setLayout,
   togglePreview: () => togglePreview(),
+  toggleEditor,
   toggleOutline,
   toggleSide,
   openPalette,

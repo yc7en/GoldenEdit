@@ -145,6 +145,15 @@ textarea {
   background: var(--bg3);
   color: var(--t1);
 }
+/* 被区域保留规则挡住的开关（§8.1）：置灰且不可点，原因写在 title 里 */
+.iconbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.iconbtn:disabled:hover {
+  background: transparent;
+  color: var(--t2);
+}
 .iconbtn--sm {
   width: 22px;
   height: 22px;
@@ -162,6 +171,7 @@ textarea {
 .i-cmd,
 .i-panel,
 .i-side,
+.i-editor,
 .i-gear,
 .i-plus,
 .i-folder,
@@ -1728,4 +1738,26 @@ textarea {
   left: 0;
   background: currentColor;
   opacity: 0.5;
+}
+
+/* 编辑区图标：同族方框，内画两条文本行 */
+.i-editor {
+  border: 1.2px solid currentColor;
+  border-radius: 3px;
+}
+.i-editor::before {
+  content: '';
+  position: absolute;
+  top: 3.5px;
+  left: 2px;
+  right: 2px;
+  border-top: 1.2px solid currentColor;
+}
+.i-editor::after {
+  content: '';
+  position: absolute;
+  top: 7.5px;
+  left: 2px;
+  right: 5px;
+  border-top: 1.2px solid currentColor;
 }

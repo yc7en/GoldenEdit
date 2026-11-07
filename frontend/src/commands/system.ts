@@ -15,6 +15,7 @@ export interface SystemActions {
   closeTab: () => void;
   setLayout: (mode: LayoutMode) => void;
   togglePreview: () => void;
+  toggleEditor: () => void;
   toggleOutline: () => void;
   toggleSide: () => void;
   openPalette: () => void;
@@ -82,6 +83,14 @@ export function registerSystemCommands(a: SystemActions): void {
       group: '视图',
       default: 'Ctrl+Shift+V',
       run: a.togglePreview,
+    },
+    {
+      ...system,
+      id: 'view.toggleEditor',
+      title: '切换编辑区',
+      group: '视图',
+      default: 'Ctrl+Shift+E',
+      run: a.toggleEditor,
     },
     {
       ...system,

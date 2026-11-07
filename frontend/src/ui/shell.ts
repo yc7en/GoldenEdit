@@ -2,6 +2,7 @@ import { openContextMenu } from '../commands/menu';
 import { runCommand } from '../commands/registry';
 import { bus, store } from '../store';
 import { SIDE_DEFAULT, clampSideWidth, dragWidth, sameWidth } from './side';
+import { derivePaneButtons } from './panes';
 import type { Entry } from '../bridge/types';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T =>
@@ -44,6 +45,7 @@ export function mountShell(d: ShellDeps): void {
   renderVaultChrome();
   renderTabs();
   renderStatus();
+  syncLayoutButtons();
 }
 
 /* ───────── 分组折叠 ───────── */
@@ -270,11 +272,12 @@ function renderStatus(): void {
   $('statCursor').textContent = tab ? `行 ${tab.line} · 列 ${tab.col}` : '行 1 · 列 1';
   $('statLang').textContent = tab ? 'Markdown' : '—';
   const ratioText = `${Math.round(deps.ratio() * 100)}/${100 - Math.round(deps.ratio() * 100)}`;
-  $('statRatio').textContent = document
-    .getElementById('workspace')!
-    .classList.contains('preview-hidden')
-    ? '预览已收起'
-    : `分栏 ${ratioText}`;
+  const ws = document.getElementById('workspace')!;
+  $('statRatio').textContent = ws.classList.contains('layout-preview')
+    ? '仅预览'
+    : ws.classList.contains('preview-hidden')
+      ? '仅编辑'
+      : `分栏 ${ratioText}`;
   const info = store.renderInfo;
   const stat = $('previewStatText');
   const dot = document.querySelector('#previewStat .dot');
@@ -331,13 +334,41 @@ function wirePreviewToggle(): void {
     deps.togglePreview(hidden);
   });
   $('btnCollapsePreview').addEventListener('click', () => deps.togglePreview(true));
+  $('btnEditor').addEventListener('click', () => void runCommand('view.toggleEditor'));
 }
 
 export function setPreviewCollapsed(hidden: boolean): void {
   const workspace = $('workspace');
   workspace.classList.toggle('preview-hidden', hidden);
-  $('btnPreview').classList.toggle('is-on', !hidden);
+  syncLayoutButtons();
   renderStatus();
+}
+
+/**
+ * 三个区域开关按钮的 on / disabled 态单点同步（§8.1 区域保留）。
+ * 一律从 DOM 类名反推，不在调用方各自维护——否则按钮亮着、点了没反应的漂移迟早出现。
+ */
+export function syncLayoutButtons(): void {
+  const ws = $('workspace');
+  const buttons = derivePaneButtons({
+    editorHidden: ws.classList.contains('layout-preview'),
+    previewHidden: ws.classList.contains('preview-hidden'),
+  });
+
+  const sideCollapsed = $('app').classList.contains('side-collapsed');
+  const sideBtn = $<HTMLButtonElement>('btnSide');
+  sideBtn.classList.toggle('is-on', !sideCollapsed);
+  sideBtn.disabled = false; // 左栏不受保留规则约束，任何状态都可收
+
+  const editorBtn = $<HTMLButtonElement>('btnEditor');
+  editorBtn.classList.toggle('is-on', buttons.editor.on);
+  editorBtn.disabled = buttons.editor.disabled;
+  editorBtn.title = buttons.editor.title;
+
+  const previewBtn = $<HTMLButtonElement>('btnPreview');
+  previewBtn.classList.toggle('is-on', buttons.preview.on);
+  previewBtn.disabled = buttons.preview.disabled;
+  previewBtn.title = buttons.preview.title;
 }
 
 /* ───────── 左栏宽度与收起（§8.1） ───────── */
@@ -367,7 +398,7 @@ export function shellToggleSide(): void {
   const app = $('app');
   // 先按按钮自己的状态算目标值，不去读 settings：settings 可能落后于刚被点击的 DOM
   const collapsed = app.classList.toggle('side-collapsed');
-  $('btnSide').classList.toggle('is-on', !collapsed);
+  syncLayoutButtons();
   void store.setSettingsPatch({ layout: { ...store.settings.layout, sideHidden: collapsed } });
 }
 
