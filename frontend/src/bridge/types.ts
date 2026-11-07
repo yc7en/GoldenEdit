@@ -100,6 +100,13 @@ export interface PreviewSettings {
   pauseAboveMb: number;
   /** 用户自定义预览 CSS，注入到预览外壳的 <style> 里（§7.3） */
   customCss: string;
+  /** 预览整体缩放（CSS zoom，§8.1 区域缩放），0.5–2.0 */
+  zoom: number;
+}
+
+/** 编辑器外观（§8.1 区域缩放） */
+export interface EditorSettings {
+  fontSize: number;
 }
 
 export interface ExportSettings {
@@ -113,6 +120,7 @@ export interface ExportSettings {
 export interface Settings {
   theme: ThemeSettings;
   preview: PreviewSettings;
+  editor: EditorSettings;
   export: ExportSettings;
   plugins: {
     /** 本地插件的启用名单；内置插件默认启用，不看这个字段 */

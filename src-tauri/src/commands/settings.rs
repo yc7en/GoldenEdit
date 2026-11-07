@@ -11,10 +11,13 @@ pub fn default_settings() -> Value {
         "theme": { "preset": "writing", "editor": "dark", "preview": "light" },
         "preview": {
             "width": 980,
-            "syncScroll": false,
+            "syncScroll": true,
             "pauseAboveMb": 10,
-            "customCss": ""
+            "customCss": "",
+            "zoom": 1.0
         },
+        // 编辑器外观（§8.1 区域缩放）
+        "editor": { "fontSize": 13 },
         "export": {
             "format": "html",
             "width": 980,

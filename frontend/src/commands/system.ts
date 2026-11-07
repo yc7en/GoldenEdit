@@ -18,6 +18,11 @@ export interface SystemActions {
   toggleEditor: () => void;
   toggleOutline: () => void;
   toggleSide: () => void;
+  editorZoomIn: () => void;
+  editorZoomOut: () => void;
+  previewZoomIn: () => void;
+  previewZoomOut: () => void;
+  revealActive: () => void;
   openPalette: () => void;
   openPlugins: () => void;
   openExport: () => void;
@@ -42,6 +47,14 @@ export function registerSystemCommands(a: SystemActions): void {
       // 所以 mac 上退一格用 ⌘⇧W。见 ARCHITECTURE §8.4。
       default: isMac() ? 'Ctrl+Shift+W' : 'Ctrl+W',
       run: a.closeTab,
+    },
+    {
+      ...system,
+      id: 'file.revealActive',
+      title: '打开当前文件所在目录',
+      group: '文件',
+      default: 'Ctrl+Shift+E',
+      run: a.revealActive,
     },
 
     {
@@ -89,8 +102,42 @@ export function registerSystemCommands(a: SystemActions): void {
       id: 'view.toggleEditor',
       title: '切换编辑区',
       group: '视图',
-      default: 'Ctrl+Shift+E',
+      // Ctrl+Shift+E 让给 file.revealActive（用户指定）；本命令改绑 U，见 §8.4
+      default: 'Ctrl+Shift+U',
       run: a.toggleEditor,
+    },
+    {
+      ...system,
+      id: 'view.editorZoomIn',
+      title: '编辑区：放大',
+      group: '视图',
+      // 主窗口任意处按 Ctrl+= 都作用于编辑器字号；预览侧同名键在外壳内拦截（§8.2）
+      default: 'Ctrl+=',
+      run: a.editorZoomIn,
+    },
+    {
+      ...system,
+      id: 'view.editorZoomOut',
+      title: '编辑区：缩小',
+      group: '视图',
+      default: 'Ctrl+-',
+      run: a.editorZoomOut,
+    },
+    {
+      ...system,
+      id: 'view.previewZoomIn',
+      title: '渲染区：放大',
+      group: '视图',
+      // 不绑默认键：Ctrl+= 在 iframe 内被外壳拦截上报，不进命令表分发；
+      // 这里提供命令面板入口，用户也可自行绑键
+      run: a.previewZoomIn,
+    },
+    {
+      ...system,
+      id: 'view.previewZoomOut',
+      title: '渲染区：缩小',
+      group: '视图',
+      run: a.previewZoomOut,
     },
     {
       ...system,

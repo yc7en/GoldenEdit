@@ -151,6 +151,43 @@ export class EditorHost {
     this.editor.focus();
   }
 
+  /** 编辑器字号（§8.1 区域缩放）。Monaco 自己处理布局失效，不用手动 layout */
+  setFontSize(size: number): void {
+    const clamped = Math.min(28, Math.max(10, Math.round(size)));
+    if (clamped === this.editor.getOption(monaco.editor.EditorOption.fontSize)) return;
+    this.editor.updateOptions({ fontSize: clamped });
+  }
+
+  fontSize(): number {
+    return this.editor.getOption(monaco.editor.EditorOption.fontSize);
+  }
+
+  /**
+   * 同步滚动（预览 → 编辑，§6.5）：只挪视口，不动光标、不抢焦点——
+   * `revealLine` 会 focus 并打断输入，不能用于「跟着预览滚」。
+   */
+  scrollToLine(line: number): void {
+    const model = this.editor.getModel();
+    if (!model) return;
+    const target = Math.min(Math.max(1, line), model.getLineCount());
+    const top = this.editor.getTopForLineNumber(target);
+    this.editor.setScrollTop(Math.max(0, top - this.editor.getOption(monaco.editor.EditorOption.lineHeight)));
+  }
+
+  /** 订阅编辑器滚动（编辑 → 预览方向用）。节流由调用方负责 */
+  onDidScroll(handler: () => void): monaco.IDisposable {
+    return this.editor.onDidScrollChange((e) => {
+      // 只有纵向滚动才上报；横向滚动与因内容改写引起的 scrollTop 校正都跳过
+      if (e.scrollTopChanged) handler();
+    });
+  }
+
+  /** 首个可见行的行号（同步滚动的映射源，§6.5） */
+  firstVisibleLine(): number {
+    const range = this.editor.getVisibleRanges()[0];
+    return range?.startLineNumber ?? 1;
+  }
+
   focus(): void {
     this.editor.focus();
   }

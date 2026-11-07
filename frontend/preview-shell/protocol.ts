@@ -48,6 +48,10 @@ export type HostMessage =
   | { type: 'doc-meta'; doc: DocMeta }
   | { type: 'theme'; theme: ThemePayload }
   | { type: 'width'; width: number }
+  /** 预览整体缩放：外壳对 #ge-root 设 CSS zoom（§8.1 区域缩放） */
+  | { type: 'zoom'; scale: number }
+  /** 同步滚动（编辑 → 预览）：滚动到最后一个源行 ≤ line 的块（§6.5） */
+  | { type: 'scroll-to'; line: number }
   | { type: 'remount' }
   | { type: 'export'; id: number; title: string }
   /** PDF 降级路径：由 L3 调 window.print()，打印设置里选「另存为 PDF」 */
@@ -88,6 +92,13 @@ export type PreviewMessage =
     }
   | { type: 'outline'; items: OutlineItem[] }
   | { type: 'jump'; line: number }
+  /**
+   * 外壳内按了 `Ctrl+=` / `Ctrl+-`。iframe 的键盘事件不冒泡到主窗口，
+   * 只能拦截后上报，由主窗口统一执行预览缩放（§8.2 上下文判定）。
+   */
+  | { type: 'zoom-chord'; action: 'in' | 'out' }
+  /** 同步滚动（预览 → 编辑）：视口顶部块的源行号（§6.5） */
+  | { type: 'scrolled'; line: number }
   | { type: 'open-external'; url: string }
   | { type: 'copy'; text: string }
   /** 预览区右键：坐标相对 iframe 视口，由宿主加上 iframe 偏移后弹菜单（§8.3） */

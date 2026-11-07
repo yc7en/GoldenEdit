@@ -26,6 +26,10 @@ export interface RenderInfo {
 
 export interface PreviewCallbacks {
   onJump: (line: number) => void;
+  /** 外壳内按了 Ctrl+= / Ctrl+-（iframe 键盘不冒泡，见 §8.2） */
+  onZoomChord: (action: 'in' | 'out') => void;
+  /** 预览滚动上报：视口顶部块的源行号（§6.5 同步滚动） */
+  onScrolled: (line: number) => void;
   onOutline: (items: { level: number; text: string; line: number }[]) => void;
   onRendered: (
     info: RenderInfo & { plugins: string[]; errors: { message: string; line: number }[] }
@@ -120,6 +124,16 @@ export class PreviewHost {
   setWidth(width: number): void {
     this.width = width;
     this.post({ type: 'width', width });
+  }
+
+  /** 预览整体缩放（§8.1）；外壳侧夹取边界，这里只透传 */
+  setZoom(scale: number): void {
+    this.post({ type: 'zoom', scale });
+  }
+
+  /** 同步滚动（编辑 → 预览）：滚动到最后一个源行 ≤ line 的块（§6.5） */
+  scrollToLine(line: number): void {
+    this.post({ type: 'scroll-to', line });
   }
 
   setDocPath(path: string, name: string): void {
@@ -307,6 +321,12 @@ export class PreviewHost {
       case 'jump':
         this.cb.onJump(msg.line);
         break;
+      case 'zoom-chord':
+        this.cb.onZoomChord(msg.action);
+        break;
+      case 'scrolled':
+        this.cb.onScrolled(msg.line);
+        break;
       case 'open-external':
         this.cb.onOpenExternal(msg.url);
         break;
@@ -354,6 +374,8 @@ export class PreviewHost {
       options,
     });
     this.post({ type: 'width', width: this.width });
+    // 缩放是运行时状态，重建 iframe 后要补一次，否则重启/换插件后回到 100%
+    this.post({ type: 'zoom', scale: this.settings.preview.zoom ?? 1 });
     this.inited = true;
     if (text) {
       this.post({ type: 'doc', gen: this.nextGen(), text });

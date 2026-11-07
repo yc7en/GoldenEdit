@@ -105,6 +105,93 @@ function modeFor(text: string): RenderMode {
   return 'viewport';
 }
 
+/* ───────── 缩放与同步滚动（§8.1 / §6.5） ───────── */
+
+/** 缩放边界与主窗口侧命令一致（0.5–2.0）；非有限值一律回到 1，脏消息不当真 */
+function clampZoom(scale: number): number {
+  if (!Number.isFinite(scale)) return 1;
+  return Math.min(2, Math.max(0.5, scale));
+}
+
+function applyZoom(scale: number): void {
+  (root as HTMLElement).style.zoom = String(clampZoom(scale));
+}
+
+/**
+ * 滚动到最后一个源行 ≤ line 的块。块定位直接在 DOM 上找 `data-line`：
+ * `.ge-block` 按文档顺序渲染，顺序扫一遍就是源码顺序。
+ */
+function scrollToLine(line: number): void {
+  suppressScrollReport();
+  const blocks = root.querySelectorAll<HTMLElement>('.ge-block[data-line]');
+  let target: HTMLElement | null = null;
+  for (const b of blocks) {
+    if (Number(b.dataset.line) <= line) target = b;
+    else break;
+  }
+  if (!target) return;
+  // body 有 32px 内边距，直接对齐块顶会贴边，留一点呼吸
+  window.scrollTo({ top: Math.max(0, target.offsetTop - 32) });
+}
+
+/**
+ * 由「编辑 → 预览」触发的滚动会立即回报一次自身位置，主窗口再对齐编辑器
+ * 就成了回环。抑制窗 150ms，与主窗口侧一致。
+ */
+let scrollSuppressUntil = 0;
+function suppressScrollReport(): void {
+  scrollSuppressUntil = performance.now() + 150;
+}
+
+/** 视口顶部（留 40px 容差）第一个块的源行号；没有可见块返回 null */
+function topVisibleLine(): number | null {
+  const top = window.scrollY + 40 + 32; // 40 容差 + body 内边距
+  let hit: number | null = null;
+  for (const b of root.querySelectorAll<HTMLElement>('.ge-block[data-line]')) {
+    if (b.offsetTop <= top) hit = Number(b.dataset.line);
+    else break;
+  }
+  return hit;
+}
+
+/** 外壳内按键上报。iframe 的键盘事件不冒泡到主窗口，缩放键只能在这拦（§8.2） */
+function wireZoomKeys(): void {
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      let action: 'in' | 'out' | null = null;
+      if (key === '=' || key === '+') action = 'in';
+      else if (key === '-') action = 'out';
+      if (!action) return;
+      e.preventDefault();
+      send({ type: 'zoom-chord', action });
+    },
+    true
+  );
+}
+
+let scrollReportTimer: number | null = null;
+function wireScrollReport(): void {
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (performance.now() < scrollSuppressUntil) return;
+      if (scrollReportTimer !== null) return;
+      scrollReportTimer = window.setTimeout(() => {
+        scrollReportTimer = null;
+        const line = topVisibleLine();
+        if (line !== null) send({ type: 'scrolled', line });
+      }, 50);
+    },
+    { passive: true }
+  );
+}
+
+wireZoomKeys();
+wireScrollReport();
+
 function startWorker(specs: PluginSpec[], doc: HostMessage & { type: 'init' }): void {
   worker?.terminate();
   worker = new Worker(new URL('./worker/parse.ts', import.meta.url), { type: 'module' });
@@ -353,6 +440,12 @@ window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
       break;
     case 'width':
       pipeline.setWidth(msg.width);
+      break;
+    case 'zoom':
+      applyZoom(msg.scale);
+      break;
+    case 'scroll-to':
+      scrollToLine(msg.line);
       break;
     case 'remount':
       if (lastText !== null) requestRender(lastText);

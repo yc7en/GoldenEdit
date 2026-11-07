@@ -80,6 +80,13 @@ function applyRatio(ratio: number): void {
 
 const preview = new PreviewHost($('preview') as HTMLIFrameElement, {
   onJump: (line) => editorHost.revealLine(line),
+  onZoomChord: (action) => zoomPreview(action === 'in' ? 0.1 : -0.1),
+  onScrolled: (line) => {
+    if (!store.settings.preview.syncScroll) return;
+    if (performance.now() < previewScrollLock) return;
+    editorScrollLock = performance.now() + 150;
+    editorHost.scrollToLine(line);
+  },
   onOutline: (items) => store.setOutline(items),
   onRendered: (info) => {
     store.setRenderInfo({
@@ -143,6 +150,42 @@ function toggleEditor(): void {
   applyLayout('preview');
 }
 
+/* ───────── 区域缩放（§8.1） ───────── */
+
+function zoomEditor(delta: number): void {
+  editorHost.setFontSize(editorHost.fontSize() + delta);
+  void store.setSettingsPatch({ editor: { fontSize: editorHost.fontSize() } });
+}
+
+function zoomPreview(delta: number): void {
+  const cur = store.settings.preview.zoom ?? 1;
+  const next = Math.min(2, Math.max(0.5, Math.round((cur + delta) * 10) / 10));
+  if (next === cur) return;
+  preview.setZoom(next);
+  void store.setSettingsPatch({ preview: { zoom: next } });
+}
+
+/* ───────── 双向同步滚动（§6.5） ───────── */
+
+/** 编辑器触发的滚动时刻：此后 150ms 内预览回报的行号不采纳（防回环） */
+let editorScrollLock = 0;
+/** 预览回报触发的对齐进行中：抑制编辑器滚动上报（防回环） */
+let previewScrollLock = 0;
+let editorScrollRaf = 0;
+
+function wireSyncScroll(): void {
+  editorHost.onDidScroll(() => {
+    if (!store.settings.preview.syncScroll) return;
+    if (performance.now() < editorScrollLock) return;
+    previewScrollLock = performance.now() + 150;
+    if (editorScrollRaf) return;
+    editorScrollRaf = requestAnimationFrame(() => {
+      editorScrollRaf = 0;
+      preview.scrollToLine(editorHost.firstVisibleLine());
+    });
+  });
+}
+
 /**
  * 三布局（§8.2）：分栏 / 仅编辑 / 仅预览。
  * `persist` 为 false 时只改 DOM——用于「切标签时按记忆复原」，避免写回自己。
@@ -193,6 +236,15 @@ registerSystemCommands({
   toggleEditor,
   toggleOutline,
   toggleSide,
+  editorZoomIn: () => zoomEditor(1),
+  editorZoomOut: () => zoomEditor(-1),
+  previewZoomIn: () => zoomPreview(0.1),
+  previewZoomOut: () => zoomPreview(-0.1),
+  revealActive: () => {
+    const rel = store.activeRel;
+    if (rel) void api.revealInExplorer(rel);
+    else toast('先打开一篇文档', 'err');
+  },
   openPalette,
   openPlugins: () => showPage('plugins'),
   openExport: () => openExportDialog(preview),
@@ -431,6 +483,7 @@ async function boot(): Promise<void> {  mountShell({
   wireDragDrop();
   wireDrafts();
   wireOpenFile();
+  wireSyncScroll();
   wirePluginChanges();
 
   bind('btnPalette', openPalette);
@@ -441,6 +494,9 @@ async function boot(): Promise<void> {  mountShell({
   bus.on('settings', () => {
     applyTheme();
     applyKeybindings(store.settings.keybindings);
+    // 缩放是 settings 驱动的运行时状态：init 与每次 patch 后都对齐（§8.1）
+    editorHost.setFontSize(store.settings.editor.fontSize ?? 13);
+    preview.setZoom(store.settings.preview.zoom ?? 1);
   });
   bus.on('plugins', () => {
     preview.rebuild(store.settings, store.plugins);
