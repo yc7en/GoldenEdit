@@ -30,6 +30,25 @@ export function mountSettingsPage(): void {
     void store.setSettingsPatch({ preview: { syncScroll: (e.target as HTMLInputElement).checked } });
   });
 
+  const sizeBox = $('editorFontSize') as unknown as HTMLInputElement;
+  const familyBox = $('editorFontFamily') as unknown as HTMLInputElement;
+  const applyEditorFont = () => {
+    const raw = Number(sizeBox.value);
+    const fontSize = Number.isFinite(raw) ? Math.min(28, Math.max(10, Math.round(raw))) : 13;
+    sizeBox.value = String(fontSize);
+    const fontFamily = familyBox.value.trim();
+    void store
+      .setSettingsPatch({ editor: { fontSize, fontFamily } })
+      .then(() => store.toast('编辑区文字已应用'));
+  };
+  $('editorFontApply').addEventListener('click', applyEditorFont);
+  sizeBox.addEventListener('change', applyEditorFont);
+  for (const box of [sizeBox, familyBox]) {
+    box.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') applyEditorFont();
+    });
+  }
+
   const cssBox = $('customCss') as unknown as HTMLTextAreaElement;
   $('customCssSave').addEventListener('click', () => {
     void store
@@ -55,6 +74,13 @@ function render(): void {
   ($('editorTheme') as HTMLSelectElement).value = theme.editor;
   ($('previewTheme') as HTMLSelectElement).value = theme.preview;
   ($('syncScroll') as HTMLInputElement).checked = store.settings.preview.syncScroll;
+  const sizeBox = $('editorFontSize') as unknown as HTMLInputElement;
+  const familyBox = $('editorFontFamily') as unknown as HTMLInputElement;
+  // 正在输入时不要把用户打的字覆盖掉；字号框只在失焦或应用后才回写
+  if (document.activeElement !== sizeBox) sizeBox.value = String(store.settings.editor.fontSize ?? 13);
+  if (document.activeElement !== familyBox) {
+    familyBox.value = store.settings.editor.fontFamily ?? '';
+  }
   const cssBox = $('customCss') as unknown as HTMLTextAreaElement;
   // 正在输入时不要把用户打的字覆盖掉
   if (document.activeElement !== cssBox) cssBox.value = store.settings.preview.customCss ?? '';

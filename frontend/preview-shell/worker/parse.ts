@@ -16,6 +16,7 @@ import {
   type MdToken,
 } from '../blocks';
 import { RuntimeRegistry, type PluginRuntime } from '../context';
+import { highlightCode } from './highlight';
 import type { DocMeta, OutlineItem, PluginSpec, RenderError, ThemePayload } from '../protocol';
 
 interface InitMsg {
@@ -774,7 +775,14 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
   try {
     if (msg.type === 'init') {
       themeMode = msg.theme.mode;
-      const inst = new MarkdownIt({ html: false, linkify: true, breaks: false, typographer: false });
+      // highlight 只作用于默认 fence renderer；命中插件的围栏在自定义规则里提前返回，不受影响
+      const inst = new MarkdownIt({
+        html: false,
+        linkify: true,
+        breaks: false,
+        typographer: false,
+        highlight: highlightCode,
+      });
       build(inst);
       md = inst;
       registry = new RuntimeRegistry('worker', msg.baseUrl, {

@@ -11,7 +11,7 @@ import { registerPreviewCommands } from './commands/preview';
 import { setContextArgProvider, setEditorProbe } from './commands/registry';
 import { registerSystemCommands } from './commands/system';
 import { openContextMenu } from './commands/menu';
-import { EditorHost } from './editor';
+import { DEFAULT_FONT_FAMILY, EditorHost } from './editor';
 import { loadEditorPlugins, refreshEditorPlugins, setEditorFacade } from './editor/plugins';
 import { openExportDialog } from './export/dialog';
 import { bench, benchCurrent, settle, type BenchRow } from './perf';
@@ -470,8 +470,9 @@ async function boot(): Promise<void> {  mountShell({
   bus.on('settings', () => {
     applyTheme();
     applyKeybindings(store.settings.keybindings);
-    // 缩放是 settings 驱动的运行时状态：init 与每次 patch 后都对齐（§8.1）
+    // 缩放与字体是 settings 驱动的运行时状态：init 与每次 patch 后都对齐（§8.1 / P25）
     editorHost.setFontSize(store.settings.editor.fontSize ?? 13);
+    editorHost.setFontFamily(store.settings.editor.fontFamily ?? DEFAULT_FONT_FAMILY);
     preview.setZoom(store.settings.preview.zoom ?? 1);
   });
   bus.on('plugins', () => {

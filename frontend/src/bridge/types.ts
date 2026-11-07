@@ -107,6 +107,8 @@ export interface PreviewSettings {
 /** 编辑器外观（§8.1 区域缩放） */
 export interface EditorSettings {
   fontSize: number;
+  /** CSS font-family 语法的完整字体栈，允许带引号的多字体回退 */
+  fontFamily: string;
 }
 
 export interface ExportSettings {

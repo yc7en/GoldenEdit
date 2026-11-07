@@ -63,7 +63,7 @@ export const bus = new Bus();
 const EMPTY_SETTINGS: Settings = {
   theme: { preset: 'writing', editor: 'dark', preview: 'light' },
   preview: { width: 980, syncScroll: true, pauseAboveMb: 10, customCss: '', zoom: 1 },
-  editor: { fontSize: 13 },
+  editor: { fontSize: 13, fontFamily: "'JetBrains Mono', 'Cascadia Code', Consolas, monospace" },
   export: {
     format: 'html',
     width: 980,

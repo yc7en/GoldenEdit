@@ -19,6 +19,15 @@
   --ge-radius: 6px;
   --ge-font: 'Segoe UI', 'Microsoft YaHei', -apple-system, system-ui, sans-serif;
   --ge-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  /* highlight.js token（亮色，github 风格） */
+  --ge-hl-comment: #6a737d;
+  --ge-hl-keyword: #d73a49;
+  --ge-hl-string: #032f62;
+  --ge-hl-title: #6f42c1;
+  --ge-hl-number: #005cc5;
+  --ge-hl-builtin: #e36209;
+  --ge-hl-meta: #8a6a20;
+  --ge-hl-deletion: #b31d28;
 }
 
 :root[data-mode='dark'] {
@@ -37,6 +46,75 @@
   --ge-warn: #d3a05c;
   --ge-danger: #cf7c72;
   --ge-success: #7fae8c;
+  /* highlight.js token（暗色，atom-one 风格） */
+  --ge-hl-comment: #8b8f97;
+  --ge-hl-keyword: #c678dd;
+  --ge-hl-string: #98c379;
+  --ge-hl-title: #61afef;
+  --ge-hl-number: #d19a66;
+  --ge-hl-builtin: #e5c07b;
+  --ge-hl-meta: #7aa3c0;
+  --ge-hl-deletion: #e06c75;
+}
+
+/* highlight.js 产物只有 .hljs-* 类名、不带内联颜色：切主题只换上面的变量，无需重绘 */
+.hljs-comment,
+.hljs-quote {
+  color: var(--ge-hl-comment);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-type,
+.hljs-doctag {
+  color: var(--ge-hl-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-attribute,
+.hljs-template-variable,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+  color: var(--ge-hl-string);
+}
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--ge-hl-title);
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link,
+.hljs-variable,
+.hljs-template-tag,
+.hljs-params {
+  color: var(--ge-hl-number);
+}
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-attr,
+.hljs-property,
+.hljs-subst {
+  color: var(--ge-hl-builtin);
+}
+.hljs-meta,
+.hljs-meta .hljs-string {
+  color: var(--ge-hl-meta);
+}
+.hljs-deletion {
+  color: var(--ge-hl-deletion);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
 }
 
 * {
@@ -200,11 +278,12 @@ img {
 }
 
 /* ── 代码 ── */
+/* P25：行内代码文字色固定 #141925（明暗统一，用户指定）；代码块基础色在 pre code 里恢复 */
 code {
   font-family: var(--ge-mono);
   font-size: 0.88em;
   background: var(--ge-code-bg);
-  color: var(--ge-code-fg);
+  color: #141925;
   padding: 0.12em 0.36em;
   border-radius: 3px;
 }
@@ -223,6 +302,7 @@ pre code {
   padding: 0;
   font-size: 0.86em;
   line-height: 1.62;
+  color: var(--ge-code-fg);
 }
 
 /* ── 表格 ── */

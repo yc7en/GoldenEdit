@@ -78,32 +78,13 @@ textarea {
   flex: 1;
   min-width: 0;
 }
-.brand {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.brand__mark {
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: linear-gradient(135deg, var(--gold-soft), var(--gold));
-  align-self: center;
-}
-.brand__name {
-  font-size: 12.5px;
-  font-weight: 650;
-  letter-spacing: 0.2px;
-}
-.brand__ver {
-  font-size: 10px;
-  color: var(--t3);
-}
 .vault-chip {
   display: flex;
   align-items: center;
   gap: 5px;
-  max-width: 320px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(64vw, 760px);
   padding: 2px 8px;
   border: 1px dashed var(--line2);
   border-radius: 999px;
@@ -112,6 +93,10 @@ textarea {
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
+}
+.vault-chip > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .vault-chip:hover {
   border-color: var(--gold-line);
@@ -643,46 +628,15 @@ textarea {
   word-break: break-all;
 }
 
-/* 底部用户条 */
+/* 底部只保留设置按钮（P25：头像与工作区信息条已移除） */
 .side__foot {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 8px;
+  justify-content: flex-end;
+  padding: 4px 8px;
   border-top: 1px solid var(--line);
   background: var(--bg2);
-}
-.avatar {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--dark);
-  color: #f0e6cc;
-  font-size: 9px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-.side__foot-t {
-  min-width: 0;
-  flex: 1;
-}
-.side__foot-n {
-  font-size: 11px;
-  color: var(--t1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.side__foot-s {
-  font-size: 9.5px;
-  color: var(--t3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ───────── 工作区 ───────── */
@@ -1020,6 +974,12 @@ textarea {
   gap: 16px;
   align-items: flex-start;
 }
+/* 设置页：每个设置项占满一整行（横栏），不再被 flex 挤成并排窄竖列 */
+#page-settings .page__body {
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+}
 .input {
   height: 26px;
   padding: 0 9px;
@@ -1032,6 +992,17 @@ textarea {
 }
 .input:focus {
   border-color: var(--gold-line);
+}
+/* 编辑区文字设置：字号固定窄框，字体栈吃掉剩余宽度 */
+.input--num {
+  min-width: 0;
+  width: 66px;
+  flex: none;
+}
+.input--wide {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
 }
 .select {
   height: 26px;

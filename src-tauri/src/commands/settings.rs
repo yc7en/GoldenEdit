@@ -17,7 +17,7 @@ pub fn default_settings() -> Value {
             "zoom": 1.0
         },
         // 编辑器外观（§8.1 区域缩放）
-        "editor": { "fontSize": 13 },
+        "editor": { "fontSize": 13, "fontFamily": "'JetBrains Mono', 'Cascadia Code', Consolas, monospace" },
         "export": {
             "format": "html",
             "width": 980,

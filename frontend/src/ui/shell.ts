@@ -75,10 +75,10 @@ function applyGroupState(): void {
 
 function renderVaultChrome(): void {
   const vault = store.vault;
-  $('vaultName').textContent = vault ? vault.name : '未打开工作区';
-  $('footName').textContent = vault ? vault.name : '本地工作区';
-  $('footSub').textContent = vault ? vault.root : '未打开文件夹';
-  $('appVersion').textContent = `v${store.appVersion}`;
+  // P25：胶囊显示工作区绝对路径，不再只显示文件夹名；过长由 CSS 省略，title 给全值
+  const label = vault?.root ?? '未打开工作区';
+  $('vaultName').textContent = label;
+  $('vaultChip').title = label;
   $('emptyState').hidden = store.tabs.length > 0;
   applyGroupState();
   renderRecent();

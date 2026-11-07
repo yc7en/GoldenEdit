@@ -4,6 +4,9 @@ import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import { bus, store } from '../store';
 import { EDITOR_THEMES, resolveMode, type Mode } from '../theme/tokens';
 
+/** 与 settings.rs / store.ts 的默认值保持一致；用户可在设置页改成任意 CSS 字体栈 */
+export const DEFAULT_FONT_FAMILY = "'JetBrains Mono', 'Cascadia Code', Consolas, monospace";
+
 // Monaco 靠 Worker 做语法分析。Tauri 的 CSP 会拦默认的 blob worker，
 // 所以这里用 Vite 打包出的独立 worker 文件（同时 CSP 里也放行了 blob:）。
 self.MonacoEnvironment = {
@@ -56,7 +59,7 @@ export class EditorHost {
       theme: 'golden-dark',
       language: 'markdown',
       automaticLayout: true,
-      fontFamily: "'JetBrains Mono', 'Cascadia Code', Consolas, monospace",
+      fontFamily: DEFAULT_FONT_FAMILY,
       fontSize: 13,
       lineHeight: 21,
       minimap: { enabled: false },
@@ -160,6 +163,13 @@ export class EditorHost {
 
   fontSize(): number {
     return this.editor.getOption(monaco.editor.EditorOption.fontSize);
+  }
+
+  /** 编辑区字体栈（P25）：直接把 CSS font-family 字符串交给 Monaco，空值回落到默认 */
+  setFontFamily(family: string): void {
+    const value = family.trim() || DEFAULT_FONT_FAMILY;
+    if (value === this.editor.getOption(monaco.editor.EditorOption.fontFamily)) return;
+    this.editor.updateOptions({ fontFamily: value });
   }
 
   /**

@@ -9,11 +9,6 @@
     <div class="app" id="app" data-editor-theme="dark" data-preview-theme="light">
       <header class="titlebar">
         <div class="titlebar__drag">
-          <div class="brand">
-            <span class="brand__mark"></span>
-            <span class="brand__name">GoldenEdit</span>
-            <span class="brand__ver" id="appVersion">v0.1.0</span>
-          </div>
           <div class="vault-chip" id="vaultChip" title="当前工作区">
             <span id="vaultName">未打开工作区</span>
             <span class="vault-chip__caret"></span>
@@ -88,11 +83,6 @@
           </div>
 
           <div class="side__foot">
-            <div class="avatar">LE</div>
-            <div class="side__foot-t">
-              <div class="side__foot-n" id="footName">本地工作区</div>
-              <div class="side__foot-s" id="footSub">未打开文件夹</div>
-            </div>
             <button class="iconbtn iconbtn--sm" id="btnSettings" title="设置">
               <span class="i-gear"></span>
             </button>
@@ -205,6 +195,17 @@
                   <option value="dark">暗</option>
                   <option value="system">跟随系统</option>
                 </select>
+              </div>
+            </div>
+            <div class="setting">
+              <div class="setting__t">编辑区文字</div>
+              <div class="setting__d">字号 10–28；字体按 CSS font-family 语法填写，可写多字体回退，含空格的名称要加引号。改完点「应用」或按回车。</div>
+              <div class="setting__row">
+                <label for="editorFontSize">字号</label>
+                <input class="input input--num" id="editorFontSize" type="number" min="10" max="28" step="1" />
+                <label for="editorFontFamily">字体</label>
+                <input class="input input--wide" id="editorFontFamily" spellcheck="false" placeholder="'Google Sans Code','Maple Mono NF CN',Myna,Consolas,'微软雅黑', monospace" />
+                <button class="btn btn--dark" id="editorFontApply">应用</button>
               </div>
             </div>
             <div class="setting">
