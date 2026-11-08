@@ -34,6 +34,7 @@ type EventName =
   | 'tree'
   | 'plugins'
   | 'outline'
+  | 'frontmatter'
   | 'commits'
   | 'settings'
   | 'status'
@@ -102,6 +103,8 @@ class Store {  appVersion = '0.1.0';
   plugins: PluginManifest[] = [];
   commits: Commit[] = [];
   outline: OutlineItem[] = [];
+  /** 当前文档头的 YAML 元数据，由预览 Worker 解析后回传 */
+  frontmatter: Record<string, unknown> = {};
   tree = new Map<string, Entry[]>();
   expanded = new Set<string>();
   renderInfo = { blocks: 0, ms: 0, plugins: 0, errors: 0 };
@@ -512,6 +515,11 @@ class Store {  appVersion = '0.1.0';
   setOutline(items: OutlineItem[]): void {
     this.outline = items;
     bus.emit('outline');
+  }
+
+  setFrontmatter(data: Readonly<Record<string, unknown>>): void {
+    this.frontmatter = { ...data };
+    bus.emit('frontmatter');
   }
 
   setRenderInfo(info: { blocks: number; ms: number; plugins: number; errors: number }): void {

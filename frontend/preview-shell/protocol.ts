@@ -91,6 +91,8 @@ export type PreviewMessage =
       errors: RenderError[];
     }
   | { type: 'outline'; items: OutlineItem[] }
+  /** Worker 解析出的 YAML frontmatter：L3 → L2，宿主收到后回写 doc-meta 供主线程插件消费 */
+  | { type: 'frontmatter'; gen: number; data: Record<string, unknown> }
   | { type: 'jump'; line: number }
   /**
    * 外壳内按了 `Ctrl+=` / `Ctrl+-`。iframe 的键盘事件不冒泡到主窗口，

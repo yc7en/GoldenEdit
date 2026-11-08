@@ -17,6 +17,7 @@ import {
 } from '../blocks';
 import { RuntimeRegistry, type PluginRuntime } from '../context';
 import { highlightCode } from './highlight';
+import { parseFrontmatter, renderFrontmatter } from './frontmatter';
 import type { DocMeta, OutlineItem, PluginSpec, RenderError, ThemePayload } from '../protocol';
 
 interface InitMsg {
@@ -85,6 +86,8 @@ interface ResultMsg {
   outline: OutlineItem[];
   errors: RenderError[];
   plugins: string[];
+  /** Worker 解析出的 YAML frontmatter，随结果回传给宿主做全链路同步 */
+  frontmatter: Record<string, unknown>;
 }
 
 const post = (msg: unknown) => (self as unknown as Worker).postMessage(msg);
@@ -626,20 +629,6 @@ function extractOutline(tokens: MdToken[]): OutlineItem[] {
   return items;
 }
 
-function parseFrontmatter(text: string): { body: string; data: Record<string, unknown> } {
-  if (!text.startsWith('---')) return { body: text, data: {} };
-  const end = text.indexOf('\n---', 3);
-  if (end === -1) return { body: text, data: {} };
-  const head = text.slice(3, end);
-  const data: Record<string, unknown> = {};
-  for (const line of head.split(/\r?\n/)) {
-    const m = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/.exec(line.trim());
-    if (m) data[m[1]] = m[2].replace(/^["']|["']$/g, '');
-  }
-  const rest = text.slice(end + 4);
-  return { body: rest, data };
-}
-
 function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' = 'full'): ResultMsg {
   const started = performance.now();
   errorSink = [];
@@ -655,6 +644,7 @@ function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' =
     outline: [],
     errors: [],
     plugins: [],
+    frontmatter: {},
   };
   if (!md) {
     result.errors.push({ line: 1, message: '渲染内核未初始化' });
@@ -662,15 +652,19 @@ function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' =
     return result;
   }
 
-  const { body, data } = parseFrontmatter(text);
+  const fm = parseFrontmatter(text);
+  const { body } = fm;
+  result.frontmatter = fm.data;
   inlineEnabled =
     !!registry &&
     [...registry.runtimes.values()].some((rt) => rt.loaded && rt.inlineDelims.length > 0);
   if (registry) {
     for (const rt of registry.runtimes.values()) {
-      rt.setDoc({ ...rt.ctx.doc, frontmatter: data });
+      rt.setDoc({ ...rt.ctx.doc, frontmatter: fm.data });
     }
   }
+  // 头部语法错误只上报、不打断正文渲染
+  if (fm.error) errorSink.push(fm.error);
 
   const env: Record<string, unknown> = {};
   const tParse = performance.now();
@@ -692,6 +686,18 @@ function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' =
   const eager = mode === 'viewport' ? Math.min(VIEWPORT_HEAD_BLOCKS, groups.length) : groups.length;
   const keys = new Map<string, number>();
   cache = { gen, groups, lines, env, keys, rendered: new Map() };
+
+  // 属性面板是文档首块：头部已用等量空行占位，所以正文块的行号天然对齐源码，
+  // 这一块的 line 也直接就是 1。html 随 result 一起下发，viewport 模式无需再向 Worker 请求。
+  if (fm.lines > 0) {
+    result.blocks.push({
+      key: blockKey(`\u0000frontmatter\u0000${fm.raw}\u0000${fm.error?.message ?? ''}`, [], themeMode),
+      html: renderFrontmatter(fm),
+      line: 1,
+      lines: Math.max(2, Math.min(12, Object.keys(fm.data).length + 2)),
+      plugins: [],
+    });
+  }
 
   for (let i = 0; i < groups.length; i++) {
     const group = groups[i];
@@ -816,6 +822,7 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
           outline: [],
           errors: [{ line: 1, message }],
           plugins: [],
+          frontmatter: {},
         });
       }
       return;

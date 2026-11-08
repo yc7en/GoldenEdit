@@ -66,7 +66,8 @@ function makeContext(p: PluginManifest) {
         path: rel,
         name: rel.split('/').pop() ?? '',
         dir: rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '',
-        frontmatter: {},
+        // 与预览 Worker 解析出的同一份文档头（store.setFrontmatter 回写）
+        frontmatter: { ...store.frontmatter },
       });
     },
     get theme() {

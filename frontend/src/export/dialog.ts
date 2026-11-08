@@ -171,7 +171,12 @@ async function runExport(
   window.addEventListener('ge:exported', onExported);
   closeModal();
   toast('正在渲染导出内容…');
-  preview.requestExport(id, baseName);
+  // 文档头写了 title 就用它当 HTML 标题；文件名仍沿用标签页名
+  const metaTitle = store.frontmatter.title;
+  preview.requestExport(
+    id,
+    typeof metaTitle === 'string' && metaTitle.trim() ? metaTitle.trim() : baseName
+  );
 }
 
 export function renderExportSummary(): string {

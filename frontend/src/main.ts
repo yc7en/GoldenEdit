@@ -88,6 +88,7 @@ const preview = new PreviewHost($('preview') as HTMLIFrameElement, {
     editorHost.scrollToLine(line);
   },
   onOutline: (items) => store.setOutline(items),
+  onFrontmatter: (data) => store.setFrontmatter(data),
   onRendered: (info) => {
     store.setRenderInfo({
       blocks: info.blocks,

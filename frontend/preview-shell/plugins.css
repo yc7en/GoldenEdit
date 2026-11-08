@@ -559,3 +559,187 @@ details.ge-callout[open] > summary .ge-callout__fold-arrow {
   --ge-callout-color: #8e24aa;
 }
 
+/* ── YAML frontmatter 属性面板 ──
+   纯 <details>，无脚本：Worker 侧就能产出，morphdom 复用节点时折叠状态不丢。 */
+.ge-fm {
+  margin: 0 0 18px;
+  border: 1px solid var(--ge-border);
+  border-radius: var(--ge-radius);
+  background: var(--ge-bg-subtle);
+  color: var(--ge-fg);
+  font-size: 13px;
+}
+
+.ge-fm__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-weight: 600;
+}
+
+.ge-fm__head::-webkit-details-marker {
+  display: none;
+}
+
+.ge-fm__arrow {
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--ge-fg-muted);
+  transform: rotate(90deg);
+  transition: transform 0.12s ease;
+}
+
+.ge-fm:not([open]) > .ge-fm__head .ge-fm__arrow {
+  transform: none;
+}
+
+.ge-fm__label {
+  flex: 1;
+}
+
+.ge-fm__count {
+  font-family: var(--ge-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ge-fg-muted);
+}
+
+.ge-fm__body {
+  padding: 6px 12px 10px;
+  border-top: 1px solid var(--ge-border);
+  background: var(--ge-bg);
+  border-radius: 0 0 var(--ge-radius) var(--ge-radius);
+}
+
+.ge-fm__row {
+  display: grid;
+  grid-template-columns: minmax(80px, 26%) minmax(0, 1fr);
+  gap: 10px;
+  padding: 4px 0 4px calc(var(--ge-fm-indent, 0) * 14px);
+  border-bottom: 1px solid var(--ge-border);
+}
+
+.ge-fm__row:last-child {
+  border-bottom: 0;
+}
+
+.ge-fm__key {
+  font-family: var(--ge-mono);
+  font-size: 12px;
+  color: var(--ge-fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.ge-fm__val {
+  min-width: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ge-fm__val--multi {
+  display: inline-block;
+  font-family: var(--ge-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.ge-fm__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ge-fm__chip {
+  padding: 0 7px;
+  border: 1px solid var(--ge-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ge-accent) 10%, var(--ge-bg));
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ge-fm__bool,
+.ge-fm__num,
+.ge-fm__date,
+.ge-fm__null {
+  font-family: var(--ge-mono);
+  font-size: 12px;
+}
+
+.ge-fm__bool {
+  padding: 0 5px;
+  border-radius: 3px;
+}
+
+.ge-fm__bool--true {
+  color: var(--ge-success);
+  background: color-mix(in srgb, var(--ge-success) 12%, var(--ge-bg));
+}
+
+.ge-fm__bool--false {
+  color: var(--ge-fg-muted);
+  background: color-mix(in srgb, var(--ge-fg-muted) 10%, var(--ge-bg));
+}
+
+.ge-fm__num {
+  color: var(--ge-note);
+}
+
+.ge-fm__date {
+  color: var(--ge-link);
+}
+
+.ge-fm__null {
+  color: var(--ge-fg-muted);
+}
+
+.ge-fm__sub .ge-fm__row {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border-bottom: 0;
+}
+
+.ge-fm__empty {
+  padding: 4px 0;
+  color: var(--ge-fg-muted);
+  font-size: 12px;
+}
+
+.ge-fm--error {
+  border-color: var(--ge-danger);
+}
+
+.ge-fm--error .ge-fm__count {
+  color: var(--ge-danger);
+}
+
+.ge-fm__err {
+  margin: 4px 0 8px;
+  color: var(--ge-danger);
+  font-size: 12px;
+}
+
+.ge-fm__raw {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--ge-code-bg);
+  color: var(--ge-code-fg);
+  border-radius: 4px;
+  font-family: var(--ge-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  .ge-fm__body {
+    display: block !important;
+  }
+}
+

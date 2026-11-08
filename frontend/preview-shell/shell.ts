@@ -89,6 +89,10 @@ let gen = 0;
 /** 宿主最近一次发来的号：主题变更、重挂这类由外壳自己发起的渲染复用它，不加号 */
 let lastGen = 0;
 let lastText: string | null = null;
+/** 上次上报给宿主的 frontmatter（JSON 形式），用来抑制无变化的重复消息。
+ *  初值必须是空串：iframe 重建后首帧即使「没有 frontmatter」也要上报一次，
+ *  否则宿主会残留上一份文档的元数据。 */
+let lastFrontmatterJson = '';
 let mainRegistry: RuntimeRegistry | null = null;
 let options: RenderOptions = { paused: false, fullRenderLimit: 200 * 1024, shardLimit: 2 * 1024 * 1024 };
 let themeMode: 'light' | 'dark' = 'light';
@@ -210,6 +214,7 @@ function startWorker(specs: PluginSpec[], doc: HostMessage & { type: 'init' }): 
           outline: never[];
           errors: never[];
           plugins: string[];
+          frontmatter: Record<string, unknown>;
         }
       | { type: 'expanded'; id: number; blocks: { key: string; html: string; plugins: string[] }[] }
       | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string }
@@ -261,12 +266,19 @@ async function onResult(msg: {
   outline: { level: number; text: string; line: number }[];
   errors: { plugin?: string; line: number; message: string }[];
   plugins: string[];
+  frontmatter: Record<string, unknown>;
 }): Promise<void> {
   const mode = modeFor(lastText ?? '');
   const tDom = performance.now();
   const { mounted } = await pipeline.render(msg.blocks, mode);
   const domMs = Math.round(performance.now() - tDom);
   send({ type: 'outline', items: msg.outline });
+  // 只在头部内容变化时报一次；宿主会回写 doc-meta 让主线程插件拿到同一份数据
+  const fmJson = JSON.stringify(msg.frontmatter ?? {});
+  if (fmJson !== lastFrontmatterJson) {
+    lastFrontmatterJson = fmJson;
+    send({ type: 'frontmatter', gen: msg.gen, data: msg.frontmatter ?? {} });
+  }
   send({
     type: 'rendered',
     gen: msg.gen,

@@ -1,5 +1,5 @@
 import type { PluginManifest, ServerInfo, Settings } from '../bridge/types';
-import type { PreviewMessage, PluginSpec, RenderOptions, ThemePayload } from '../../preview-shell/protocol';
+import type { DocMeta, PreviewMessage, PluginSpec, RenderOptions, ThemePayload } from '../../preview-shell/protocol';
 import { PREVIEW_TOKENS, resolveMode } from '../theme/tokens';
 
 import { isPluginEnabled } from '../store';
@@ -31,6 +31,8 @@ export interface PreviewCallbacks {
   /** 预览滚动上报：视口顶部块的源行号（§6.5 同步滚动） */
   onScrolled: (line: number) => void;
   onOutline: (items: { level: number; text: string; line: number }[]) => void;
+  /** 文档头 YAML 解析结果（Worker → 宿主），未传时数据仍可通过 frontmatterData 读取 */
+  onFrontmatter?: (data: Readonly<Record<string, unknown>>) => void;
   onRendered: (
     info: RenderInfo & { plugins: string[]; errors: { message: string; line: number }[] }
   ) => void;  onLog: (level: string, message: string) => void;
@@ -65,6 +67,11 @@ export class PreviewHost {
   private themeMode: 'light' | 'dark' = 'light';
   paused = false;
   private lastText = '';
+  /** Worker 解析出的文档头；DocMeta 不再写死空对象 */
+  private frontmatter: Record<string, unknown> = {};
+  get frontmatterData(): Readonly<Record<string, unknown>> {
+    return this.frontmatter;
+  }
   /**
    * 性能探针等待位。必须带代际号：晚到的旧批次 rendered 不能顶替这一次的结果
    * （真机上就踩过：2MB 样本拿到的是启动文档的耗时）。
@@ -136,10 +143,22 @@ export class PreviewHost {
     this.post({ type: 'scroll-to', line });
   }
 
+  /** 构造 DocMeta；frontmatter 取 Worker 最近一次解析结果，不再硬编码空对象 */
+  private docMeta(name?: string): DocMeta {
+    const dir = this.docPath.includes('/')
+      ? this.docPath.slice(0, this.docPath.lastIndexOf('/'))
+      : '';
+    return {
+      path: this.docPath,
+      name: name ?? this.docPath.split('/').pop() ?? '',
+      dir,
+      frontmatter: this.frontmatter,
+    };
+  }
+
   setDocPath(path: string, name: string): void {
     this.docPath = path;
-    const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
-    this.post({ type: 'doc-meta', doc: { path, name, dir, frontmatter: {} } });
+    this.post({ type: 'doc-meta', doc: this.docMeta(name) });
   }
 
   /** 主题变更：只推 token，不重建 iframe；块 key 含 themeMode，L3 会自行重渲染 */
@@ -318,6 +337,12 @@ export class PreviewHost {
       case 'outline':
         this.cb.onOutline(msg.items);
         break;
+      case 'frontmatter':
+        this.frontmatter = msg.data ?? {};
+        this.cb.onFrontmatter?.(this.frontmatter);
+        // 回写 doc-meta：L3 主线程插件的 ctx.doc.frontmatter 与 Worker 侧保持一致
+        this.post({ type: 'doc-meta', doc: this.docMeta() });
+        break;
       case 'jump':
         this.cb.onJump(msg.line);
         break;
@@ -357,7 +382,6 @@ export class PreviewHost {
   private init(): void {
     const text = this.pending ?? this.lastText ?? '';
     this.pending = null;
-    const dir = this.docPath.includes('/') ? this.docPath.slice(0, this.docPath.lastIndexOf('/')) : '';
     const options: RenderOptions = { paused: false, fullRenderLimit: 200 * 1024, shardLimit: 2 * 1024 * 1024 };
     this.post({
       type: 'init',
@@ -365,12 +389,7 @@ export class PreviewHost {
       hostVersion: '0.1.0',
       plugins: this.pluginSpecs(),
       theme: this.themePayload(),
-      doc: {
-        path: this.docPath,
-        name: this.docPath.split('/').pop() ?? '',
-        dir,
-        frontmatter: {},
-      },
+      doc: this.docMeta(),
       options,
     });
     this.post({ type: 'width', width: this.width });
