@@ -25,8 +25,8 @@
   --ui-font: 'Segoe UI', 'Microsoft YaHei', -apple-system, system-ui, sans-serif;
   --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
   --side-w: 208px;
-  --titlebar-h: 38px;
-  --tabstrip-h: 34px;
+  --titlebar-h: 40px;
+  --toolbar-h: 32px;
   --status-h: 24px;
 }
 

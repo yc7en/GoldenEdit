@@ -369,6 +369,23 @@ export function syncLayoutButtons(): void {
   previewBtn.classList.toggle('is-on', buttons.preview.on);
   previewBtn.disabled = buttons.preview.disabled;
   previewBtn.title = buttons.preview.title;
+
+  // P28：宽度下拉与收起按钮从预览面板搬到了全局工具条，不再随面板一起消失，
+  // 「仅编辑」时必须置灰，否则会对看不见的预览操作。
+  const previewHidden = ws.classList.contains('preview-hidden');
+  const widthBtn = $<HTMLButtonElement>('widthBtn');
+  widthBtn.disabled = previewHidden;
+  widthBtn.title = previewHidden ? '预览已收起' : '预览宽度';
+  $<HTMLButtonElement>('btnCollapsePreview').disabled = previewHidden;
+
+  if (previewHidden) {
+    const menu = $<HTMLElement>('widthMenu');
+    if (!menu.hidden) {
+      menu.hidden = true;
+      widthBtn.classList.remove('is-on');
+      widthBtn.setAttribute('aria-expanded', 'false');
+    }
+  }
 }
 
 /* ───────── 左栏宽度与收起（§8.1） ───────── */

@@ -52,31 +52,73 @@ textarea {
   background: transparent;
 }
 
+/* 左栏 + 分隔条 + 右侧主列（P28：边栏贯通到窗口顶部） */
 .app {
   display: flex;
-  flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
+.maincol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-/* ───────── 标题栏 ───────── */
+/* ───────── 标题栏（第一行：路径 + 窗口控制） ───────── */
 .titlebar {
   height: var(--titlebar-h);
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  padding: 0 8px 0 12px;
+  padding: 0 6px 0 12px;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
-.titlebar__drag {
+.titlebar__spacer {
+  flex: 1;
+  min-width: 24px;
+  align-self: stretch;
+}
+
+/* 自绘窗口控制（decorations:false） */
+.winbtns {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
+  gap: 2px;
+  flex: none;
+}
+.winbtn {
+  width: 34px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--t2);
+}
+.winbtn svg {
+  width: 15px;
+  height: 15px;
+}
+.winbtn:hover {
+  background: var(--bg3);
+  color: var(--t1);
+}
+.winbtn--close:hover {
+  background: #c0392b;
+  color: #fff;
+}
+.winbtn .winico-restore {
+  display: none;
+}
+.winbtn.is-max .winico-max {
+  display: none;
+}
+.winbtn.is-max .winico-restore {
+  display: block;
 }
 .vault-chip {
   display: flex;
@@ -84,7 +126,7 @@ textarea {
   gap: 5px;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: min(64vw, 760px);
+  max-width: min(42vw, 420px);
   padding: 2px 8px;
   border: 1px dashed var(--line2);
   border-radius: 999px;
@@ -110,12 +152,6 @@ textarea {
   border-right: 3.5px solid transparent;
   opacity: 0.6;
 }
-.titlebar__right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .iconbtn {
   width: 26px;
   height: 26px;
@@ -150,6 +186,17 @@ textarea {
   background: var(--gold-bg);
   border-color: var(--gold-line);
   color: var(--gold);
+}
+/* 顶栏图标统一走 heroicons 内联 SVG（P28）：24 网格、1.5 描边、currentColor */
+.iconbtn .ico,
+.iconbtn svg {
+  width: 15px;
+  height: 15px;
+}
+.iconbtn--sm .ico,
+.iconbtn--sm svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* 图标（纯 CSS，避免图标字体依赖） */
@@ -247,29 +294,42 @@ textarea {
   font-size: 13px;
 }
 
-/* ───────── 标签条 ───────── */
-.tabstrip {
-  height: var(--tabstrip-h);
+/* ───────── 工具条（第二行：标签 + 预览与面板开关） ───────── */
+.toolbar {
+  height: var(--toolbar-h);
   flex: none;
   display: flex;
   align-items: stretch;
-  gap: 1px;
+  gap: 6px;
   padding: 0 6px;
   background: var(--bg2);
   border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
 }
-.tabstrip.is-hidden {
+.tabs::-webkit-scrollbar {
   display: none;
 }
+.tabs.is-hidden {
+  display: none;
+}
+/* P28：标签从独立一行收进工具条，宽度上限 200 → 120，关闭按钮 hover 才露出 */
 .tab {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 8px 0 11px;
-  max-width: 200px;
-  font-size: 11.5px;
+  gap: 4px;
+  padding: 0 4px 0 9px;
+  max-width: 120px;
+  font-size: 11px;
   color: var(--t2);
   border-right: 1px solid var(--line);
   border-top: 2px solid transparent;
@@ -297,13 +357,21 @@ textarea {
   flex: none;
 }
 .tab__close {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
-  font-size: 13px;
-  line-height: 13px;
+  font-size: 12px;
+  line-height: 12px;
   color: var(--t3);
   flex: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.tab:hover .tab__close,
+.tab.is-active .tab__close {
+  opacity: 1;
+  pointer-events: auto;
 }
 .tab__close:hover {
   background: var(--line2);
@@ -315,6 +383,124 @@ textarea {
   font-size: 11px;
   color: var(--t3);
   padding-left: 4px;
+}
+
+/* 工具组：宽度下拉 / 渲染状态 / 收起预览 / 面板开关 */
+.toolbar__tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+.toolbar__sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--line2);
+}
+
+.tool-pop {
+  position: relative;
+}
+.toolbtn {
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 5px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  color: var(--t2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.toolbtn:hover {
+  background: #fff;
+  border-color: var(--line2);
+  color: var(--t1);
+}
+.toolbtn.is-on {
+  background: var(--gold-bg);
+  border-color: var(--gold-line);
+  color: var(--gold);
+}
+.toolbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.toolbtn:disabled:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--t2);
+}
+.toolbtn .ico {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.toolbtn .ico--caret {
+  width: 12px;
+  height: 12px;
+  opacity: 0.65;
+}
+
+/* 宽度下拉（P28）：980 / A4 / 390 / 自适应 */
+.popmenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 172px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+}
+.popmenu[hidden] {
+  display: none;
+}
+.popmenu__t {
+  padding: 3px 8px 5px;
+  font-size: 10px;
+  color: var(--t3);
+  letter-spacing: 0.4px;
+}
+.popmenu__i {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--t1);
+  font-size: 11.5px;
+  text-align: left;
+}
+.popmenu__i:hover {
+  background: var(--gold-bg);
+}
+.popmenu__i.is-on {
+  color: var(--gold);
+}
+.popmenu__check {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  opacity: 0;
+}
+.popmenu__i.is-on .popmenu__check {
+  opacity: 1;
+}
+.popmenu__n {
+  flex: none;
+}
+.popmenu__d {
+  margin-left: auto;
+  padding-left: 10px;
+  font-size: 10.5px;
+  color: var(--t3);
 }
 
 /* ───────── 主体 ───────── */
@@ -334,6 +520,33 @@ textarea {
   background: var(--bg2);
   border-right: 1px solid var(--line);
   min-height: 0;
+}
+/* 左栏头顶与标题栏齐平，整条边栏从窗口最上面贯通到底（P28） */
+.side__head {
+  height: var(--titlebar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+.side__mark {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--gold);
+  flex: none;
+}
+.side__brand {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--t2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .side__nav {
   flex: none;
@@ -628,13 +841,14 @@ textarea {
   word-break: break-all;
 }
 
-/* 底部只保留设置按钮（P25：头像与工作区信息条已移除） */
+/* 底部只保留设置按钮（P25）；高度与右侧状态栏对齐，形成一条完整底边（P28） */
 .side__foot {
   flex: none;
+  height: var(--status-h);
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 4px 8px;
+  padding: 0 8px;
   border-top: 1px solid var(--line);
   background: var(--bg2);
 }
@@ -832,25 +1046,21 @@ textarea {
 }
 
 /* 预览头部 */
-.preview__head {
-  height: 32px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 6px 0 8px;
-  border-bottom: 1px solid var(--line);
-  background: #eeeeE7;
-}
+/* 预览头已删除（P28）：宽度预设 / 渲染状态 / 收起按钮迁到工具条 */
 .preview__stat {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 5px;
+  padding: 0 4px;
   font-size: 10px;
   color: var(--t3);
   font-family: var(--mono);
-  cursor: pointer;
+  white-space: nowrap;
+}
+.preview__stat .ico {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }
 .dot {
   width: 5px;
@@ -928,12 +1138,10 @@ textarea {
 }
 
 /* ───────── 内容页 ───────── */
+/* 内容页现在铺在 .body 上（顶栏与状态栏保持可见） */
 .page {
   position: absolute;
-  left: var(--side-w);
-  right: 0;
-  top: 0;
-  bottom: 0;
+  inset: 0;
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -1646,10 +1854,6 @@ textarea {
   border-right: 0;
   overflow: hidden;
 }
-.app.side-collapsed .page {
-  left: 0;
-}
-
 /* 左栏与编辑区之间的拖动分隔条：比 `.splitter` 更窄，收进左栏的边线里 */
 .side-splitter {
   width: 5px;

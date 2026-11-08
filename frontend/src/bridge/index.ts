@@ -117,6 +117,14 @@ export interface PerfPlan {
 export const perfPlan = () => call<PerfPlan | null>('perf_plan');
 export const perfReport = (out: string, rows: string) => call<void>('perf_report', { out, rows });
 
+/* ---------------- 窗口控制（自绘标题栏 P28） ---------------- */
+
+export const winMinimize = () => call<void>('win_minimize');
+/** 返回切换后是否最大化，用来换「最大化 / 还原」图标 */
+export const winToggleMaximize = () => call<boolean>('win_toggle_maximize');
+export const winClose = () => call<void>('win_close');
+export const winIsMaximized = () => call<boolean>('win_is_maximized');
+
 /* ---------------- events ---------------- */
 
 export interface VaultChangedPayload {

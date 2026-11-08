@@ -6,252 +6,338 @@
     <title>GoldenEdit</title>
   </head>
   <body>
+    <!--
+      P28 布局：左栏作为 .app 的第一列从窗口顶部贯通到底，
+      右侧 .maincol 纵向排「标题栏 / 工具条 / 工作区 / 状态栏」。
+      窗口是 decorations:false 的自绘标题栏，最小化/最大化/关闭走 win_* 命令。
+    -->
     <div class="app" id="app" data-editor-theme="dark" data-preview-theme="light">
-      <header class="titlebar">
-        <div class="titlebar__drag">
+      <aside class="side">
+        <div class="side__head" data-tauri-drag-region>
+          <span class="side__mark"></span>
+          <span class="side__brand">GoldenEdit</span>
+        </div>
+
+        <nav class="side__nav">
+          <button class="navrow" id="navNew">
+            <span class="navrow__ico i-plus"></span><span class="navrow__t">新建文档</span>
+            <span class="navrow__k">Ctrl N</span>
+          </button>
+          <button class="navrow" id="navOpen">
+            <span class="navrow__ico i-folder"></span><span class="navrow__t">打开文件夹</span>
+            <span class="navrow__k">Ctrl K</span>
+          </button>
+          <button class="navrow" id="navPlugins">
+            <span class="navrow__ico i-plug"></span><span class="navrow__t">插件</span>
+            <span class="navrow__badge" id="navPluginCount">0</span>
+          </button>
+          <button class="navrow" id="navExport">
+            <span class="navrow__ico i-export"></span><span class="navrow__t">导出</span>
+            <span class="navrow__k">Ctrl E</span>
+          </button>
+        </nav>
+
+        <div class="side__scroll" id="sideScroll">
+          <section class="group" id="grpFiles">
+            <div class="group__head" data-toggle="grpFiles">
+              <span class="gcaret"></span><span class="group__t">文件</span>
+              <span class="gcount" id="fileCount">0</span>
+              <span class="gadd" id="btnNewFile" title="新建文件">+</span>
+            </div>
+            <div class="group__inner"><div class="group__body" id="fileTree"></div></div>
+          </section>
+
+          <div class="side__bottom">
+            <section class="group" id="grpOutline">
+              <div class="group__head" data-toggle="grpOutline">
+                <span class="gcaret"></span><span class="group__t">大纲</span>
+                <span class="gcount" id="outlineCount">0</span>
+              </div>
+              <div class="group__inner"><div class="group__body" id="outlineBody"></div></div>
+            </section>
+
+            <section class="group" id="grpTimeline">
+              <div class="group__head" data-toggle="grpTimeline">
+                <span class="gcaret"></span><span class="group__t">版本</span>
+                <span class="gcount" id="timelineCount">0</span>
+              </div>
+              <div class="group__inner"><div class="group__body" id="timelineBody"></div></div>
+            </section>
+          </div>
+        </div>
+
+        <div class="side__foot">
+          <button class="iconbtn iconbtn--sm" id="btnSettings" title="设置">
+            <span class="i-gear"></span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="side-splitter" id="sideSplitter" title="拖动调整左栏宽度 · 双击收起"></div>
+
+      <div class="maincol">
+        <header class="titlebar" data-tauri-drag-region>
           <div class="vault-chip" id="vaultChip" title="当前工作区">
             <span id="vaultName">未打开工作区</span>
             <span class="vault-chip__caret"></span>
           </div>
-        </div>
-        <div class="titlebar__right">
-          <button class="iconbtn iconbtn--toggle is-on" id="btnSide" title="左栏 (Ctrl+B)">
-            <span class="i-side"></span>
-          </button>
-          <button class="iconbtn iconbtn--toggle is-on" id="btnEditor" title="编辑区 (Ctrl+Shift+E)">
-            <span class="i-editor"></span>
-          </button>
-          <button class="iconbtn iconbtn--toggle is-on" id="btnPreview" title="预览面板 (Ctrl+Shift+V)">
-            <span class="i-panel"></span>
-          </button>
-          <button class="iconbtn" id="btnPalette" title="命令面板 (Ctrl+Shift+P)">
-            <span class="i-cmd"></span>
-          </button>
-        </div>
-      </header>
+          <div class="titlebar__spacer" data-tauri-drag-region></div>
+          <div class="winbtns">
+            <button class="winbtn" id="winMin" title="最小化">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              </svg>
+            </button>
+            <button class="winbtn" id="winMax" title="最大化">
+              <svg class="winico-max" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="5.5" y="5.5" width="13" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+              </svg>
+              <svg class="winico-restore" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M8.5 8.5V7A1.5 1.5 0 0 1 10 5.5h6.5A1.5 1.5 0 0 1 18 7v6.5a1.5 1.5 0 0 1-1.5 1.5H15" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+                <rect x="5.5" y="9.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+              </svg>
+            </button>
+            <button class="winbtn winbtn--close" id="winClose" title="关闭">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
+        </header>
 
-      <div class="tabstrip" id="tabstrip"></div>
+        <div class="toolbar">
+          <div class="tabs" id="tabstrip"></div>
 
-      <div class="body">
-        <aside class="side">
-          <nav class="side__nav">
-            <button class="navrow" id="navNew">
-              <span class="navrow__ico i-plus"></span><span class="navrow__t">新建文档</span>
-              <span class="navrow__k">Ctrl N</span>
-            </button>
-            <button class="navrow" id="navOpen">
-              <span class="navrow__ico i-folder"></span><span class="navrow__t">打开文件夹</span>
-              <span class="navrow__k">Ctrl K</span>
-            </button>
-            <button class="navrow" id="navPlugins">
-              <span class="navrow__ico i-plug"></span><span class="navrow__t">插件</span>
-              <span class="navrow__badge" id="navPluginCount">0</span>
-            </button>
-            <button class="navrow" id="navExport">
-              <span class="navrow__ico i-export"></span><span class="navrow__t">导出</span>
-              <span class="navrow__k">Ctrl E</span>
-            </button>
-          </nav>
-
-          <div class="side__scroll" id="sideScroll">
-            <section class="group" id="grpFiles">
-              <div class="group__head" data-toggle="grpFiles">
-                <span class="gcaret"></span><span class="group__t">文件</span>
-                <span class="gcount" id="fileCount">0</span>
-                <span class="gadd" id="btnNewFile" title="新建文件">+</span>
+          <div class="toolbar__tools">
+            <div class="tool-pop" id="widthPop">
+              <button class="toolbtn" id="widthBtn" title="预览宽度" aria-haspopup="menu" aria-expanded="false">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 8.25V18C3 19.2426 4.00736 20.25 5.25 20.25H18.75C19.9926 20.25 21 19.2426 21 18V8.25M3 8.25V6C3 4.75736 4.00736 3.75 5.25 3.75H18.75C19.9926 3.75 21 4.75736 21 6V8.25M3 8.25H21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span class="toolbtn__val" id="widthVal">980</span>
+                <svg class="ico ico--caret" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M19.5 8.25L12 15.75L4.5 8.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <div class="popmenu" id="widthMenu" role="menu" hidden>
+                <div class="popmenu__t">预览宽度</div>
+                <button class="popmenu__i" role="menuitem" data-width="980">
+                  <svg class="popmenu__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4.5 12.75L10.5 18.75L19.5 5.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span class="popmenu__n">980</span><span class="popmenu__d">宽屏</span>
+                </button>
+                <button class="popmenu__i" role="menuitem" data-width="794">
+                  <svg class="popmenu__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4.5 12.75L10.5 18.75L19.5 5.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span class="popmenu__n">A4</span><span class="popmenu__d">794px · 打印</span>
+                </button>
+                <button class="popmenu__i" role="menuitem" data-width="390">
+                  <svg class="popmenu__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4.5 12.75L10.5 18.75L19.5 5.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span class="popmenu__n">390</span><span class="popmenu__d">手机</span>
+                </button>
+                <button class="popmenu__i" role="menuitem" data-width="0">
+                  <svg class="popmenu__check" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4.5 12.75L10.5 18.75L19.5 5.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span class="popmenu__n">自适应</span><span class="popmenu__d">跟随窗口</span>
+                </button>
               </div>
-              <div class="group__inner"><div class="group__body" id="fileTree"></div></div>
+            </div>
+
+            <div class="preview__stat" id="previewStat" title="渲染诊断">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M14.25 6.08694C14.25 5.73178 14.4361 5.41076 14.6512 5.1282C14.8721 4.8381 15 4.494 15 4.125C15 3.08947 13.9926 2.25 12.75 2.25C11.5074 2.25 10.5 3.08947 10.5 4.125C10.5 4.494 10.6279 4.8381 10.8488 5.1282C11.064 5.41076 11.25 5.73178 11.25 6.08694C11.25 6.44822 10.9542 6.73997 10.593 6.72957C9.18939 6.68914 7.80084 6.58845 6.42989 6.43C6.61626 8.04276 6.72269 9.67987 6.74511 11.3373C6.75007 11.7032 6.45293 12 6.08694 12C5.73178 12 5.41076 11.814 5.1282 11.5988C4.8381 11.3779 4.494 11.25 4.125 11.25C3.08947 11.25 2.25 12.2574 2.25 13.5C2.25 14.7426 3.08947 15.75 4.125 15.75C4.494 15.75 4.8381 15.6221 5.1282 15.4012C5.41076 15.186 5.73178 15 6.08694 15C6.39613 15 6.64157 15.2608 6.6189 15.5691C6.49306 17.2812 6.27742 18.9682 5.97668 20.6256C7.49458 20.8157 9.03451 20.9348 10.5931 20.9797C10.9542 20.9901 11.2501 20.6983 11.2501 20.337C11.2501 19.9818 11.0641 19.6608 10.8489 19.3782C10.628 19.0881 10.5001 18.744 10.5001 18.375C10.5001 17.3395 11.5075 16.5 12.7501 16.5C13.9928 16.5 15.0001 17.3395 15.0001 18.375C15.0001 18.744 14.8722 19.0881 14.6513 19.3782C14.4362 19.6608 14.2501 19.9818 14.2501 20.337C14.2501 20.6699 14.5281 20.9357 14.8605 20.9161C16.6992 20.8081 18.5102 20.5965 20.2876 20.2872C20.5571 18.7389 20.7523 17.1652 20.8696 15.5698C20.8923 15.2611 20.6466 15 20.3371 15C19.9819 15 19.6609 15.1861 19.3783 15.4013C19.0882 15.6221 18.7441 15.75 18.3751 15.75C17.3396 15.75 16.5001 14.7427 16.5001 13.5C16.5001 12.2574 17.3396 11.25 18.3751 11.25C18.7441 11.25 19.0882 11.378 19.3783 11.5988C19.6609 11.814 19.9819 12 20.3371 12C20.7034 12 21.0008 11.703 20.9959 11.3367C20.9713 9.52413 20.8463 7.73572 20.6261 5.97698C18.7403 6.31916 16.816 6.55115 14.8603 6.66605C14.528 6.68557 14.25 6.41979 14.25 6.08694Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span class="dot dot--ok"></span><span id="previewStatText">就绪</span>
+            </div>
+
+            <button class="iconbtn iconbtn--sm" id="btnCollapsePreview" title="收起预览">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5.25 4.5L12.75 12L5.25 19.5M11.25 4.5L18.75 12L11.25 19.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+
+            <span class="toolbar__sep"></span>
+
+            <button class="iconbtn iconbtn--toggle is-on" id="btnSide" title="左栏 (Ctrl+B)">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 4.5V19.5M15 4.5V19.5M4.125 19.5H19.875C20.4963 19.5 21 18.9963 21 18.375V5.625C21 5.00368 20.4963 4.5 19.875 4.5H4.125C3.50368 4.5 3 5.00368 3 5.625V18.375C3 18.9963 3.50368 19.5 4.125 19.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button class="iconbtn iconbtn--toggle is-on" id="btnEditor" title="编辑区 (Ctrl+Shift+E)">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M16.8617 4.48667L18.5492 2.79917C19.2814 2.06694 20.4686 2.06694 21.2008 2.79917C21.9331 3.53141 21.9331 4.71859 21.2008 5.45083L10.5822 16.0695C10.0535 16.5981 9.40144 16.9868 8.68489 17.2002L6 18L6.79978 15.3151C7.01323 14.5986 7.40185 13.9465 7.93052 13.4178L16.8617 4.48667ZM16.8617 4.48667L19.5 7.12499M18 14V18.75C18 19.9926 16.9926 21 15.75 21H5.25C4.00736 21 3 19.9926 3 18.75V8.24999C3 7.00735 4.00736 5.99999 5.25 5.99999H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button class="iconbtn iconbtn--toggle is-on" id="btnPreview" title="预览面板 (Ctrl+Shift+V)">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M2.03555 12.3224C1.96647 12.1151 1.9664 11.8907 2.03536 11.6834C3.42372 7.50972 7.36079 4.5 12.0008 4.5C16.6387 4.5 20.5742 7.50692 21.9643 11.6776C22.0334 11.8849 22.0335 12.1093 21.9645 12.3166C20.5761 16.4903 16.6391 19.5 11.9991 19.5C7.36119 19.5 3.42564 16.4931 2.03555 12.3224Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M15 12C15 13.6569 13.6569 15 12 15C10.3431 15 9 13.6569 9 12C9 10.3431 10.3431 9 12 9C13.6569 9 15 10.3431 15 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button class="iconbtn" id="btnPalette" title="命令面板 (Ctrl+Shift+P)">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6.75 7.5L9.75 9.75L6.75 12M11.25 12H14.25M5.25 20.25H18.75C19.9926 20.25 21 19.2426 21 18V6C21 4.75736 19.9926 3.75 18.75 3.75H5.25C4.00736 3.75 3 4.75736 3 6V18C3 19.2426 4.00736 20.25 5.25 20.25Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="body">
+          <main class="workspace" id="workspace">
+            <div class="pane pane--editor" id="paneEditor">
+              <div class="editor" id="editor"></div>
+              <div class="empty" id="emptyState">
+                <div class="empty__title">GoldenEdit</div>
+                <div class="empty__sub">把 Markdown 当源码，把预览当可插拔的渲染目标</div>
+                <div class="empty__acts">
+                  <button class="btn btn--dark" id="emptyOpen">打开文件夹</button>
+                  <button class="btn" id="emptyNew">新建文档</button>
+                </div>
+                <div class="empty__recent" id="recentList"></div>
+              </div>
+            </div>
+
+            <div class="splitter" id="splitter" title="拖动调整比例 · 双击收起"></div>
+
+            <section class="pane pane--preview" id="panePreview">
+              <div class="preview__stage" id="previewStage">
+                <!--
+                  allow-same-origin 是必需的：opaque origin 的文档无法 new Worker，
+                  而渲染内核把 markdown-it 与 L1 插件放在 Worker 里跑（ARCHITECTURE §6.1）。
+                  它仍然与宿主 tauri.localhost 跨源，拿不到父窗口 DOM；外壳入口还会主动删除
+                  Tauri 注入的 __TAURI_INTERNALS__，见 preview-shell/shell.ts 顶部。
+                -->
+                <iframe
+                  id="preview"
+                  class="preview__frame"
+                  sandbox="allow-scripts allow-same-origin allow-modals"
+                  referrerpolicy="no-referrer"
+                  title="预览"
+                ></iframe>
+              </div>
             </section>
+          </main>
 
-            <div class="side__bottom">
-              <section class="group" id="grpOutline">
-                <div class="group__head" data-toggle="grpOutline">
-                  <span class="gcaret"></span><span class="group__t">大纲</span>
-                  <span class="gcount" id="outlineCount">0</span>
+          <div class="page" id="page-plugins" hidden>
+            <div class="page__head">
+              <div>
+                <div class="page__title">插件</div>
+                <div class="page__sub" id="pluginsSub">—</div>
+              </div>
+              <div class="page__acts">
+                <input class="input" id="pluginSearch" placeholder="搜索插件 / 触发语法" />
+                <button class="btn" id="btnOpenPluginDir">打开插件目录</button>
+                <button class="btn" id="btnInstallPlugin">从文件夹安装</button>
+              </div>
+            </div>
+            <div class="page__body">
+              <div class="cards" id="pluginCards"></div>
+              <div class="diag" id="diagPanel">
+                <div class="diag__head">
+                  <span>渲染诊断</span><span class="diag__hint">每块命中的插件与耗时</span>
                 </div>
-                <div class="group__inner"><div class="group__body" id="outlineBody"></div></div>
-              </section>
+                <div class="diag__body" id="diagBody"></div>
+              </div>
+            </div>
+          </div>
 
-              <section class="group" id="grpTimeline">
-                <div class="group__head" data-toggle="grpTimeline">
-                  <span class="gcaret"></span><span class="group__t">版本</span>
-                  <span class="gcount" id="timelineCount">0</span>
+          <div class="page" id="page-settings" hidden>
+            <div class="page__head">
+              <div>
+                <div class="page__title">设置</div>
+                <div class="page__sub">主题、预览与插件行为</div>
+              </div>
+            </div>
+            <div class="page__body">
+              <div class="setting">
+                <div class="setting__t">主题预设</div>
+                <div class="setting__d">编辑器与预览可分别跟随系统，也可强制暗/亮。</div>
+                <div class="segs segs--wide" id="themePresets">
+                  <button class="seg" data-preset="system">跟随系统</button>
+                  <button class="seg seg--on" data-preset="writing">写作模式</button>
+                  <button class="seg" data-preset="light">全亮</button>
+                  <button class="seg" data-preset="dark">全暗</button>
                 </div>
-                <div class="group__inner"><div class="group__body" id="timelineBody"></div></div>
-              </section>
-            </div>
-          </div>
-
-          <div class="side__foot">
-            <button class="iconbtn iconbtn--sm" id="btnSettings" title="设置">
-              <span class="i-gear"></span>
-            </button>
-          </div>
-        </aside>
-
-        <div class="side-splitter" id="sideSplitter" title="拖动调整左栏宽度 · 双击收起"></div>
-
-        <main class="workspace" id="workspace">
-          <div class="pane pane--editor" id="paneEditor">
-            <div class="editor" id="editor"></div>
-            <div class="empty" id="emptyState">
-              <div class="empty__title">GoldenEdit</div>
-              <div class="empty__sub">把 Markdown 当源码，把预览当可插拔的渲染目标</div>
-              <div class="empty__acts">
-                <button class="btn btn--dark" id="emptyOpen">打开文件夹</button>
-                <button class="btn" id="emptyNew">新建文档</button>
               </div>
-              <div class="empty__recent" id="recentList"></div>
-            </div>
-          </div>
-
-          <div class="splitter" id="splitter" title="拖动调整比例 · 双击收起"></div>
-
-          <section class="pane pane--preview" id="panePreview">
-            <div class="preview__head">
-              <div class="segs" id="widthPresets">
-                <button class="seg seg--on" data-width="980">980</button>
-                <button class="seg" data-width="794">A4</button>
-                <button class="seg" data-width="390">390</button>
-                <button class="seg" data-width="0">自适应</button>
+              <div class="setting">
+                <div class="setting__t">高级</div>
+                <div class="setting__d">主题预设在下面被手动覆盖后，会切到「自定义」。</div>
+                <div class="setting__row">
+                  <label>编辑器</label>
+                  <select class="select" id="editorTheme">
+                    <option value="dark">暗</option>
+                    <option value="light">亮</option>
+                    <option value="system">跟随系统</option>
+                  </select>
+                  <label>预览</label>
+                  <select class="select" id="previewTheme">
+                    <option value="light">亮</option>
+                    <option value="dark">暗</option>
+                    <option value="system">跟随系统</option>
+                  </select>
+                </div>
               </div>
-              <div class="preview__stat" id="previewStat">
-                <span class="dot dot--ok"></span><span id="previewStatText">就绪</span>
+              <div class="setting">
+                <div class="setting__t">编辑区文字</div>
+                <div class="setting__d">字号 10–28；字体按 CSS font-family 语法填写，可写多字体回退，含空格的名称要加引号。改完点「应用」或按回车。</div>
+                <div class="setting__row">
+                  <label for="editorFontSize">字号</label>
+                  <input class="input input--num" id="editorFontSize" type="number" min="10" max="28" step="1" />
+                  <label for="editorFontFamily">字体</label>
+                  <input class="input input--wide" id="editorFontFamily" spellcheck="false" placeholder="'Google Sans Code','Maple Mono NF CN',Myna,Consolas,'微软雅黑', monospace" />
+                  <button class="btn btn--dark" id="editorFontApply">应用</button>
+                </div>
               </div>
-              <button class="iconbtn iconbtn--sm" id="btnCollapsePreview" title="收起预览">›</button>
-            </div>
-            <div class="preview__stage" id="previewStage">
-              <!--
-                allow-same-origin 是必需的：opaque origin 的文档无法 new Worker，
-                而渲染内核把 markdown-it 与 L1 插件放在 Worker 里跑（ARCHITECTURE §6.1）。
-                它仍然与宿主 tauri.localhost 跨源，拿不到父窗口 DOM；外壳入口还会主动删除
-                Tauri 注入的 __TAURI_INTERNALS__，见 preview-shell/shell.ts 顶部。
-              -->
-              <iframe
-                id="preview"
-                class="preview__frame"
-                sandbox="allow-scripts allow-same-origin allow-modals"
-                referrerpolicy="no-referrer"
-                title="预览"
-              ></iframe>
-            </div>
-          </section>
-        </main>
-
-        <div class="page" id="page-plugins" hidden>
-          <div class="page__head">
-            <div>
-              <div class="page__title">插件</div>
-              <div class="page__sub" id="pluginsSub">—</div>
-            </div>
-            <div class="page__acts">
-              <input class="input" id="pluginSearch" placeholder="搜索插件 / 触发语法" />
-              <button class="btn" id="btnOpenPluginDir">打开插件目录</button>
-              <button class="btn" id="btnInstallPlugin">从文件夹安装</button>
-            </div>
-          </div>
-          <div class="page__body">
-            <div class="cards" id="pluginCards"></div>
-            <div class="diag" id="diagPanel">
-              <div class="diag__head">
-                <span>渲染诊断</span><span class="diag__hint">每块命中的插件与耗时</span>
+              <div class="setting">
+                <div class="setting__t">同步滚动</div>
+                <div class="setting__d">编辑区与预览区双向跟随滚动（按块定位）。默认开启。</div>
+                <div class="setting__row">
+                  <label class="switch"><input type="checkbox" id="syncScroll" /><span></span></label>
+                </div>
               </div>
-              <div class="diag__body" id="diagBody"></div>
+              <div class="setting">
+                <div class="setting__t">自定义预览 CSS</div>
+                <div class="setting__d">追加到预览外壳的样式，只影响预览与导出，不改动文档本身。留空即关闭。</div>
+                <textarea class="ta" id="customCss" spellcheck="false" placeholder="例：.ge-doc { font-family: 'LXGW WenKai', serif; }"></textarea>
+                <div class="setting__row">
+                  <span class="grow"></span>
+                  <button class="btn" id="customCssClear">清空</button>
+                  <button class="btn btn--dark" id="customCssSave">应用</button>
+                </div>
+              </div>
+              <div class="setting">
+                <div class="setting__t">键盘快捷方式</div>
+                <div class="setting__d">所有菜单项都注册为命令，菜单、命令面板与快捷键共用同一张表。点开可逐条改键。</div>
+                <div class="setting__row">
+                  <button class="btn" id="btnOpenKeys">键盘快捷方式…</button>
+                </div>
+              </div>
+              <div class="setting">
+                <div class="setting__t">数据位置</div>
+                <div class="setting__d" id="dataPaths">—</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="page" id="page-settings" hidden>
-          <div class="page__head">
-            <div>
-              <div class="page__title">设置</div>
-              <div class="page__sub">主题、预览与插件行为</div>
-            </div>
+        <footer class="statusbar">
+          <div class="statusbar__l">
+            <span id="statWord">0 字</span>
+            <span id="statRead">0 分钟</span>
           </div>
-          <div class="page__body">
-            <div class="setting">
-              <div class="setting__t">主题预设</div>
-              <div class="setting__d">编辑器与预览可分别跟随系统，也可强制暗/亮。</div>
-              <div class="segs segs--wide" id="themePresets">
-                <button class="seg" data-preset="system">跟随系统</button>
-                <button class="seg seg--on" data-preset="writing">写作模式</button>
-                <button class="seg" data-preset="light">全亮</button>
-                <button class="seg" data-preset="dark">全暗</button>
-              </div>
-            </div>
-            <div class="setting">
-              <div class="setting__t">高级</div>
-              <div class="setting__d">主题预设在下面被手动覆盖后，会切到「自定义」。</div>
-              <div class="setting__row">
-                <label>编辑器</label>
-                <select class="select" id="editorTheme">
-                  <option value="dark">暗</option>
-                  <option value="light">亮</option>
-                  <option value="system">跟随系统</option>
-                </select>
-                <label>预览</label>
-                <select class="select" id="previewTheme">
-                  <option value="light">亮</option>
-                  <option value="dark">暗</option>
-                  <option value="system">跟随系统</option>
-                </select>
-              </div>
-            </div>
-            <div class="setting">
-              <div class="setting__t">编辑区文字</div>
-              <div class="setting__d">字号 10–28；字体按 CSS font-family 语法填写，可写多字体回退，含空格的名称要加引号。改完点「应用」或按回车。</div>
-              <div class="setting__row">
-                <label for="editorFontSize">字号</label>
-                <input class="input input--num" id="editorFontSize" type="number" min="10" max="28" step="1" />
-                <label for="editorFontFamily">字体</label>
-                <input class="input input--wide" id="editorFontFamily" spellcheck="false" placeholder="'Google Sans Code','Maple Mono NF CN',Myna,Consolas,'微软雅黑', monospace" />
-                <button class="btn btn--dark" id="editorFontApply">应用</button>
-              </div>
-            </div>
-            <div class="setting">
-              <div class="setting__t">同步滚动</div>
-              <div class="setting__d">编辑区与预览区双向跟随滚动（按块定位）。默认开启。</div>
-              <div class="setting__row">
-                <label class="switch"><input type="checkbox" id="syncScroll" /><span></span></label>
-              </div>
-            </div>
-            <div class="setting">
-              <div class="setting__t">自定义预览 CSS</div>
-              <div class="setting__d">追加到预览外壳的样式，只影响预览与导出，不改动文档本身。留空即关闭。</div>
-              <textarea class="ta" id="customCss" spellcheck="false" placeholder="例：.ge-doc { font-family: 'LXGW WenKai', serif; }"></textarea>
-              <div class="setting__row">
-                <span class="grow"></span>
-                <button class="btn" id="customCssClear">清空</button>
-                <button class="btn btn--dark" id="customCssSave">应用</button>
-              </div>
-            </div>
-            <div class="setting">
-              <div class="setting__t">键盘快捷方式</div>
-              <div class="setting__d">所有菜单项都注册为命令，菜单、命令面板与快捷键共用同一张表。点开可逐条改键。</div>
-              <div class="setting__row">
-                <button class="btn" id="btnOpenKeys">键盘快捷方式…</button>
-              </div>
-            </div>
-            <div class="setting">
-              <div class="setting__t">数据位置</div>
-              <div class="setting__d" id="dataPaths">—</div>
-            </div>
+          <div class="statusbar__r">
+            <span id="statRatio">分栏 54/46</span>
+            <span id="statCursor">行 1 · 列 1</span>
+            <span id="statLang">Markdown</span>
+            <span id="statEncoding">UTF-8</span>
           </div>
-        </div>
+        </footer>
       </div>
-
-      <footer class="statusbar">
-        <div class="statusbar__l">
-          <span id="statWord">0 字</span>
-          <span id="statRead">0 分钟</span>
-        </div>
-        <div class="statusbar__r">
-          <span id="statRatio">分栏 54/46</span>
-          <span id="statCursor">行 1 · 列 1</span>
-          <span id="statLang">Markdown</span>
-          <span id="statEncoding">UTF-8</span>
-        </div>
-      </footer>
     </div>
 
     <div class="modal" id="modal" hidden>

@@ -288,17 +288,82 @@ setContextArgProvider((ctx) => {
 
 /* ───────── 启动 ───────── */
 
+/** 预览宽度的四档预设（P28 从平铺分段收成图标下拉） */
+const WIDTH_LABELS: Record<number, string> = { 980: '980', 794: 'A4', 390: '390', 0: '自适应' };
+const WIDTH_FALLBACK = 980;
+
+/** 宽度下拉的唯一同步点：触发器文字 + 菜单打勾都从这里改，避免两处漂移 */
+function syncWidthUi(width: number | undefined): void {
+  const cur = width === undefined ? WIDTH_FALLBACK : width;
+  const val = $('widthVal');
+  if (val) val.textContent = WIDTH_LABELS[cur] ?? String(cur);
+  document.querySelectorAll<HTMLElement>('#widthMenu [data-width]').forEach((el) => {
+    el.classList.toggle('is-on', Number(el.dataset.width) === cur);
+  });
+}
+
 function wireWidthPresets(): void {
-  const box = $('widthPresets');
-  box.addEventListener('click', (e) => {
-    const seg = (e.target as HTMLElement).closest('.seg') as HTMLElement | null;
-    if (!seg?.dataset.width) return;
-    const width = Number(seg.dataset.width);
-    box.querySelectorAll('.seg').forEach((s) => s.classList.remove('seg--on'));
-    seg.classList.add('seg--on');
+  const pop = $('widthPop');
+  const btn = $<HTMLButtonElement>('widthBtn');
+  const menu = $('widthMenu');
+
+  const setOpen = (open: boolean): void => {
+    menu.hidden = !open;
+    btn.classList.toggle('is-on', open);
+    btn.setAttribute('aria-expanded', String(open));
+  };
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setOpen(menu.hidden);
+  });
+
+  menu.addEventListener('click', (e) => {
+    const item = (e.target as HTMLElement).closest('[data-width]') as HTMLElement | null;
+    if (!item?.dataset.width) return;
+    const width = Number(item.dataset.width);
+    syncWidthUi(width);
     preview.setWidth(width);
     void store.setSettingsPatch({ preview: { width } });
     store.persistDocState({ width });
+    setOpen(false);
+  });
+
+  // 点菜单内部不算「点外部」；点别处、按 Esc 都收起
+  pop.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => {
+    if (!menu.hidden) setOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !menu.hidden) {
+      e.stopPropagation();
+      setOpen(false);
+    }
+  });
+
+  syncWidthUi(store.settings.preview.width);
+}
+
+/* ───────── 自绘标题栏（P28） ───────── */
+
+/** 双击拖拽区、拖边缘最大化都不经过按钮，图标状态靠宿主回查 */
+async function syncMaxIcon(): Promise<void> {
+  try {
+    const max = await api.winIsMaximized();
+    const btn = $('winMax');
+    btn.classList.toggle('is-max', max);
+    btn.title = max ? '还原' : '最大化';
+  } catch {
+    /* 浏览器预览模式下没有宿主，忽略 */
+  }
+}
+
+function wireWindowChrome(): void {
+  void syncMaxIcon();
+  let timer = 0;
+  window.addEventListener('resize', () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => void syncMaxIcon(), 150);
   });
 }
 
@@ -468,9 +533,20 @@ async function boot(): Promise<void> {  mountShell({
   bind('navExport', () => openExportDialog(preview));
   bind('btnSettings', () => showPage('settings'));
 
+  bind('winMin', () => void api.winMinimize());
+  bind('winMax', () => {
+    void api
+      .winToggleMaximize()
+      .then(() => syncMaxIcon())
+      .catch(() => {});
+  });
+  bind('winClose', () => void api.winClose());
+  wireWindowChrome();
+
   bus.on('settings', () => {
     applyTheme();
     applyKeybindings(store.settings.keybindings);
+    syncWidthUi(store.settings.preview.width);
     // 缩放与字体是 settings 驱动的运行时状态：init 与每次 patch 后都对齐（§8.1 / P25）
     editorHost.setFontSize(store.settings.editor.fontSize ?? 13);
     editorHost.setFontFamily(store.settings.editor.fontFamily ?? DEFAULT_FONT_FAMILY);
@@ -491,9 +567,7 @@ async function boot(): Promise<void> {  mountShell({
     // 布局不再按文件复原（P24）：切标签保持当前布局，比例与宽度仍按文件记忆
     if (state.width !== undefined) {
       preview.setWidth(state.width);
-      document.querySelectorAll('#widthPresets .seg').forEach((s) => {
-        s.classList.toggle('seg--on', Number((s as HTMLElement).dataset.width) === state.width);
-      });
+      syncWidthUi(state.width);
     }
     pushActiveDoc();
     renderRecentIfEmpty();

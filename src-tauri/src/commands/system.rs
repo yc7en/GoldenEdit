@@ -84,6 +84,38 @@ pub fn pick_folder() -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+/* ---------------- 窗口控制（自绘标题栏 P28） ----------------
+   decorations 关掉后系统不再画标题栏，最小化 / 最大化 / 关闭只能自己接。
+   按 ARCHITECTURE §9.1 的约定走自定义命令，不开 core:window 权限。 */
+
+#[tauri::command]
+pub fn win_minimize(window: tauri::WebviewWindow) -> ApiResult<()> {
+    window.minimize().map_err(ApiError::io)
+}
+
+/// 返回切换后的最大化状态，前端据此换图标（最大化 / 还原）。
+#[tauri::command]
+pub fn win_toggle_maximize(window: tauri::WebviewWindow) -> ApiResult<bool> {
+    let maximized = window.is_maximized().map_err(ApiError::io)?;
+    if maximized {
+        window.unmaximize().map_err(ApiError::io)?;
+    } else {
+        window.maximize().map_err(ApiError::io)?;
+    }
+    Ok(!maximized)
+}
+
+#[tauri::command]
+pub fn win_close(window: tauri::WebviewWindow) -> ApiResult<()> {
+    window.close().map_err(ApiError::io)
+}
+
+/// 双击拖拽区、拖边缘最大化都不经过前端，图标状态只能靠这个命令回查。
+#[tauri::command]
+pub fn win_is_maximized(window: tauri::WebviewWindow) -> ApiResult<bool> {
+    window.is_maximized().map_err(ApiError::io)
+}
+
 #[derive(serde::Deserialize)]
 pub struct FileFilter {
     pub name: String,
