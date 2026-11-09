@@ -10,7 +10,7 @@ import { registerFileCommands } from './commands/files';
 import { registerPreviewCommands } from './commands/preview';
 import { setContextArgProvider, setEditorProbe } from './commands/registry';
 import { registerSystemCommands } from './commands/system';
-import { openContextMenu } from './commands/menu';
+import { closeContextMenu, openContextMenu } from './commands/menu';
 import { DEFAULT_FONT_FAMILY, EditorHost } from './editor';
 import { loadEditorPlugins, refreshEditorPlugins, setEditorFacade } from './editor/plugins';
 import { openExportDialog } from './export/dialog';
@@ -103,6 +103,8 @@ const preview = new PreviewHost($('preview') as HTMLIFrameElement, {
   onContextMenu: (info) => {
     openContextMenu({ x: info.x, y: info.y, ctx: 'preview', arg: { text: info.text } });
   },
+  // 预览 iframe 里的左键不会冒泡到主文档，宿主菜单要靠这条消息才收得起来
+  onPointerDown: () => closeContextMenu(),
   onPaused: (paused) => {
     const banner = $('previewStatText');
     banner.textContent = paused ? '文档较大，预览已暂停（点击恢复）' : '就绪';

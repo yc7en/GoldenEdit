@@ -414,6 +414,7 @@ mod tests {
         let vault = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(vault.path().join("img")).unwrap();
         std::fs::write(vault.path().join("img/a.png"), b"\x89PNG").unwrap();
+        std::fs::write(vault.path().join("img/a b.jpg"), b"\xff\xd8JPEG").unwrap();
         std::fs::write(vault.path().join("img/a.exe"), b"MZ").unwrap();
 
         let vault_cell = Arc::new(Mutex::new(Some(vault.path().to_path_buf())));
@@ -493,6 +494,23 @@ mod tests {
         assert_eq!(get(server.info.port, &format!("/p/{token}/asset?p=img/a.png")).0, 200);
         assert_eq!(get(server.info.port, &format!("/p/{token}/asset?p=img/a.exe")).0, 403);
         assert_eq!(get(server.info.port, &format!("/p/{token}/asset?p=../x.png")).0, 403);
+    }
+
+    /// 预览侧把图片地址编码成 `asset?p=img%2Fa%20b.jpg`（encodeURIComponent），
+    /// 分隔符与空格都在编码里，这里确认解码后仍能定位到文件。
+    #[test]
+    fn asset_accepts_percent_encoded_path() {
+        let (_s, _v, server, _) = harness();
+        let token = &server.info.token;
+        assert_eq!(
+            get(server.info.port, &format!("/p/{token}/asset?p=img%2Fa%20b.jpg")).0,
+            200
+        );
+        // 编码过的 .. 不能在解码后被绕过
+        assert_eq!(
+            get(server.info.port, &format!("/p/{token}/asset?p=img%2F..%2F..%2Fx.png")).0,
+            403
+        );
     }
 
     #[test]

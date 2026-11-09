@@ -39,6 +39,11 @@ export interface PreviewCallbacks {
   onOpenExternal: (url: string) => void;
   /** 预览区右键：坐标已换算到主页面视口（§8.3） */
   onContextMenu?: (info: { x: number; y: number; text: string }) => void;
+  /**
+   * 预览区内按下左键。iframe 的事件不冒泡到宿主，上下文菜单要靠它才知道
+   * 「点了别处」——没有这一条，菜单只能在主窗口内点击时收起。
+   */
+  onPointerDown?: () => void;
   onPaused: (paused: boolean) => void;
   onFatal: (message: string) => void;
 }
@@ -365,6 +370,9 @@ export class PreviewHost {
         });
         break;
       }
+      case 'pointer-down':
+        this.cb.onPointerDown?.();
+        break;
       case 'log':
         this.cb.onLog(msg.level, msg.message);
         break;

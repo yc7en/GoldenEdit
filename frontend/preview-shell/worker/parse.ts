@@ -15,6 +15,7 @@ import {
   stripScripts,
   type MdToken,
 } from '../blocks';
+import { assetBaseOf, assetUrl } from '../assets';
 import { RuntimeRegistry, type PluginRuntime } from '../context';
 import { highlightCode } from './highlight';
 import { parseFrontmatter, renderFrontmatter } from './frontmatter';
@@ -34,6 +35,8 @@ interface DocMsg {
   text: string;
   /** 渲染模式：viewport 时只即时渲染首屏，其余按需（§6.4） */
   mode?: 'full' | 'shard' | 'viewport';
+  /** 当前文档所在目录（vault 相对路径）：图片等资源按它解析，切文件时会变 */
+  dir?: string;
 }
 
 interface ExpandMsg {
@@ -95,6 +98,10 @@ const post = (msg: unknown) => (self as unknown as Worker).postMessage(msg);
 let registry: RuntimeRegistry | null = null;
 let md: MarkdownIt | null = null;
 let themeMode: 'light' | 'dark' = 'light';
+/** 资源路由前缀（`…/p/{token}/`）；空串表示当前不是预览外壳环境，图片地址不动 */
+let assetBase = '';
+/** 当前文档所在目录，随 doc 消息更新——切文件后相对路径要指向新目录 */
+let docDir = '';
 /** 规则级耗时（仅诊断用，随 result 一起上报） */
 const ruleCost: Record<string, number> = {};
 
@@ -576,6 +583,23 @@ function build(inst: MarkdownIt): void {
     if (/^https?:/i.test(href)) token.attrSet('data-ge-external', href);
     return self.renderToken(tokens, idx, opts);
   };
+
+  // 图片：相对路径改写成 preview 服务的 /asset 路由（§9.4）。
+  // 默认规则会把 src 原样输出，浏览器按 iframe 的 /shell/ 地址去取，必然 404。
+  inst.renderer.rules.image = (tokens, idx, opts, env, self) => {
+    const token = tokens[idx];
+    const src = token.attrGet('src');
+    if (src) {
+      const resolved = assetUrl(assetBase, docDir, src);
+      if (resolved !== src) token.attrSet('src', resolved);
+    }
+    // alt 必须补：默认规则用 token.children 的纯文本填 alt，覆写后要自己补上
+    const altIndex = token.attrIndex('alt');
+    if (altIndex >= 0) {
+      token.attrs![altIndex][1] = self.renderInlineAsText(token.children ?? [], opts, env);
+    }
+    return self.renderToken(tokens, idx, opts);
+  };
 }
 
 function wrapPlugin(id: string, html: string): string {
@@ -686,12 +710,15 @@ function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' =
   const eager = mode === 'viewport' ? Math.min(VIEWPORT_HEAD_BLOCKS, groups.length) : groups.length;
   const keys = new Map<string, number>();
   cache = { gen, groups, lines, env, keys, rendered: new Map() };
+  // key 的盐带上文档目录：同样的源码放在不同目录里，图片地址不一样，
+  // 不带目录就会在切文件时复用上一份 DOM，图片指向旧目录
+  const keySalt = `${themeMode}\u0000${docDir}`;
 
   // 属性面板是文档首块：头部已用等量空行占位，所以正文块的行号天然对齐源码，
   // 这一块的 line 也直接就是 1。html 随 result 一起下发，viewport 模式无需再向 Worker 请求。
   if (fm.lines > 0) {
     result.blocks.push({
-      key: blockKey(`\u0000frontmatter\u0000${fm.raw}\u0000${fm.error?.message ?? ''}`, [], themeMode),
+      key: blockKey(`\u0000frontmatter\u0000${fm.raw}\u0000${fm.error?.message ?? ''}`, [], keySalt),
       html: renderFrontmatter(fm),
       line: 1,
       lines: Math.max(2, Math.min(12, Object.keys(fm.data).length + 2)),
@@ -707,7 +734,7 @@ function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' =
 
     if (i >= eager) {
       // 尾块只登记 key 与行号，html 留空等视口补齐（省掉 5 万次渲染与几十 MB 传输）
-      const key = blockKey(source, [], themeMode);
+      const key = blockKey(source, [], keySalt);
       keys.set(key, i);
       result.blocks.push({ key, html: '', line, lines: linesOfBlock, plugins: [] });
       continue;
@@ -726,7 +753,7 @@ function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' =
     }
     const cleaned = stripScripts(stripForbiddenAttrs(html).html);
     const plugins = [...new Set(hit)].sort();
-    const key = blockKey(source, plugins, themeMode);
+    const key = blockKey(source, plugins, keySalt);
     keys.set(key, i);
     cache.rendered.set(i, { html: cleaned, plugins });
     result.blocks.push({ key, html: cleaned, line, lines: linesOfBlock, plugins });
@@ -781,6 +808,8 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
   try {
     if (msg.type === 'init') {
       themeMode = msg.theme.mode;
+      assetBase = assetBaseOf(msg.baseUrl);
+      docDir = msg.doc.dir ?? '';
       // highlight 只作用于默认 fence renderer；命中插件的围栏在自定义规则里提前返回，不受影响
       const inst = new MarkdownIt({
         html: false,
@@ -803,6 +832,8 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
     }
     if (msg.type === 'doc') {
       if (registry) registry.setTheme({ mode: themeMode, tokens: {} });
+      // 目录必须在渲染前换掉：切文件后同一份源码的图片要指向新目录
+      if (typeof msg.dir === 'string') docDir = msg.dir;
       try {
         post(render(msg.gen, msg.text, msg.mode));
       } catch (err) {

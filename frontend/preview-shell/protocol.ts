@@ -105,6 +105,11 @@ export type PreviewMessage =
   | { type: 'copy'; text: string }
   /** 预览区右键：坐标相对 iframe 视口，由宿主加上 iframe 偏移后弹菜单（§8.3） */
   | { type: 'ctx-menu'; x: number; y: number; text: string }
+  /**
+   * 预览区内按下左键。iframe 是独立文档，事件不会冒泡到宿主，
+   * 宿主弹的上下文菜单因此收不到「点别处」的信号，必须由这里上报。
+   */
+  | { type: 'pointer-down' }
   | { type: 'log'; level: 'info' | 'warn' | 'error'; message: string }
   | { type: 'fatal'; message: string }
   | { type: 'exported'; id: number; html: string }

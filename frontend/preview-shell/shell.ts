@@ -94,6 +94,8 @@ let lastText: string | null = null;
  *  否则宿主会残留上一份文档的元数据。 */
 let lastFrontmatterJson = '';
 let mainRegistry: RuntimeRegistry | null = null;
+/** 当前文档所在目录（vault 相对）：图片等相对路径按它解析，切文件时同步给 Worker */
+let docDir = '';
 let options: RenderOptions = { paused: false, fullRenderLimit: 200 * 1024, shardLimit: 2 * 1024 * 1024 };
 let themeMode: 'light' | 'dark' = 'light';
 /** 按需渲染的请求号：Worker 回包按 id 对应 */
@@ -305,7 +307,7 @@ function requestRender(text: string, hostGen?: number): void {
   gen = lastGen;
   tDoc = performance.now();
   if (!worker) return;
-  worker.postMessage({ type: 'doc', gen, text, mode: modeFor(text) });
+  worker.postMessage({ type: 'doc', gen, text, mode: modeFor(text), dir: docDir });
 }
 
 /** 视口补齐：把请求转给 Worker，等回包（同一批 key 合并成一次请求） */
@@ -324,6 +326,7 @@ function requestBlocks(keys: string[]): Promise<{ key: string; html: string; plu
 async function init(msg: Extract<HostMessage, { type: 'init' }>): Promise<void> {
   options = msg.options ?? options;
   themeMode = msg.theme.mode;
+  docDir = msg.doc.dir ?? '';
   applyTheme(msg.theme);
 
   for (const spec of msg.plugins) {
@@ -423,6 +426,16 @@ window.addEventListener('contextmenu', (e) => {
   send({ type: 'ctx-menu', x: e.clientX, y: e.clientY, text: selected || all });
 });
 
+// iframe 是独立文档，宿主弹的菜单收不到这里的左键点击，只能主动上报让宿主关闭（§8.3）。
+// 用 pointerdown 而不是 click：按在菜单外任何位置（含链接、选区）都应当立即收起。
+window.addEventListener(
+  'pointerdown',
+  (e) => {
+    if (e.button === 0) send({ type: 'pointer-down' });
+  },
+  true
+);
+
 window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
   if (ev.source !== window.parent) return;
   const msg = ev.data;
@@ -442,6 +455,9 @@ window.addEventListener('message', (ev: MessageEvent<HostMessage>) => {
       requestRender(msg.text, msg.gen);
       break;
     case 'doc-meta':
+      // 只记目录，不主动重渲染：紧随其后的 doc 消息会把目录一并带给 Worker。
+      // 在这里补渲染反而会用「上一份文档的正文 + 新目录」先画一帧。
+      docDir = msg.doc.dir ?? '';
       mainRegistry?.setDoc(msg.doc);
       break;
     case 'theme':
