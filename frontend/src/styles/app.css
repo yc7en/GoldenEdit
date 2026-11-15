@@ -1136,6 +1136,14 @@ textarea {
   gap: 12px;
   align-items: center;
 }
+.statusbar__l span,
+.statusbar__r span {
+  white-space: nowrap;
+}
+/* 缩放偏离 100% 时提亮：状态条其余项都是常量，只有它是用户改过的运行时状态 */
+.statusbar__r span.is-zoom {
+  color: var(--gold);
+}
 
 /* ───────── 内容页 ───────── */
 /* 内容页现在铺在 .body 上（顶栏与状态栏保持可见） */

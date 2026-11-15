@@ -1,4 +1,5 @@
 import { openKeysDialog } from '../commands/keysDialog';
+import { BASE_FONT_SIZE } from '../editor/metrics';
 import { bus, store } from '../store';
 import { escapeHtml } from '../ui/shell';
 
@@ -34,7 +35,7 @@ export function mountSettingsPage(): void {
   const familyBox = $('editorFontFamily') as unknown as HTMLInputElement;
   const applyEditorFont = () => {
     const raw = Number(sizeBox.value);
-    const fontSize = Number.isFinite(raw) ? Math.min(28, Math.max(10, Math.round(raw))) : 13;
+    const fontSize = Number.isFinite(raw) ? Math.min(28, Math.max(10, Math.round(raw))) : BASE_FONT_SIZE;
     sizeBox.value = String(fontSize);
     const fontFamily = familyBox.value.trim();
     void store
@@ -77,7 +78,7 @@ function render(): void {
   const sizeBox = $('editorFontSize') as unknown as HTMLInputElement;
   const familyBox = $('editorFontFamily') as unknown as HTMLInputElement;
   // 正在输入时不要把用户打的字覆盖掉；字号框只在失焦或应用后才回写
-  if (document.activeElement !== sizeBox) sizeBox.value = String(store.settings.editor.fontSize ?? 13);
+  if (document.activeElement !== sizeBox) sizeBox.value = String(store.settings.editor.fontSize ?? BASE_FONT_SIZE);
   if (document.activeElement !== familyBox) {
     familyBox.value = store.settings.editor.fontFamily ?? '';
   }

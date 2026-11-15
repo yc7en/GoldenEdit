@@ -5,6 +5,7 @@ import { highlightRanges } from '../../shared/highlight';
 import { bus, store } from '../store';
 import { EDITOR_THEMES, resolveMode, type Mode } from '../theme/tokens';
 import { findFences, rangeToMonaco } from './fences';
+import { BASE_FONT_SIZE, lineHeightFor } from './metrics';
 
 /** 与 settings.rs / store.ts 的默认值保持一致；用户可在设置页改成任意 CSS 字体栈 */
 export const DEFAULT_FONT_FAMILY = "'JetBrains Mono', 'Cascadia Code', Consolas, monospace";
@@ -67,8 +68,9 @@ export class EditorHost {
       language: 'markdown',
       automaticLayout: true,
       fontFamily: DEFAULT_FONT_FAMILY,
-      fontSize: 13,
-      lineHeight: 21,
+      fontSize: BASE_FONT_SIZE,
+      // 行高必须由字号算出来：Monaco 的 lineHeight 是绝对值，写死会在放大后挤行
+      lineHeight: lineHeightFor(BASE_FONT_SIZE),
       minimap: { enabled: false },
       lineNumbersMinChars: 3,
       scrollBeyondLastLine: false,
@@ -228,11 +230,19 @@ export class EditorHost {
     this.editor.focus();
   }
 
-  /** 编辑器字号（§8.1 区域缩放）。Monaco 自己处理布局失效，不用手动 layout */
+  /**
+   * 编辑器字号（§8.1 区域缩放）。行高随字号一起更新——Monaco 的 `lineHeight`
+   * 是绝对像素值，只改 `fontSize` 会让字号超过行高后上下行挤在一起。
+   * Monaco 自己处理布局失效，不用手动 layout。
+   */
   setFontSize(size: number): void {
     const clamped = Math.min(28, Math.max(10, Math.round(size)));
-    if (clamped === this.editor.getOption(monaco.editor.EditorOption.fontSize)) return;
-    this.editor.updateOptions({ fontSize: clamped });
+    const lineHeight = lineHeightFor(clamped);
+    const same =
+      clamped === this.editor.getOption(monaco.editor.EditorOption.fontSize) &&
+      lineHeight === this.editor.getOption(monaco.editor.EditorOption.lineHeight);
+    if (same) return;
+    this.editor.updateOptions({ fontSize: clamped, lineHeight });
   }
 
   fontSize(): number {

@@ -1,5 +1,6 @@
 import { openContextMenu } from '../commands/menu';
 import { runCommand } from '../commands/registry';
+import { BASE_FONT_SIZE, zoomPercent } from '../editor/metrics';
 import { bus, store } from '../store';
 import { SIDE_DEFAULT, clampSideWidth, dragWidth, sameWidth } from './side';
 import { derivePaneButtons } from './panes';
@@ -37,6 +38,8 @@ export function mountShell(d: ShellDeps): void {
   bus.on('commits', renderTimeline);
   bus.on('status', renderStatus);
   bus.on('render', renderStatus);
+  // 缩放是 settings 驱动的运行时状态：快捷键与设置页都会走 patch，统一在这里回显
+  bus.on('settings', renderStatus);
   bus.on('toast', (payload) => {
     const p = payload as { text: string; kind?: 'ok' | 'err' };
     toast(p.text, p.kind ?? 'ok');
@@ -278,6 +281,18 @@ function renderStatus(): void {
     : ws.classList.contains('preview-hidden')
       ? '仅编辑'
       : `分栏 ${ratioText}`;
+  // 缩放回显（P29）：编辑区按字号相对默认值折算，预览按倍率原样显示。
+  // 两者都由 settings 驱动，跟 Ctrl + = / Ctrl + - 与设置页保持一致
+  const fontSize = store.settings.editor.fontSize ?? BASE_FONT_SIZE;
+  const zoom = zoomPercent(fontSize);
+  const zoomEl = $('statZoom');
+  zoomEl.textContent = `缩放 ${zoom}%`;
+  zoomEl.classList.toggle('is-zoom', zoom !== 100);
+  const previewZoom = store.settings.preview.zoom ?? 1;
+  const previewZoomEl = $('statZoomPreview');
+  // 只在预览被缩放过时出现：常态下不占位，避免状态条常年挂着两个 100%
+  previewZoomEl.hidden = Math.abs(previewZoom - 1) < 0.001;
+  previewZoomEl.textContent = `预览 ${Math.round(previewZoom * 100)}%`;
   const info = store.renderInfo;
   const stat = $('previewStatText');
   const dot = document.querySelector('#previewStat .dot');
