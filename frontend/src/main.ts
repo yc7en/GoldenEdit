@@ -280,6 +280,7 @@ registerPreviewCommands();
 registerEditCommands({
   trigger: (action) => editorHost.trigger(action),
   hasSelection: () => editorHost.hasSelection(),
+  wrapInline: (prefix, suffix) => editorHost.wrapInline(prefix, suffix),
 });
 
 // 键盘进来的命令没有菜单那样的目标，只能按焦点推断（文件树里就是当前文件）

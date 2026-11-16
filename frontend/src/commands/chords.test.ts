@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   chordOf,
   formatChord,
+  matchesChord,
   normalizeKey,
   parseChord,
   sameChord,
@@ -106,5 +107,27 @@ describe('sameChord', () => {
     expect(sameChord(base, parseChord('Shift+K')!)).toBe(false);
     expect(sameChord(base, parseChord('Ctrl+Shift+K')!)).toBe(false);
     expect(sameChord(base, parseChord('Ctrl+J')!)).toBe(false);
+  });
+});
+
+describe('matchesChord', () => {
+  it('字母数字键仍严格比 shift', () => {
+    const bound = parseChord('Ctrl+K')!;
+    expect(matchesChord(bound, parseChord('Ctrl+K')!)).toBe(true);
+    expect(matchesChord(bound, parseChord('Ctrl+Shift+K')!)).toBe(false);
+    expect(matchesChord(parseChord('Ctrl+1')!, parseChord('Ctrl+Shift+1')!)).toBe(false);
+  });
+
+  it('符号键忽略 shift：Ctrl+~ 认得住实际按下的 Ctrl+Shift+`', () => {
+    // 浏览器里 ~ 的 event.key 已是 '~'，shiftKey 却是 true —— 严格比 shift 会永远错过
+    expect(matchesChord(parseChord('Ctrl+~')!, chordOf({ key: '~', ctrlKey: true, shiftKey: true, altKey: false }))).toBe(true);
+    expect(matchesChord(parseChord('Ctrl+-')!, chordOf({ key: '-', ctrlKey: true, shiftKey: false, altKey: false }))).toBe(true);
+  });
+
+  it('键名或 ctrl / alt 不同一律不匹配', () => {
+    const bound = parseChord('Ctrl+~')!;
+    expect(matchesChord(bound, parseChord('Ctrl+1')!)).toBe(false);
+    expect(matchesChord(bound, parseChord('Shift+~')!)).toBe(false);
+    expect(matchesChord(bound, parseChord('Ctrl+Alt+~')!)).toBe(false);
   });
 });

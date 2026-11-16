@@ -5,6 +5,7 @@ import { highlightRanges } from '../../shared/highlight';
 import { bus, store } from '../store';
 import { EDITOR_THEMES, resolveMode, type Mode } from '../theme/tokens';
 import { findFences, rangeToMonaco } from './fences';
+import { planInlineToggle } from './inline';
 import { BASE_FONT_SIZE, lineHeightFor } from './metrics';
 
 /** 与 settings.rs / store.ts 的默认值保持一致；用户可在设置页改成任意 CSS 字体栈 */
@@ -327,6 +328,53 @@ export class EditorHost {
   hasSelection(): boolean {
     const sel = this.editor.getSelection();
     return Boolean(sel && !sel.isEmpty());
+  }
+
+  /**
+   * 行内标记开关：加粗 `**`、斜体 `*`、删除线 `~~`（§8.3）。
+   *
+   * 有选区：外侧已经是同一对标记就剥掉，否则包裹；无选区：插入成对标记并把光标
+   * 停在中间。坐标算术在 `inline.ts` 的纯函数里，这里只负责落到 Monaco。
+   * 一个 `executeEdits` + 前后 undo stop，Ctrl+Z 一步回退。
+   */
+  wrapInline(prefix: string, suffix = prefix): void {
+    const editor = this.editor;
+    const model = editor.getModel();
+    const sel = editor.getSelection();
+    if (!model || !sel) return;
+
+    editor.focus();
+
+    const plan = planInlineToggle(
+      {
+        startLine: sel.startLineNumber,
+        startColumn: sel.startColumn,
+        endLine: sel.endLineNumber,
+        endColumn: sel.endColumn,
+        empty: sel.isEmpty(),
+      },
+      {
+        lineMaxColumn: (line) => model.getLineMaxColumn(line),
+        textBetween: (sl, sc, el, ec) => model.getValueInRange(new monaco.Range(sl, sc, el, ec)),
+      },
+      prefix,
+      suffix
+    );
+
+    editor.pushUndoStop();
+    editor.executeEdits(
+      'goldenedit-inline',
+      plan.edits.map((edit) => ({
+        range: new monaco.Range(edit.startLine, edit.startColumn, edit.endLine, edit.endColumn),
+        text: edit.text,
+        forceMoveMarkers: true,
+      }))
+    );
+    const next = plan.selection;
+    editor.setSelection(
+      new monaco.Selection(next.startLine, next.startColumn, next.endLine, next.endColumn)
+    );
+    editor.pushUndoStop();
   }
 
   /** 触发 Monaco 内置 action。复制粘贴走这条路，命令系统不自己碰剪贴板（§8.3） */

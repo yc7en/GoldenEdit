@@ -152,7 +152,7 @@ export function registerSystemCommands(a: SystemActions): void {
       id: 'view.toggleSide',
       title: '收起 / 展开左栏',
       group: '视图',
-      default: 'Ctrl+B',
+      // Ctrl+B 让给「加粗」（edit.bold）：写作时按得远比收左栏频繁
       run: a.toggleSide,
     },
 

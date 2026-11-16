@@ -18,14 +18,15 @@ import {
 import {
   chordOf,
   formatChord,
+  matchesChord,
   parseChord,
-  sameChord,
   type Chord,
 } from './chords';
 
 export {
   chordOf,
   formatChord,
+  matchesChord,
   normalizeKey,
   parseChord,
   sameChord,
@@ -88,7 +89,7 @@ export function conflictsFor(id: string, chord: Chord): CommandDef[] {
   return allCommands().filter((def) => {
     if (def.id === id) return false;
     const other = bindingOf(def.id);
-    if (!other || !sameChord(other, chord)) return false;
+    if (!other || !matchesChord(other, chord)) return false;
     return contextsOfDef(def).some((c) => mine.includes(c));
   });
 }
@@ -128,7 +129,7 @@ export function dispatchChord(e: KeyboardEvent): boolean {
     // native 命令的键位归宿主（Monaco）自己处理，这里只负责在菜单里显示它
     if (def.native) continue;
     const bound = bindingOf(def.id);
-    if (!bound || !sameChord(bound, chord)) continue;
+    if (!bound || !matchesChord(bound, chord)) continue;
     // 上下文专属的命中优先于 global：Ctrl+C 在文件树里是复制文件，不是复制文本
     const specific = !allows(def, 'global');
     tiers[specific ? 0 : 1].push(def);

@@ -12,6 +12,8 @@ export interface EditActions {
   trigger: (action: string) => void;
   /** 有选区才能复制 / 剪切 */
   hasSelection: () => boolean;
+  /** 行内标记开关：有选区就包裹 / 剥掉，无选区插入成对标记并把光标停在中间 */
+  wrapInline: (prefix: string, suffix?: string) => void;
 }
 
 export function registerEditCommands(a: EditActions): void {
@@ -50,6 +52,35 @@ export function registerEditCommands(a: EditActions): void {
       source: 'system',
       native: true,
       run: () => a.trigger('editor.action.clipboardPasteAction'),
+    },
+
+    /* 行内格式：只有编辑区有焦点时才响应，避免在文件树里按 Ctrl+B 改文档 */
+    {
+      id: 'edit.bold',
+      title: '加粗',
+      group: '格式',
+      when: [...editorWhen],
+      default: 'Ctrl+B',
+      source: 'system',
+      run: () => a.wrapInline('**'),
+    },
+    {
+      id: 'edit.italic',
+      title: '斜体',
+      group: '格式',
+      when: [...editorWhen],
+      default: 'Ctrl+I',
+      source: 'system',
+      run: () => a.wrapInline('*'),
+    },
+    {
+      id: 'edit.strikethrough',
+      title: '删除线',
+      group: '格式',
+      when: [...editorWhen],
+      default: 'Ctrl+~',
+      source: 'system',
+      run: () => a.wrapInline('~~'),
     },
   ]);
 }

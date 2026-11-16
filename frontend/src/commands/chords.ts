@@ -97,6 +97,25 @@ export function sameChord(a: Chord, b: Chord): boolean {
   return a.ctrl === b.ctrl && a.shift === b.shift && a.alt === b.alt && a.key === b.key;
 }
 
+/** 需要按住 Shift 才能敲出来的符号键（`~ ! @ # $ % ^ & * ( ) _ + { } | : " < > ?`） */
+function isShiftedSymbol(key: string): boolean {
+  return key.length === 1 && !/[A-Za-z0-9]/.test(key);
+}
+
+/**
+ * 分发与冲突检测用的键位匹配，比 `sameChord` 宽一档。
+ *
+ * 符号键本身就得按住 Shift 才敲得出来：绑 `Ctrl+~` 时用户实际按的是
+ * Ctrl+Shift+`，`event.key` 已经是 `~`、`shiftKey` 却是 true。严格比 shift 的话
+ * 这类绑定永远命中不了。字母数字键不受影响（`Ctrl+1` 与 `Ctrl+Shift+1` 仍是两条）。
+ */
+export function matchesChord(bound: Chord, actual: Chord): boolean {
+  if (bound.key !== actual.key) return false;
+  if (bound.ctrl !== actual.ctrl || bound.alt !== actual.alt) return false;
+  if (bound.shift === actual.shift) return true;
+  return isShiftedSymbol(bound.key);
+}
+
 /**
  * 当前是否 macOS。只影响**显示与少数默认值**，不影响存储格式
  * （存储永远是 `Ctrl+…`，否则设置文件跨平台就废了）。见 ARCHITECTURE §8.4。
