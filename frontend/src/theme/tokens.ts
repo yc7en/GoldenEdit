@@ -18,44 +18,51 @@ export const PRESETS: Record<string, ThemePreset> = {
 };
 
 /**
- * 预览主题：与编辑区同源，都取 VS Code 扩展 `teabyii.ayu` 的 Ayu Light / Ayu Dark。
- * 语义色不是随手挑的浅深两版，而是 Ayu 自己的角色色：
- * 强调=accent 橙、链接/信息=blue、提示=teal、成功/字符串=green、警告=yellow、错误=red。
+ * 预览主题：取自 VS Code 扩展 `leo.markdown-extended-preview` 的预览配色接管
+ * （media/preview.css §6 的 mdext-scheme-light / mdext-scheme-dark）。
+ *
+ * 那套色板本身就是 VS Code 默认工作台色：浅色 #ffffff/#1f1f1f，深色
+ * #1e1e1e/#d4d4d4，链接走 --vscode-textLink-foreground，提示框走扩展自己的
+ * admonition 调色板。所以预览区不再跟随编辑区的 Ayu，两处本来就是分离的：
+ * 编辑区是写的地方，预览是读的地方，各有各的观感。
+ *
+ * `--ge-hl-*` 不在这里：代码块语法高亮仍与编辑区同源（ARCHITECTURE §7 要求
+ * 同一个关键词两侧颜色恒等），只换界面色不换语法色。
  */
 export const PREVIEW_TOKENS: Record<Mode, Record<string, string>> = {
   light: {
-    '--ge-bg': '#fcfcfc',
-    '--ge-bg-subtle': '#f0f1f3',
-    '--ge-fg': '#5c6166',
-    '--ge-fg-muted': '#8a9199',
-    '--ge-border': '#e7eaed',
-    '--ge-accent': '#ff9940',
+    '--ge-bg': '#ffffff',
+    '--ge-bg-subtle': '#f3f3f3',
+    '--ge-fg': '#1f1f1f',
+    '--ge-fg-muted': '#6b6b6b',
+    '--ge-border': '#e4e4e4',
+    '--ge-accent': '#0969da',
     '--ge-accent-fg': '#ffffff',
-    '--ge-code-bg': '#f0f1f3',
-    '--ge-code-fg': '#40464c',
-    '--ge-link': '#399ee6',
-    '--ge-note': '#399ee6',
-    '--ge-tip': '#4cbf99',
-    '--ge-warn': '#fa8d3e',
-    '--ge-danger': '#e65050',
-    '--ge-success': '#6cbf43',
+    '--ge-code-bg': '#f3f3f3',
+    '--ge-code-fg': '#1f1f1f',
+    '--ge-link': '#0969da',
+    '--ge-note': '#3b82f6',
+    '--ge-tip': '#14b8a6',
+    '--ge-warn': '#f59e0b',
+    '--ge-danger': '#cd3131',
+    '--ge-success': '#388a34',
   },
   dark: {
-    '--ge-bg': '#10141c',
-    '--ge-bg-subtle': '#161a24',
-    '--ge-fg': '#bfbdb6',
-    '--ge-fg-muted': '#626a73',
-    '--ge-border': '#1b1f29',
-    '--ge-accent': '#e6b450',
-    '--ge-accent-fg': '#10141c',
-    '--ge-code-bg': '#161a24',
-    '--ge-code-fg': '#bfbdb6',
-    '--ge-link': '#59c2ff',
-    '--ge-note': '#59c2ff',
-    '--ge-tip': '#95e6cb',
-    '--ge-warn': '#ffb454',
-    '--ge-danger': '#f07178',
-    '--ge-success': '#aad94c',
+    '--ge-bg': '#1e1e1e',
+    '--ge-bg-subtle': '#252526',
+    '--ge-fg': '#d4d4d4',
+    '--ge-fg-muted': '#9d9d9d',
+    '--ge-border': '#3c3c3c',
+    '--ge-accent': '#4daafc',
+    '--ge-accent-fg': '#1e1e1e',
+    '--ge-code-bg': '#252526',
+    '--ge-code-fg': '#d4d4d4',
+    '--ge-link': '#4daafc',
+    '--ge-note': '#3b82f6',
+    '--ge-tip': '#14b8a6',
+    '--ge-warn': '#f59e0b',
+    '--ge-danger': '#f48771',
+    '--ge-success': '#73c991',
   },
 };
 

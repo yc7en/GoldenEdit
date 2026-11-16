@@ -68,7 +68,7 @@ export class PreviewHost {
   private settings!: Settings;
   private plugins: PluginManifest[] = [];
   private docPath = '';
-  private width = 980;
+  private width = 750;
   private themeMode: 'light' | 'dark' = 'light';
   paused = false;
   private lastText = '';

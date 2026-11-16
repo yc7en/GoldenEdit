@@ -291,9 +291,9 @@ setContextArgProvider((ctx) => {
 
 /* ───────── 启动 ───────── */
 
-/** 预览宽度的四档预设（P28 从平铺分段收成图标下拉） */
-const WIDTH_LABELS: Record<number, string> = { 980: '980', 794: 'A4', 390: '390', 0: '自适应' };
-const WIDTH_FALLBACK = 980;
+/** 预览宽度的五档预设（P28 从平铺分段收成图标下拉；「阅读」是本轮排版主题的默认） */
+const WIDTH_LABELS: Record<number, string> = { 750: '阅读', 980: '980', 794: 'A4', 390: '390', 0: '自适应' };
+const WIDTH_FALLBACK = 750;
 
 /** 宽度下拉的唯一同步点：触发器文字 + 菜单打勾都从这里改，避免两处漂移 */
 function syncWidthUi(width: number | undefined): void {

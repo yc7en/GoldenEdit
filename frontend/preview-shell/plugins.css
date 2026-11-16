@@ -1,23 +1,23 @@
 /* 预览外壳样式。所有颜色必须来自 --ge-* 变量，插件同样只能消费这些变量。 */
 
 :root {
-  /* Ayu Light。这里的值与 frontend/src/theme/tokens.ts 的 PREVIEW_TOKENS.light 恒等：
-     tokens.ts 注入只是覆盖，CSS 兜底不能留另一套配色。 */
-  --ge-bg: #fcfcfc;
-  --ge-bg-subtle: #f0f1f3;
-  --ge-fg: #5c6166;
-  --ge-fg-muted: #8a9199;
-  --ge-border: #e7eaed;
-  --ge-accent: #ff9940;
+  /* VS Code 默认浅色。这里的值与 frontend/src/theme/tokens.ts 的 PREVIEW_TOKENS.light
+     恒等：tokens.ts 注入只是覆盖，CSS 兜底不能留另一套配色。 */
+  --ge-bg: #ffffff;
+  --ge-bg-subtle: #f3f3f3;
+  --ge-fg: #1f1f1f;
+  --ge-fg-muted: #6b6b6b;
+  --ge-border: #e4e4e4;
+  --ge-accent: #0969da;
   --ge-accent-fg: #ffffff;
-  --ge-code-bg: #f0f1f3;
-  --ge-code-fg: #40464c;
-  --ge-link: #399ee6;
-  --ge-note: #399ee6;
-  --ge-tip: #4cbf99;
-  --ge-warn: #fa8d3e;
-  --ge-danger: #e65050;
-  --ge-success: #6cbf43;
+  --ge-code-bg: #f3f3f3;
+  --ge-code-fg: #1f1f1f;
+  --ge-link: #0969da;
+  --ge-note: #3b82f6;
+  --ge-tip: #14b8a6;
+  --ge-warn: #f59e0b;
+  --ge-danger: #cd3131;
+  --ge-success: #388a34;
   --ge-radius: 6px;
   --ge-font: 'Segoe UI', 'Microsoft YaHei', -apple-system, system-ui, sans-serif;
   --ge-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
@@ -35,22 +35,22 @@
 }
 
 :root[data-mode='dark'] {
-  /* Ayu Dark */
-  --ge-bg: #10141c;
-  --ge-bg-subtle: #161a24;
-  --ge-fg: #bfbdb6;
-  --ge-fg-muted: #626a73;
-  --ge-border: #1b1f29;
-  --ge-accent: #e6b450;
-  --ge-accent-fg: #10141c;
-  --ge-code-bg: #161a24;
-  --ge-code-fg: #bfbdb6;
-  --ge-link: #59c2ff;
-  --ge-note: #59c2ff;
-  --ge-tip: #95e6cb;
-  --ge-warn: #ffb454;
-  --ge-danger: #f07178;
-  --ge-success: #aad94c;
+  /* VS Code 默认深色 */
+  --ge-bg: #1e1e1e;
+  --ge-bg-subtle: #252526;
+  --ge-fg: #d4d4d4;
+  --ge-fg-muted: #9d9d9d;
+  --ge-border: #3c3c3c;
+  --ge-accent: #4daafc;
+  --ge-accent-fg: #1e1e1e;
+  --ge-code-bg: #252526;
+  --ge-code-fg: #d4d4d4;
+  --ge-link: #4daafc;
+  --ge-note: #3b82f6;
+  --ge-tip: #14b8a6;
+  --ge-warn: #f59e0b;
+  --ge-danger: #f48771;
+  --ge-success: #73c991;
   /* highlight.js token（暗色，Ayu Dark 语法色） */
   --ge-hl-comment: #5a6673;
   --ge-hl-keyword: #ff8f40;
@@ -160,7 +160,9 @@ body {
 
 #ge-root,
 .ge-doc {
-  max-width: 980px;
+  /* 50em ≈ 750px @15px，中文约 50 字/行。宽度用 em 不用 px：
+     调 body 字号时「每行字数」保持不变，而不是整栏一起缩放。 */
+  max-width: 50em;
   margin: 0 auto;
 }
 
@@ -212,6 +214,8 @@ body {
 }
 
 /* ── 排版 ── */
+/* 阅读向：去掉 h1/h2 的整条下划线，改用留白分层；字号阶梯收窄，
+   让标题是「章节标记」而不是「大字报」。 */
 h1,
 h2,
 h3,
@@ -220,40 +224,61 @@ h5,
 h6 {
   font-weight: 650;
   line-height: 1.35;
+  letter-spacing: -0.01em;
   margin: 1.6em 0 0.6em;
-  letter-spacing: 0.2px;
+  border-bottom: none;
+  padding-bottom: 0;
+  scroll-margin-top: 1.2em;
 }
 
 h1 {
-  font-size: 1.72em;
-  border-bottom: 1px solid var(--ge-border);
-  padding-bottom: 0.32em;
+  font-size: 1.7em;
+  letter-spacing: -0.018em;
+  margin: 0 0 1em;
 }
 h2 {
-  font-size: 1.34em;
+  font-size: 1.3em;
+  margin: 2.6em 0 0.75em;
 }
 h3 {
-  font-size: 1.12em;
+  font-size: 1.1em;
+  margin: 2em 0 0.6em;
 }
-h4,
-h5,
-h6 {
+h4 {
   font-size: 1em;
+  margin: 1.7em 0 0.5em;
+}
+h5 {
+  font-size: 0.94em;
+  margin: 1.5em 0 0.45em;
+  color: var(--ge-fg-muted);
+}
+h6 {
+  font-size: 0.9em;
+  margin: 1.5em 0 0.45em;
   color: var(--ge-fg-muted);
 }
 
+/* 紧跟在标题后的段落不要拉开太多 */
+:is(h1, h2, h3, h4, h5, h6) + p {
+  margin-top: 0;
+}
+
 p {
-  margin: 0 0 0.95em;
+  margin: 0 0 1.15em;
+  text-wrap: pretty; /* 避免末行孤字，不支持的浏览器会忽略 */
 }
 
 a {
   color: var(--ge-link);
-  text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--ge-link) 40%, transparent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
 a:hover {
-  border-bottom-color: var(--ge-link);
+  text-decoration-color: currentColor;
 }
 
 strong {
@@ -262,12 +287,12 @@ strong {
 
 ul,
 ol {
-  margin: 0 0 0.95em;
-  padding-left: 1.5em;
+  margin: 0 0 1.15em;
+  padding-left: 1.55em;
 }
 
 li {
-  margin: 0.18em 0;
+  margin: 0.3em 0;
 }
 
 li > ul,
@@ -275,22 +300,38 @@ li > ol {
   margin: 0.18em 0;
 }
 
-blockquote {
-  margin: 0 0 1em;
-  padding: 0.2em 1em;
-  border-left: 3px solid var(--ge-border);
+li > p {
+  margin-bottom: 0.45em;
+}
+
+li::marker {
   color: var(--ge-fg-muted);
 }
 
-hr {
-  border: 0;
-  border-top: 1px solid var(--ge-border);
-  margin: 1.8em 0;
+blockquote {
+  margin: 1.4em 0;
+  padding: 0.15em 0 0.15em 1.1em;
+  border-left: 3px solid color-mix(in srgb, var(--ge-fg-muted) 60%, transparent);
+  background: none;
+  border-radius: 0;
+  color: var(--ge-fg-muted);
 }
 
-img {
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+hr {
+  height: 0;
+  border: 0;
+  border-top: 1px solid var(--ge-border);
+  margin: 2.8em 0;
+}
+
+img,
+video {
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 /* ── 代码 ── */
@@ -299,18 +340,24 @@ img {
    代码块基础色在 pre code 里显式恢复，避免被这个深色污染。 */
 code {
   font-family: var(--ge-mono);
-  font-size: 0.88em;
+  font-size: 0.92em;
   background: var(--ge-code-bg);
   color: #141925;
-  padding: 0.12em 0.36em;
-  border-radius: 3px;
+  padding: 0.16em 0.38em;
+  border-radius: 4px;
+}
+
+/* 深色主题下 #141925 与 --ge-code-bg 的对比度不足 1.2，等于隐形；
+   这里跟着翻转，别让唯一的行内代码色变成看不见的方块。 */
+:root[data-mode='dark'] code {
+  color: #d4d4d4;
 }
 
 pre {
-  margin: 0 0 1em;
+  margin: 1.2em 0;
   padding: 0.85em 1em;
   background: var(--ge-code-bg);
-  border-radius: var(--ge-radius);
+  border-radius: 8px;
   overflow: auto;
   border: 1px solid var(--ge-border);
 }
@@ -327,21 +374,25 @@ pre code {
 table {
   border-collapse: collapse;
   width: 100%;
-  margin: 0 0 1em;
-  font-size: 0.94em;
+  max-width: 100%;
+  margin: 1.5em 0;
+  font-size: 0.96em;
+  font-variant-numeric: tabular-nums; /* 数字列等宽，方便纵向比对 */
 }
 
 th,
 td {
   border: 1px solid var(--ge-border);
-  padding: 0.42em 0.7em;
+  padding: 0.55em 0.85em;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: break-word; /* 超长内容换行，避免撑破阅读栏 */
 }
 
-th {
+thead th {
   background: var(--ge-bg-subtle);
   font-weight: 600;
+  border-bottom: 1px solid color-mix(in srgb, var(--ge-fg-muted) 55%, transparent);
 }
 
 tbody tr:nth-child(even) td {

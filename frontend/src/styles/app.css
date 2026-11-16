@@ -445,7 +445,7 @@ textarea {
   opacity: 0.65;
 }
 
-/* 宽度下拉（P28）：980 / A4 / 390 / 自适应 */
+/* 宽度下拉（P28）：阅读 750 / 980 / A4 / 390 / 自适应 */
 .popmenu {
   position: absolute;
   top: calc(100% + 6px);
