@@ -113,6 +113,12 @@ export class EditorHost {
       occurrencesHighlight: 'off',
       overviewRulerLanes: 0,
       guides: { indentation: false },
+      // 中文写作里全角标点是正文，不是"可疑字符"。Monaco 的兜底表 `_default`
+      // 却把 ，；？！： 全列为「易与 ASCII 混淆」，原因见 BugFix-261116-0002：
+      // 独立包拿到的 locale 是 `zh-CN` / `en`，而它的语言表只认 `zh-hans`，
+      // 对不上就回落到兜底表。显式指定后按中文规则判定——真正的易混字符
+      // （西里尔 а 冒充拉丁 a）与不可见字符仍会提示。
+      unicodeHighlight: { allowedLocales: { 'zh-hans': true } },
     });
 
     this.hlDecorations = this.editor.createDecorationsCollection();
