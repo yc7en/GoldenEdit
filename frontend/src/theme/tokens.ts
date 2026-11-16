@@ -18,6 +18,20 @@ export const PRESETS: Record<string, ThemePreset> = {
 };
 
 /**
+ * 行内代码（反引号内文字）的颜色。编辑区 `TOKEN_RULES` 的 `variable.md` 与预览的
+ * `--ge-inline-code-fg` / `--ge-inline-code-bg` 共用这一份——两侧必须同值，否则同一
+ * 段 `README.md` 会一边一个色（`R-261116-0005`）。
+ *
+ * 亮色取自 VS Code 内置 Markdown 预览的行内代码（Bootstrap 风格：字 `#c7254e`、
+ * 底 `#f9f2f4`）。暗色是同一色相的提亮版，底取极暗粉——亮粉块压在深色正文里会
+ * 抢走全部注意力，只剩「这里有个代码」这一个信息需要保留。
+ */
+export const INLINE_CODE: Record<Mode, { fg: string; bg: string }> = {
+  light: { fg: '#c7254e', bg: '#f9f2f4' },
+  dark: { fg: '#ff8fa3', bg: '#2e2026' },
+};
+
+/**
  * 预览主题：底板取自 VS Code 扩展 `leo.markdown-extended-preview` 的预览配色接管
  * （media/preview.css §6 的 mdext-scheme-light / mdext-scheme-dark），即 VS Code
  * 默认工作台色：浅色 #ffffff、深色 #1e1e1e，链接走 --vscode-textLink-foreground，
@@ -46,6 +60,8 @@ export const PREVIEW_TOKENS: Record<Mode, Record<string, string>> = {
     '--ge-accent-fg': '#ffffff',
     '--ge-code-bg': '#f3f3f3',
     '--ge-code-fg': '#5c6166',
+    '--ge-inline-code-fg': INLINE_CODE.light.fg,
+    '--ge-inline-code-bg': INLINE_CODE.light.bg,
     '--ge-link': '#0969da',
     '--ge-note': '#3b82f6',
     '--ge-tip': '#14b8a6',
@@ -64,6 +80,8 @@ export const PREVIEW_TOKENS: Record<Mode, Record<string, string>> = {
     '--ge-accent-fg': '#1e1e1e',
     '--ge-code-bg': '#252526',
     '--ge-code-fg': '#bfbdb6',
+    '--ge-inline-code-fg': INLINE_CODE.dark.fg,
+    '--ge-inline-code-bg': INLINE_CODE.dark.bg,
     '--ge-link': '#4daafc',
     '--ge-note': '#3b82f6',
     '--ge-tip': '#14b8a6',

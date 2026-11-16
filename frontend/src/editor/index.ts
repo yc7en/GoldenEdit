@@ -3,7 +3,7 @@ import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 
 import { highlightRanges } from '../../shared/highlight';
 import { bus, store } from '../store';
-import { EDITOR_THEMES, resolveMode, type Mode } from '../theme/tokens';
+import { EDITOR_THEMES, INLINE_CODE, resolveMode, type Mode } from '../theme/tokens';
 import { findFences, rangeToMonaco } from './fences';
 import { planInlineToggle } from './inline';
 import { BASE_FONT_SIZE, lineHeightFor } from './metrics';
@@ -29,7 +29,8 @@ const TOKEN_RULES: Record<Mode, monaco.editor.ITokenThemeRule[]> = {
     { token: 'keyword.md', foreground: 'aad94c', fontStyle: 'bold' },
     { token: 'strong.md', foreground: 'f07178', fontStyle: 'bold' },
     { token: 'emphasis.md', foreground: 'f07178', fontStyle: 'italic' },
-    { token: 'variable.md', foreground: 'f29668' },
+    // 行内代码：与预览 --ge-inline-code-fg 同源（INLINE_CODE）
+    { token: 'variable.md', foreground: INLINE_CODE.dark.fg.slice(1) },
     { token: 'string.link.md', foreground: '39bae6' },
     { token: 'string.target.md', foreground: '39bae6' },
     { token: 'comment.md', foreground: '95e6cb', fontStyle: 'italic' },
@@ -50,7 +51,8 @@ const TOKEN_RULES: Record<Mode, monaco.editor.ITokenThemeRule[]> = {
     { token: 'keyword.md', foreground: '86b300', fontStyle: 'bold' },
     { token: 'strong.md', foreground: 'f07171', fontStyle: 'bold' },
     { token: 'emphasis.md', foreground: 'f07171', fontStyle: 'italic' },
-    { token: 'variable.md', foreground: 'f2a191' },
+    // 行内代码：与预览 --ge-inline-code-fg 同源（INLINE_CODE）
+    { token: 'variable.md', foreground: INLINE_CODE.light.fg.slice(1) },
     { token: 'string.link.md', foreground: '55b4d4' },
     { token: 'string.target.md', foreground: '55b4d4' },
     { token: 'comment.md', foreground: '4cbf99', fontStyle: 'italic' },

@@ -12,6 +12,8 @@
   --ge-accent-fg: #ffffff;
   --ge-code-bg: #f3f3f3;
   --ge-code-fg: #5c6166;
+  --ge-inline-code-fg: #c7254e;
+  --ge-inline-code-bg: #f9f2f4;
   --ge-link: #0969da;
   --ge-note: #3b82f6;
   --ge-tip: #14b8a6;
@@ -45,6 +47,8 @@
   --ge-accent-fg: #1e1e1e;
   --ge-code-bg: #252526;
   --ge-code-fg: #bfbdb6;
+  --ge-inline-code-fg: #ff8fa3;
+  --ge-inline-code-bg: #2e2026;
   --ge-link: #4daafc;
   --ge-note: #3b82f6;
   --ge-tip: #14b8a6;
@@ -335,25 +339,17 @@ video {
 }
 
 /* ── 代码 ── */
-/* 行内代码文字色 #141925（用户指定）。
-   本文件只被右侧预览外壳加载，主窗口（中间 Monaco 编辑区）不受影响。
-   代码块基础色在 pre code 里显式恢复，避免被这个深色污染。 */
+/* 行内代码（反引号内文字）：浅粉底 + 玫红字，取自 VS Code 内置 Markdown 预览的
+   行内代码样式。色值来自 --ge-inline-code-*，与编辑区 TOKEN_RULES 的 variable.md
+   同源（R-261116-0005）——左右并排时同一段 `README.md` 必须同一个颜色。
+   代码块不走这里：pre code 会把底色与文字色都恢复成 --ge-code-bg / --ge-code-fg。 */
 code {
   font-family: var(--ge-mono);
   font-size: 0.92em;
-  background: var(--ge-code-bg);
-  color: #141925;
+  background: var(--ge-inline-code-bg);
+  color: var(--ge-inline-code-fg);
   padding: 0.16em 0.38em;
   border-radius: 4px;
-}
-
-/* 深色主题下 #141925 与 --ge-code-bg 的对比度不足 1.2，等于隐形。
-   这里取编辑区行内代码（`variable.md`）的 Ayu 橙 #f29668，两侧同色 ——
-   左右并排时同一段 `README.md` 不该一边橙一边白。
-   亮色不跟：Ayu Light 的行内代码是 #f2a191，压在 #f3f3f3 底上对比度只有
-   1.9，等于把代码看没了，所以亮色继续用 #141925。 */
-:root[data-mode='dark'] code {
-  color: #f29668;
 }
 
 pre {

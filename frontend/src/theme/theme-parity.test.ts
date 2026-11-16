@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { EDITOR_THEMES, PREVIEW_TOKENS, type Mode } from './tokens';
+import { EDITOR_THEMES, INLINE_CODE, PREVIEW_TOKENS, type Mode } from './tokens';
 
 /**
  * 回归护栏（R-261116-0004）：左右两栏并排时正文是同一段文字。
@@ -44,10 +44,10 @@ describe('左右两栏的文字色', () => {
 });
 
 describe('行内代码色', () => {
-  it('暗色取编辑区行内代码（variable.md）的 Ayu 橙', () => {
-    const dark = cssVars(":root[data-mode='dark'] {");
-    // 只断言配色来源，不做「两处必须相等」的强约束：亮色为对比度让步
-    expect(previewCss).toMatch(/:root\[data-mode='dark'\] code\s*\{[^}]*color:\s*#f29668/);
-    expect(dark['--ge-code-bg']).toBe(PREVIEW_TOKENS.dark['--ge-code-bg']);
-  });
+  for (const mode of MODES) {
+    it(`${mode}：预览变量取自 INLINE_CODE（编辑区 variable.md 同源）`, () => {
+      expect(PREVIEW_TOKENS[mode]['--ge-inline-code-fg']).toBe(INLINE_CODE[mode].fg);
+      expect(PREVIEW_TOKENS[mode]['--ge-inline-code-bg']).toBe(INLINE_CODE[mode].bg);
+    });
+  }
 });
