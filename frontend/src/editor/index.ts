@@ -16,29 +16,55 @@ self.MonacoEnvironment = {
   getWorker: () => new EditorWorker(),
 };
 
+/**
+ * Monaco 的 Markdown token 带 `.md` 后缀（monarch 的 tokenPostfix），且只产出
+ * `keyword` / `strong` / `emphasis` / `variable` / `string.link` 这类简化名，
+ * 不是 TextMate 的 `markup.*` scope —— 写 `markup.heading` 在这套 tokenizer 里
+ * 永远匹配不上。这里后缀写全，同时避免污染围栏里嵌入语言的同名 token。
+ */
 const TOKEN_RULES: Record<Mode, monaco.editor.ITokenThemeRule[]> = {
   dark: [
-    { token: 'markup.heading', foreground: 'd9b866', fontStyle: 'bold' },
-    { token: 'markup.heading.markdown', foreground: 'd9b866', fontStyle: 'bold' },
-    { token: 'markup.bold', foreground: 'e5e2d8', fontStyle: 'bold' },
-    { token: 'markup.italic', foreground: 'cfcbbf', fontStyle: 'italic' },
-    { token: 'markup.quote', foreground: '8f8d84' },
-    { token: 'markup.inline', foreground: 'c9a24a' },
-    { token: 'string', foreground: '9fbf8f' },
-    { token: 'keyword', foreground: 'd3ab55' },
-    { token: 'variable', foreground: 'd7d6d0' },
-    { token: 'comment', foreground: '6b6b66', fontStyle: 'italic' },
+    // 标题、列表符号、表格分隔行共用 keyword.md，无法再细分
+    { token: 'keyword.md', foreground: 'aad94c', fontStyle: 'bold' },
+    { token: 'strong.md', foreground: 'f07178', fontStyle: 'bold' },
+    { token: 'emphasis.md', foreground: 'f07178', fontStyle: 'italic' },
+    { token: 'variable.md', foreground: 'f29668' },
+    { token: 'string.link.md', foreground: '39bae6' },
+    { token: 'string.target.md', foreground: '39bae6' },
+    { token: 'comment.md', foreground: '95e6cb', fontStyle: 'italic' },
+    { token: 'comment.content.md', foreground: '5a6673', fontStyle: 'italic' },
+    { token: 'string.md', foreground: '95e6cb' },
+    { token: 'variable.source.md', foreground: 'bfbdb6' },
+    { token: 'keyword.table.header.md', foreground: '39bae6' },
+    { token: 'keyword.table.left.md', foreground: '5a6673' },
+    { token: 'keyword.table.middle.md', foreground: '5a6673' },
+    { token: 'keyword.table.right.md', foreground: '5a6673' },
+    { token: 'meta.separator.md', foreground: '5a6673' },
+    { token: 'tag.md', foreground: '39bae6' },
+    { token: 'attribute.name.html.md', foreground: 'ffb454' },
+    { token: 'string.html.md', foreground: 'aad94c' },
+    { token: 'string.escape.md', foreground: '95e6cb' },
   ],
   light: [
-    { token: 'markup.heading', foreground: '8a6a20', fontStyle: 'bold' },
-    { token: 'markup.heading.markdown', foreground: '8a6a20', fontStyle: 'bold' },
-    { token: 'markup.bold', foreground: '2b2a26', fontStyle: 'bold' },
-    { token: 'markup.italic', foreground: '4a4841', fontStyle: 'italic' },
-    { token: 'markup.quote', foreground: '7c7a70' },
-    { token: 'markup.inline', foreground: 'a8802f' },
-    { token: 'string', foreground: '4a7c59' },
-    { token: 'keyword', foreground: 'a8802f' },
-    { token: 'comment', foreground: '9a988c', fontStyle: 'italic' },
+    { token: 'keyword.md', foreground: '86b300', fontStyle: 'bold' },
+    { token: 'strong.md', foreground: 'f07171', fontStyle: 'bold' },
+    { token: 'emphasis.md', foreground: 'f07171', fontStyle: 'italic' },
+    { token: 'variable.md', foreground: 'f2a191' },
+    { token: 'string.link.md', foreground: '55b4d4' },
+    { token: 'string.target.md', foreground: '55b4d4' },
+    { token: 'comment.md', foreground: '4cbf99', fontStyle: 'italic' },
+    { token: 'comment.content.md', foreground: 'adaeb1', fontStyle: 'italic' },
+    { token: 'string.md', foreground: '4cbf99' },
+    { token: 'variable.source.md', foreground: '5c6166' },
+    { token: 'keyword.table.header.md', foreground: '55b4d4' },
+    { token: 'keyword.table.left.md', foreground: 'adaeb1' },
+    { token: 'keyword.table.middle.md', foreground: 'adaeb1' },
+    { token: 'keyword.table.right.md', foreground: 'adaeb1' },
+    { token: 'meta.separator.md', foreground: 'adaeb1' },
+    { token: 'tag.md', foreground: '55b4d4' },
+    { token: 'attribute.name.html.md', foreground: 'eba400' },
+    { token: 'string.html.md', foreground: '86b300' },
+    { token: 'string.escape.md', foreground: '4cbf99' },
   ],
 };
 

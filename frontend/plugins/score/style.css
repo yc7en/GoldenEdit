@@ -9,12 +9,12 @@
  */
 
 .ge-score {
-  --ge-score-paper: #fffefb;
-  --ge-score-ink: #2b2a26;
-  --ge-score-line: #e3e2da;
-  --ge-score-muted: #6f6e66;
-  --ge-score-soft: #f6f5ef;
-  --ge-score-err: #a8443a;
+  --ge-score-paper: #fcfcfc;
+  --ge-score-ink: #40464c;
+  --ge-score-line: #e7eaed;
+  --ge-score-muted: #8a9199;
+  --ge-score-soft: #f0f1f3;
+  --ge-score-err: #e65050;
 
   margin: 1.2em 0;
   padding: 14px 16px;

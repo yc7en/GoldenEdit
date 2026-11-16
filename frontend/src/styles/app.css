@@ -39,13 +39,13 @@ textarea {
   height: 9px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cfcdc2;
+  background: #d8dbe0;
   border-radius: 6px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b9b7ab;
+  background: #c2c8d0;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-track {
@@ -108,7 +108,7 @@ textarea {
   color: var(--t1);
 }
 .winbtn--close:hover {
-  background: #c0392b;
+  background: #e65050;
   color: #fff;
 }
 .winbtn .winico-restore {
@@ -875,7 +875,7 @@ textarea {
 .pane--preview {
   flex: 0 0 46%;
   min-width: 280px;
-  background: #f3f2ec;
+  background: #f3f4f5;
   transition: flex-basis 0.26s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.16s ease;
   overflow: hidden;
 }
@@ -1035,8 +1035,8 @@ textarea {
   color: #fff;
 }
 .btn--gold:hover {
-  background: #a17c33;
-  border-color: #a17c33;
+  background: #e08a2e;
+  border-color: #e08a2e;
   color: #fff;
 }
 .btn--sm {
@@ -1080,7 +1080,7 @@ textarea {
 .segs {
   display: flex;
   gap: 1px;
-  background: #e2e1d8;
+  background: #e7eaed;
   border-radius: 5px;
   padding: 1px;
 }
@@ -1255,7 +1255,7 @@ textarea {
   border-color: var(--line);
 }
 .card.is-broken {
-  border-color: #e2b6b0;
+  border-color: #f3c4c4;
 }
 .card__top {
   display: flex;
@@ -1298,15 +1298,15 @@ textarea {
   color: var(--t2);
 }
 .tag--l0 {
-  background: #eef3ee;
+  background: #eef7e8;
   color: var(--green);
 }
 .tag--l2 {
-  background: #fdf3e3;
+  background: #fdf0e3;
   color: var(--amber);
 }
 .tag--l3 {
-  background: #fbeceb;
+  background: #fbecec;
   color: var(--red);
 }
 .card__foot {
@@ -1678,7 +1678,7 @@ textarea {
 }
 .toast {
   background: var(--dark);
-  color: #f4f1e8;
+  color: #f0f1f3;
   font-size: 11.5px;
   padding: 7px 12px;
   border-radius: 7px;
@@ -1687,7 +1687,7 @@ textarea {
   animation: toast-in 0.18s ease;
 }
 .toast--err {
-  background: #7d2a22;
+  background: #a8322c;
 }
 @keyframes toast-in {
   from {

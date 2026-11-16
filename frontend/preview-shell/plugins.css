@@ -1,64 +1,67 @@
 /* 预览外壳样式。所有颜色必须来自 --ge-* 变量，插件同样只能消费这些变量。 */
 
 :root {
-  --ge-bg: #fffefb;
-  --ge-bg-subtle: #f6f5ef;
-  --ge-fg: #2b2a26;
-  --ge-fg-muted: #6f6e66;
-  --ge-border: #e3e2da;
-  --ge-accent: #a8802f;
-  --ge-accent-fg: #fffdf6;
-  --ge-code-bg: #f4f3ec;
-  --ge-code-fg: #3c3a33;
-  --ge-link: #8a6a20;
-  --ge-note: #4a6f8a;
-  --ge-tip: #4a7c59;
-  --ge-warn: #a8722a;
-  --ge-danger: #a8443a;
-  --ge-success: #4a7c59;
+  /* Ayu Light。这里的值与 frontend/src/theme/tokens.ts 的 PREVIEW_TOKENS.light 恒等：
+     tokens.ts 注入只是覆盖，CSS 兜底不能留另一套配色。 */
+  --ge-bg: #fcfcfc;
+  --ge-bg-subtle: #f0f1f3;
+  --ge-fg: #5c6166;
+  --ge-fg-muted: #8a9199;
+  --ge-border: #e7eaed;
+  --ge-accent: #ff9940;
+  --ge-accent-fg: #ffffff;
+  --ge-code-bg: #f0f1f3;
+  --ge-code-fg: #40464c;
+  --ge-link: #399ee6;
+  --ge-note: #399ee6;
+  --ge-tip: #4cbf99;
+  --ge-warn: #fa8d3e;
+  --ge-danger: #e65050;
+  --ge-success: #6cbf43;
   --ge-radius: 6px;
   --ge-font: 'Segoe UI', 'Microsoft YaHei', -apple-system, system-ui, sans-serif;
   --ge-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-  /* highlight.js token（亮色，github 风格） */
-  --ge-hl-comment: #6a737d;
-  --ge-hl-keyword: #d73a49;
-  --ge-hl-string: #032f62;
-  --ge-hl-title: #6f42c1;
-  --ge-hl-number: #005cc5;
-  --ge-hl-builtin: #e36209;
-  --ge-hl-meta: #8a6a20;
-  --ge-hl-deletion: #b31d28;
-  --ge-hl-addition: #22863a;
-  --ge-hl-tag: #22863a;
+  /* highlight.js token（亮色，Ayu Light 语法色） */
+  --ge-hl-comment: #adaeb1;
+  --ge-hl-keyword: #fa8d3e;
+  --ge-hl-string: #86b300;
+  --ge-hl-title: #f2a60d;
+  --ge-hl-number: #a37acc;
+  --ge-hl-builtin: #eba400;
+  --ge-hl-meta: #55b4d4;
+  --ge-hl-deletion: #ff7383;
+  --ge-hl-addition: #6cbf43;
+  --ge-hl-tag: #55b4d4;
 }
 
 :root[data-mode='dark'] {
-  --ge-bg: #1e1e21;
-  --ge-bg-subtle: #26262b;
-  --ge-fg: #dcdbd4;
-  --ge-fg-muted: #9a998f;
-  --ge-border: #35353b;
-  --ge-accent: #d3ab55;
-  --ge-accent-fg: #1b1a17;
-  --ge-code-bg: #26262b;
-  --ge-code-fg: #d8d6cc;
-  --ge-link: #d3ab55;
-  --ge-note: #7aa3c0;
-  --ge-tip: #7fae8c;
-  --ge-warn: #d3a05c;
-  --ge-danger: #cf7c72;
-  --ge-success: #7fae8c;
-  /* highlight.js token（暗色，atom-one 风格） */
-  --ge-hl-comment: #8b8f97;
-  --ge-hl-keyword: #c678dd;
-  --ge-hl-string: #98c379;
-  --ge-hl-title: #61afef;
-  --ge-hl-number: #d19a66;
-  --ge-hl-builtin: #e5c07b;
-  --ge-hl-meta: #7aa3c0;
-  --ge-hl-deletion: #e06c75;
-  --ge-hl-addition: #98c379;
-  --ge-hl-tag: #e06c75;
+  /* Ayu Dark */
+  --ge-bg: #10141c;
+  --ge-bg-subtle: #161a24;
+  --ge-fg: #bfbdb6;
+  --ge-fg-muted: #626a73;
+  --ge-border: #1b1f29;
+  --ge-accent: #e6b450;
+  --ge-accent-fg: #10141c;
+  --ge-code-bg: #161a24;
+  --ge-code-fg: #bfbdb6;
+  --ge-link: #59c2ff;
+  --ge-note: #59c2ff;
+  --ge-tip: #95e6cb;
+  --ge-warn: #ffb454;
+  --ge-danger: #f07178;
+  --ge-success: #aad94c;
+  /* highlight.js token（暗色，Ayu Dark 语法色） */
+  --ge-hl-comment: #5a6673;
+  --ge-hl-keyword: #ff8f40;
+  --ge-hl-string: #aad94c;
+  --ge-hl-title: #ffb454;
+  --ge-hl-number: #d2a6ff;
+  --ge-hl-builtin: #ffb454;
+  --ge-hl-meta: #39bae6;
+  --ge-hl-deletion: #f26d78;
+  --ge-hl-addition: #70bf56;
+  --ge-hl-tag: #39bae6;
 }
 
 /* highlight.js 产物只有 .hljs-* 类名、不带内联颜色：切主题只换上面的变量，无需重绘。

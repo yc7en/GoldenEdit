@@ -1,27 +1,29 @@
 /* 设计 token：应用外壳（chrome）与编辑器主题。
-   预览主题的 token 在 frontend/src/theme/tokens.ts 里生成，注入 L3。 */
+   外壳取 VS Code 扩展 teabyii.ayu 的 Ayu Light，编辑区/预览的深浅两套也同源，
+   整套界面只有一份色板。预览主题的 token 在 frontend/src/theme/tokens.ts 里生成，注入 L3。 */
 
 :root {
-  --bg: #faf9f5;
-  --bg2: #f2f1eb;
-  --bg3: #e9e8e1;
-  --line: #e3e2da;
-  --line2: #d5d3c9;
-  --t1: #22211d;
-  --t2: #5b5a52;
-  --t3: #8b8a80;
-  --gold: #b08a3e;
-  --gold-soft: #c9a24a;
-  --gold-bg: #fbf4e4;
-  --gold-line: #e0c98f;
-  --dark: #1b1a17;
-  --green: #4a7c59;
-  --red: #a8443a;
-  --amber: #a8722a;
+  --bg: #fcfcfc;
+  --bg2: #f3f4f5;
+  --bg3: #e7eaed;
+  --line: #e7eaed;
+  --line2: #d8dbe0;
+  --t1: #40464c;
+  --t2: #5c6166;
+  --t3: #8a9199;
+  /* 品牌强调色 = Ayu 的 accent 橙（变量名沿用 gold，避免全库改名） */
+  --gold: #f29718;
+  --gold-soft: #ff9940;
+  --gold-bg: #fdf1e4;
+  --gold-line: #f6cfa8;
+  --dark: #10141c;
+  --green: #6cbf43;
+  --red: #e65050;
+  --amber: #fa8d3e;
   --radius: 8px;
   --radius-sm: 5px;
-  --shadow-1: 0 1px 2px rgba(28, 26, 20, 0.06);
-  --shadow-2: 0 8px 28px rgba(28, 26, 20, 0.12);
+  --shadow-1: 0 1px 2px rgba(31, 36, 48, 0.06);
+  --shadow-2: 0 8px 28px rgba(31, 36, 48, 0.12);
   --ui-font: 'Segoe UI', 'Microsoft YaHei', -apple-system, system-ui, sans-serif;
   --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
   --side-w: 208px;
@@ -30,48 +32,49 @@
   --status-h: 24px;
 }
 
-/* 编辑器主题：暗 */
+/* 编辑器主题：暗（配色取自 VS Code 扩展 teabyii.ayu 的 Ayu Dark，
+   半透明值已按 #10141c 背景合成） */
 .app[data-editor-theme='dark'] {
-  --ed-bg: #1c1c1f;
-  --ed-bg2: #232327;
-  --ed-bg3: #2c2c31;
-  --ed-fg: #d7d6d0;
-  --ed-muted: #6b6b66;
-  --ed-line: #34343a;
-  --ed-accent: #c9a24a;
-  --ed-selection: #3a3a44;
+  --ed-bg: #10141c;
+  --ed-bg2: #161a24;
+  --ed-bg3: #1b1f29;
+  --ed-fg: #bfbdb6;
+  --ed-muted: #5c6773;
+  --ed-line: #1b1f29;
+  --ed-accent: #e6b450;
+  --ed-selection: #193155;
   /* 编辑区围栏高亮（P26）：与预览 --ge-hl-* 同分组、同暗色取值 */
-  --ed-hl-comment: #8b8f97;
-  --ed-hl-keyword: #c678dd;
-  --ed-hl-string: #98c379;
-  --ed-hl-title: #61afef;
-  --ed-hl-number: #d19a66;
-  --ed-hl-builtin: #e5c07b;
-  --ed-hl-meta: #7aa3c0;
-  --ed-hl-deletion: #e06c75;
-  --ed-hl-addition: #98c379;
-  --ed-hl-tag: #e06c75;
+  --ed-hl-comment: #5a6673;
+  --ed-hl-keyword: #ff8f40;
+  --ed-hl-string: #aad94c;
+  --ed-hl-title: #ffb454;
+  --ed-hl-number: #d2a6ff;
+  --ed-hl-builtin: #ffb454;
+  --ed-hl-meta: #39bae6;
+  --ed-hl-deletion: #f26d78;
+  --ed-hl-addition: #70bf56;
+  --ed-hl-tag: #39bae6;
 }
 
-/* 编辑器主题：亮 */
+/* 编辑器主题：亮（Ayu Light，半透明值已按 #fcfcfc 背景合成） */
 .app[data-editor-theme='light'] {
-  --ed-bg: #fdfcf9;
-  --ed-bg2: #f3f2ec;
-  --ed-bg3: #e8e7e0;
-  --ed-fg: #2b2a26;
-  --ed-muted: #8b8a80;
-  --ed-line: #e3e2da;
-  --ed-accent: #a8802f;
-  --ed-selection: #efe6cf;
+  --ed-bg: #fcfcfc;
+  --ed-bg2: #f0f1f3;
+  --ed-bg3: #eaedef;
+  --ed-fg: #5c6166;
+  --ed-muted: #9ca5b2;
+  --ed-line: #eaedef;
+  --ed-accent: #f29718;
+  --ed-selection: #d7e4f6;
   /* 编辑区围栏高亮（P26）：与预览 --ge-hl-* 同分组、同亮色取值 */
-  --ed-hl-comment: #6a737d;
-  --ed-hl-keyword: #d73a49;
-  --ed-hl-string: #032f62;
-  --ed-hl-title: #6f42c1;
-  --ed-hl-number: #005cc5;
-  --ed-hl-builtin: #e36209;
-  --ed-hl-meta: #8a6a20;
-  --ed-hl-deletion: #b31d28;
-  --ed-hl-addition: #22863a;
-  --ed-hl-tag: #22863a;
+  --ed-hl-comment: #adaeb1;
+  --ed-hl-keyword: #fa8d3e;
+  --ed-hl-string: #86b300;
+  --ed-hl-title: #f2a60d;
+  --ed-hl-number: #a37acc;
+  --ed-hl-builtin: #eba400;
+  --ed-hl-meta: #55b4d4;
+  --ed-hl-deletion: #ff7383;
+  --ed-hl-addition: #6cbf43;
+  --ed-hl-tag: #55b4d4;
 }
