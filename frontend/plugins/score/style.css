@@ -10,9 +10,10 @@
 
 .ge-score {
   --ge-score-paper: #ffffff;
-  --ge-score-ink: #1f1f1f;
+  /* 与预览正文同色（--ge-fg 亮色）：纸面卡片嵌在正文里，两块字不该一深一浅 */
+  --ge-score-ink: #5c6166;
   --ge-score-line: #e4e4e4;
-  --ge-score-muted: #6b6b6b;
+  --ge-score-muted: #8a9199;
   --ge-score-soft: #f3f3f3;
   --ge-score-err: #cd3131;
 

@@ -5,13 +5,13 @@
      恒等：tokens.ts 注入只是覆盖，CSS 兜底不能留另一套配色。 */
   --ge-bg: #ffffff;
   --ge-bg-subtle: #f3f3f3;
-  --ge-fg: #1f1f1f;
-  --ge-fg-muted: #6b6b6b;
+  --ge-fg: #5c6166;
+  --ge-fg-muted: #8a9199;
   --ge-border: #e4e4e4;
   --ge-accent: #0969da;
   --ge-accent-fg: #ffffff;
   --ge-code-bg: #f3f3f3;
-  --ge-code-fg: #1f1f1f;
+  --ge-code-fg: #5c6166;
   --ge-link: #0969da;
   --ge-note: #3b82f6;
   --ge-tip: #14b8a6;
@@ -38,13 +38,13 @@
   /* VS Code 默认深色 */
   --ge-bg: #1e1e1e;
   --ge-bg-subtle: #252526;
-  --ge-fg: #d4d4d4;
+  --ge-fg: #bfbdb6;
   --ge-fg-muted: #9d9d9d;
   --ge-border: #3c3c3c;
   --ge-accent: #4daafc;
   --ge-accent-fg: #1e1e1e;
   --ge-code-bg: #252526;
-  --ge-code-fg: #d4d4d4;
+  --ge-code-fg: #bfbdb6;
   --ge-link: #4daafc;
   --ge-note: #3b82f6;
   --ge-tip: #14b8a6;
@@ -335,7 +335,7 @@ video {
 }
 
 /* ── 代码 ── */
-/* 行内代码文字色 #141925（用户指定，明暗统一）。
+/* 行内代码文字色 #141925（用户指定）。
    本文件只被右侧预览外壳加载，主窗口（中间 Monaco 编辑区）不受影响。
    代码块基础色在 pre code 里显式恢复，避免被这个深色污染。 */
 code {
@@ -347,10 +347,13 @@ code {
   border-radius: 4px;
 }
 
-/* 深色主题下 #141925 与 --ge-code-bg 的对比度不足 1.2，等于隐形；
-   这里跟着翻转，别让唯一的行内代码色变成看不见的方块。 */
+/* 深色主题下 #141925 与 --ge-code-bg 的对比度不足 1.2，等于隐形。
+   这里取编辑区行内代码（`variable.md`）的 Ayu 橙 #f29668，两侧同色 ——
+   左右并排时同一段 `README.md` 不该一边橙一边白。
+   亮色不跟：Ayu Light 的行内代码是 #f2a191，压在 #f3f3f3 底上对比度只有
+   1.9，等于把代码看没了，所以亮色继续用 #141925。 */
 :root[data-mode='dark'] code {
-  color: #d4d4d4;
+  color: #f29668;
 }
 
 pre {

@@ -18,28 +18,34 @@ export const PRESETS: Record<string, ThemePreset> = {
 };
 
 /**
- * 预览主题：取自 VS Code 扩展 `leo.markdown-extended-preview` 的预览配色接管
- * （media/preview.css §6 的 mdext-scheme-light / mdext-scheme-dark）。
+ * 预览主题：底板取自 VS Code 扩展 `leo.markdown-extended-preview` 的预览配色接管
+ * （media/preview.css §6 的 mdext-scheme-light / mdext-scheme-dark），即 VS Code
+ * 默认工作台色：浅色 #ffffff、深色 #1e1e1e，链接走 --vscode-textLink-foreground，
+ * 提示框走扩展自己的 admonition 调色板。
  *
- * 那套色板本身就是 VS Code 默认工作台色：浅色 #ffffff/#1f1f1f，深色
- * #1e1e1e/#d4d4d4，链接走 --vscode-textLink-foreground，提示框走扩展自己的
- * admonition 调色板。所以预览区不再跟随编辑区的 Ayu，两处本来就是分离的：
- * 编辑区是写的地方，预览是读的地方，各有各的观感。
+ * 但**文字色不跟着底板走**。`--ge-fg` / `--ge-code-fg` 必须与编辑区
+ * `EDITOR_THEMES[mode].colors['editor.foreground']` 逐字相等 —— 左右并排时正文是
+ * 同一段文字，两种灰并排会立刻显出「两栏不是一套」（Ayu 暖灰 #bfbdb6 与 VS Code
+ * 冷灰 #d4d4d4 的色相差尤其刺眼）。`theme-parity.test.ts` 用断言钉住这条。
  *
- * `--ge-hl-*` 不在这里：代码块语法高亮仍与编辑区同源（ARCHITECTURE §7 要求
- * 同一个关键词两侧颜色恒等），只换界面色不换语法色。
+ * 于是分工是：结构色（背景 / 边框 / 链接 / 提示框）来自扩展，文字色来自编辑区。
+ *
+ * `--ge-hl-*` 不在这里：代码块语法高亮同样与编辑区同源（ARCHITECTURE §7 要求
+ * 同一个关键词两侧颜色恒等）。
  */
 export const PREVIEW_TOKENS: Record<Mode, Record<string, string>> = {
   light: {
     '--ge-bg': '#ffffff',
     '--ge-bg-subtle': '#f3f3f3',
-    '--ge-fg': '#1f1f1f',
-    '--ge-fg-muted': '#6b6b6b',
+    // 与 EDITOR_THEMES.light['editor.foreground'] 相等（Ayu Light 正文色）
+    '--ge-fg': '#5c6166',
+    // 次要文字要比正文更浅才拉得开层次；#6b6b6b 与新的 #5c6166 几乎同亮度
+    '--ge-fg-muted': '#8a9199',
     '--ge-border': '#e4e4e4',
     '--ge-accent': '#0969da',
     '--ge-accent-fg': '#ffffff',
     '--ge-code-bg': '#f3f3f3',
-    '--ge-code-fg': '#1f1f1f',
+    '--ge-code-fg': '#5c6166',
     '--ge-link': '#0969da',
     '--ge-note': '#3b82f6',
     '--ge-tip': '#14b8a6',
@@ -50,13 +56,14 @@ export const PREVIEW_TOKENS: Record<Mode, Record<string, string>> = {
   dark: {
     '--ge-bg': '#1e1e1e',
     '--ge-bg-subtle': '#252526',
-    '--ge-fg': '#d4d4d4',
+    // 与 EDITOR_THEMES.dark['editor.foreground'] 相等（Ayu Dark 正文色）
+    '--ge-fg': '#bfbdb6',
     '--ge-fg-muted': '#9d9d9d',
     '--ge-border': '#3c3c3c',
     '--ge-accent': '#4daafc',
     '--ge-accent-fg': '#1e1e1e',
     '--ge-code-bg': '#252526',
-    '--ge-code-fg': '#d4d4d4',
+    '--ge-code-fg': '#bfbdb6',
     '--ge-link': '#4daafc',
     '--ge-note': '#3b82f6',
     '--ge-tip': '#14b8a6',
