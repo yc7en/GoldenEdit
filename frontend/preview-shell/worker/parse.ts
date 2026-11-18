@@ -820,12 +820,20 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
       });
       build(inst);
       md = inst;
-      registry = new RuntimeRegistry('worker', msg.baseUrl, {
-        log: (level, pluginId, message) =>
-          post({ type: 'log', level, message: `[${pluginId}] ${message}` }),
-        loadFail: (pluginId, message) =>
-          post({ type: 'log', level: 'error', message: `[${pluginId}] 加载失败：${message}` }),
-      });
+      registry = new RuntimeRegistry(
+        'worker',
+        msg.baseUrl,
+        {
+          log: (level, pluginId, message) =>
+            post({ type: 'log', level, message: `[${pluginId}] ${message}` }),
+          loadFail: (pluginId, message) =>
+            post({ type: 'log', level: 'error', message: `[${pluginId}] 加载失败：${message}` }),
+        },
+        undefined,
+        // 插件自拼围栏外壳时（codebar 的工具条）也要能上色，否则 24 种常见语言
+        // 一旦被插件接管就只剩纯文本，与编辑区那一侧的框内颜色对不上（§6.6）
+        highlightCode
+      );
       await registry.loadAll(msg.specs, msg.doc, msg.theme, mdFacade(inst));
       post({ type: 'ready' });
       return;

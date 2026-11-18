@@ -45,12 +45,14 @@ export function register(md, ctx) {
   if (ctx.env.scope === 'worker') {
     ctx.onFence(LANGS, (info, code) => {
       const lang = info.split(/\s+/)[0] || 'text';
+      // 走宿主的高亮（与编辑区同一份注册表）；未注册的语言返回空串时退回纯文本
+      const body = ctx.highlight(code, lang) || escapeHtml(code);
       return `<div class="ge-codebar">
         <div class="ge-codebar__header">
           <span class="ge-codebar__lang">${escapeHtml(lang)}</span>
           <button class="ge-codebar__copy" type="button" data-code="${escapeAttr(code)}">复制</button>
         </div>
-        <pre class="ge-codebar__pre"><code>${escapeHtml(code)}</code></pre>
+        <pre class="ge-codebar__pre"><code>${body}</code></pre>
       </div>`;
     });
   } else if (ctx.env.scope === 'main') {

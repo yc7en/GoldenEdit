@@ -41,6 +41,15 @@ export type { LibName };
  */
 export type LibLoader = (name: LibName) => Promise<unknown>;
 
+/**
+ * 围栏代码高亮。与 `LibLoader` 同理由入口注入：Worker 入口传 `shared/highlight`
+ * 的 `highlightCode`，主线程入口不传（插件在 main scope 拿到空串）。
+ *
+ * 之所以不让本文件直接 import：preview-shell 的主线程产物是首屏资源，
+ * highlight.js 那 25 种语言约 60KB，只有 Worker 渲染围栏时才用得上。
+ */
+export type HighlightFn = (code: string, lang: string) => string;
+
 export interface PluginContext {
   readonly env: {
     apiVersion: 1;
@@ -55,6 +64,14 @@ export interface PluginContext {
   onContainer(names: string[], fn: ContainerHandler): void;
   onDelimiter(kind: 'inline' | 'block', fn: DelimiterHandler): void;
   onMount(selector: string, fn: MountFn): void;
+  /**
+   * 围栏代码高亮，产出 `.hljs-*` HTML（未注册的语言、空入参返回空串，调用方自备转义）。
+   *
+   * 给需要自己拼围栏外壳的插件用（如 codebar 的工具条）：默认 fence renderer 的高亮
+   * 只在没被插件接管时才生效，插件一旦 `onFence` 就拿到原始文本，直接插进 DOM 会丢掉
+   * 全部语法色（§6.6 要求两侧同源，不能让插件各写一套）。
+   */
+  highlight(code: string, lang: string): string;
   assets: { url(rel: string): string };
   libs: { load(name: LibName): Promise<unknown> };
   log(level: 'info' | 'warn' | 'error', message: string, detail?: unknown): void;
@@ -94,7 +111,9 @@ export class PluginRuntime {
     readonly baseUrl: string,
     readonly events: RuntimeEvents,
     /** 主线程入口注入；Worker 侧为 undefined，`libs.load` 会直接报错 */
-    readonly libLoader?: LibLoader
+    readonly libLoader?: LibLoader,
+    /** Worker 入口注入；主线程侧为 undefined，插件的 `ctx.highlight` 返回空串 */
+    readonly highlightFn?: HighlightFn
   ) {
     this.spec = spec;
     this.ctx = this.buildContext();
@@ -177,13 +196,21 @@ export class RuntimeRegistry {
     private readonly scope: 'worker' | 'main',
     private readonly baseUrl: string,
     private readonly events: RuntimeEvents,
-    private readonly libLoader?: LibLoader
+    private readonly libLoader?: LibLoader,
+    private readonly highlightFn?: HighlightFn
   ) {}
 
   async loadAll(specs: PluginSpec[], doc: DocMeta, theme: ThemePayload, mdFacade: unknown): Promise<void> {
     this.runtimes.clear();
     const jobs = specs.map(async (spec) => {
-      const rt = new PluginRuntime(spec, this.scope, this.baseUrl, this.events, this.libLoader);
+      const rt = new PluginRuntime(
+        spec,
+        this.scope,
+        this.baseUrl,
+        this.events,
+        this.libLoader,
+        this.highlightFn
+      );
       rt.setDoc(doc);
       rt.setTheme(theme);
       this.runtimes.set(spec.id, rt);
@@ -244,6 +271,9 @@ function createPluginContext(runtime: PluginRuntime): PluginContext {
       runtime.accessed.add('mount');
       if (runtime.scope !== 'main') return;
       runtime.mounts.push({ selector, fn });
+    },
+    highlight(code: string, lang: string) {
+      return runtime.highlightFn?.(code, lang) ?? '';
     },
     assets: {
       url(rel: string) {
