@@ -1,6 +1,6 @@
 [package]
 name = "goldenedit"
-version = "0.8.2"
+version = "0.8.3"
 description = "GoldenEdit · 把 Markdown 当源码，把预览当可插拔的渲染目标"
 authors = ["Leo"]
 edition = "2021"
