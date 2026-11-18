@@ -55,9 +55,14 @@ function card(plugin: PluginManifest): HTMLElement {
   const el = document.createElement('div');
   el.className = `card${enabled ? '' : ' is-off'}`;
 
+  // 同一插件同时声明围栏与容器时（dialogue 就是），只展示围栏写法：
+  // 两种语法都摆出来正是「看不懂该写哪个」的来源
+  const fenceNames = plugin.match.fence ?? [];
   const triggers = [
-    ...(plugin.match.fence ?? []).map((f) => `\`\`\`${f}`),
-    ...(plugin.match.container ?? []).map((c) => `::: ${c}`),
+    ...fenceNames.map((f) => `\`\`\`${f}`),
+    ...(plugin.match.container ?? [])
+      .filter((c) => !fenceNames.includes(c))
+      .map((c) => `::: ${c}`),
     ...(plugin.match.delimiter ?? []).map((d) => (d === 'inline' ? '$…$' : `$$…$$`)),
   ].slice(0, 4);
 

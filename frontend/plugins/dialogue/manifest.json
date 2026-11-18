@@ -4,13 +4,13 @@
   "version": "1.0.0",
   "apiVersion": 1,
   "author": "builtin",
-  "description": "对话气泡容器，适用于剧本、访谈、AI 对话呈现",
+  "description": "对话气泡容器，适用于剧本、访谈、AI 对话呈现；围栏 dialogue 与容器 ::: dialogue 两种写法都认",
   "trust": "builtin",
   "entry": "entry.js",
   "style": "style.css",
   "match": {
     "container": ["dialogue", "dialog", "chat"],
-    "fence": [],
+    "fence": ["dialogue", "dialog", "chat"],
     "delimiter": []
   },
   "permissions": [],

@@ -6,6 +6,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager, State};
 
 use crate::error::{ApiError, ApiResult};
+use crate::paths;
 use crate::state::AppState;
 
 pub const API_VERSION: u32 = 1;
@@ -147,10 +148,10 @@ fn to_info(dir: &Path, manifest: Manifest, source_type: &str) -> PluginInfo {
         preview: manifest.preview,
         source: SourceOut {
             r#type: source_type.to_string(),
-            path: Some(dir.to_string_lossy().to_string()),
+            path: Some(paths::display_path(&dir)),
         },
         capability,
-        dir: dir.to_string_lossy().to_string(),
+        dir: paths::display_path(&dir),
     }
 }
 
@@ -396,6 +397,27 @@ mod tests {
             "不引 @markmap/view：它的缩放/折叠手势会和预览滚动抢事件"
         );
         assert_eq!(sniff_capability(&dir, &manifest), "L2");
+    }
+
+    #[test]
+    fn builtin_dialogue_plugin_accepts_fence_and_container() {
+        // 围栏是主推写法（与 mermaid / markmap / score 一致），`::: name` 容器保留兼容：
+        // 少任一边，要么新示例画不出来，要么存量笔记退化成一段带冒号的普通文本。
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/dialogue");
+        if !dir.is_dir() {
+            return; // 打包环境里没有源码目录时跳过
+        }
+        let manifest = read_manifest(&dir).expect("dialogue 的 manifest 必须能被解析");
+        assert_eq!(manifest.id, "dialogue");
+        let m = manifest.r#match.as_ref().expect("必须声明 match");
+        for name in ["dialogue", "dialog", "chat"] {
+            assert!(m.fence.iter().any(|s| s == name), "围栏名缺 {name}");
+            assert!(m.container.iter().any(|s| s == name), "容器名缺 {name}");
+        }
+        let code = std::fs::read_to_string(dir.join("entry.js")).unwrap();
+        assert!(code.contains("onFence("), "必须注册围栏");
+        assert!(code.contains("onContainer("), "容器写法继续支持");
+        assert_eq!(sniff_capability(&dir, &manifest), "L1", "气泡是纯字符串渲染，不该升到 L2");
     }
 
     #[test]
