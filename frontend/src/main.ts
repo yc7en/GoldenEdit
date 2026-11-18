@@ -15,6 +15,7 @@ import { DEFAULT_FONT_FAMILY, EditorHost } from './editor';
 import { BASE_FONT_SIZE } from './editor/metrics';
 import { loadEditorPlugins, refreshEditorPlugins, setEditorFacade } from './editor/plugins';
 import { openExportDialog } from './export/dialog';
+import { isInsideRoot, toPosixPath, trimSlash } from './path';
 import { bench, benchCurrent, settle, type BenchRow } from './perf';
 import { mountPluginsPage } from './plugins/page';
 import { PreviewHost } from './preview/host';
@@ -456,11 +457,14 @@ function wireDragDrop(): void {
     if (/\.(md|markdown|txt)$/.test(lower)) {
       void (async () => {
         const info = store.vault;
-        if (info && first.startsWith(info.root)) {
-          const rel = first.slice(info.root.length).replace(/^[\\/]+/, '').replace(/\\/g, '/');
+        if (info && isInsideRoot(first, info.root)) {
+          // 按归一后的 root 长度切原串：`toPosixPath` 只改分隔符与前缀、不动大小写
+          const rel = toPosixPath(first)
+            .slice(trimSlash(info.root).length)
+            .replace(/^\/+/, '');
           await store.openFile(rel);
         } else {
-          const dir = first.replace(/[\\/][^\\/]+$/, '');
+          const dir = toPosixPath(first).replace(/\/[^/]*$/, '');
           await store.openVaultPath(dir, true);
         }
       })();
@@ -472,14 +476,12 @@ function wireDragDrop(): void {
 
 /** 打开宿主转来的绝对路径：在工作区里直接开，否则先切工作区（§9.7） */
 async function openExternalPath(path: string): Promise<void> {
-  const normalized = path.replace(/\\/g, '/');
+  const normalized = toPosixPath(path);
   const info = store.vault;
-  if (info) {
-    const root = info.root.replace(/\\/g, '/').replace(/\/+$/, '');
-    if (normalized.toLowerCase().startsWith(`${root.toLowerCase()}/`)) {
-      await store.openFile(normalized.slice(root.length + 1));
-      return;
-    }
+  if (info && isInsideRoot(normalized, info.root)) {
+    const rel = normalized.slice(trimSlash(info.root).length).replace(/^\/+/, '');
+    await store.openFile(rel);
+    return;
   }
   const dir = normalized.replace(/\/[^/]*$/, '');
   await store.openVaultPath(dir, true);

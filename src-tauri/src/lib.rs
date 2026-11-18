@@ -25,7 +25,7 @@ fn get_app_info(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> App
     AppInfo {
         version: app.package_info().version.to_string(),
         platform: std::env::consts::OS.to_string(),
-        data_dir: state.data_dir.to_string_lossy().to_string(),
+        data_dir: paths::display_path(&state.data_dir),
     }
 }
 
@@ -54,7 +54,7 @@ fn deliver_opened(app: &tauri::AppHandle, urls: Vec<tauri::Url>) {
     let Some(path) = urls.iter().find_map(|u| u.to_file_path().ok()) else {
         return;
     };
-    let value = path.to_string_lossy().to_string();
+    let value = paths::display_path(&path);
     if let Some(state) = app.try_state::<AppState>() {
         if let Ok(mut cell) = state.pending_open.lock() {
             *cell = Some(value.clone());

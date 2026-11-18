@@ -65,6 +65,21 @@ fn strip_verbatim(p: &Path) -> PathBuf {
     p.to_path_buf()
 }
 
+/// 展示用路径：剥掉 Windows 长路径前缀 `\\?\`，分隔符统一成正斜杠。
+///
+/// **只用于回传前端与写进设置**，不用于文件系统操作。内部一律留 canonicalize
+/// 出来的 `PathBuf`（文件系统调用、`norm()` 比较都不看这个形式）——剥掉前缀会让
+/// 超长路径在某些 API 上失效，展示层无所谓。
+pub fn display_path(p: &Path) -> String {
+    let s = strip_verbatim(p).to_string_lossy().to_string();
+    // unix 上反斜杠是合法文件名字符，替换会改错路径；只有 Windows 才归一
+    if cfg!(windows) {
+        s.replace('\\', "/")
+    } else {
+        s
+    }
+}
+
 /// 路径归一：用于「是否在工作区内」的比较，不用于回写路径。
 ///
 /// 分隔符归一必须跟随平台：Windows 认 `/` 与 `\`，unix 上反斜杠是合法文件名字符，

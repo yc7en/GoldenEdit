@@ -46,7 +46,7 @@ pub fn open_vault(
     let name = root
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| root.to_string_lossy().to_string());
+        .unwrap_or_else(|| paths::display_path(&root));
     let id = paths::vault_id(&root);
 
     let entries = list(&root, "")?;
@@ -65,7 +65,8 @@ pub fn open_vault(
     state.set_vault_root(Some(root.clone()))?;
 
     Ok(VaultInfo {
-        root: root.to_string_lossy().to_string(),
+        // 展示用路径（无 `\\?\` 前缀、正斜杠）；内部继续用 canonicalize 的 root 做守卫
+        root: paths::display_path(&root),
         id,
         name,
         entries,

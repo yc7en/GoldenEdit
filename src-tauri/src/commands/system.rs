@@ -4,6 +4,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
 use crate::error::{ApiError, ApiResult};
+use crate::paths;
 use crate::preview_server::{PluginRoots, PreviewServer, ServerInfo};
 use crate::state::AppState;
 
@@ -81,7 +82,7 @@ pub fn open_external(url: String) -> ApiResult<()> {
 pub fn pick_folder() -> Option<String> {
     rfd::FileDialog::new()
         .pick_folder()
-        .map(|p| p.to_string_lossy().to_string())
+        .map(|p| paths::display_path(&p))
 }
 
 /* ---------------- 窗口控制（自绘标题栏 P28） ----------------
@@ -136,7 +137,7 @@ fn apply_filters(mut dialog: rfd::FileDialog, filters: Option<Vec<FileFilter>>) 
 pub fn pick_file(filters: Option<Vec<FileFilter>>) -> Option<String> {
     apply_filters(rfd::FileDialog::new(), filters)
         .pick_file()
-        .map(|p| p.to_string_lossy().to_string())
+        .map(|p| paths::display_path(&p))
 }
 
 #[tauri::command]
@@ -146,7 +147,7 @@ pub fn save_dialog(
 ) -> Option<String> {
     apply_filters(rfd::FileDialog::new().set_file_name(&default_name), filters)
         .save_file()
-        .map(|p| p.to_string_lossy().to_string())
+        .map(|p| paths::display_path(&p))
 }
 
 /// 读取 `.git/logs/HEAD` 生成版本时间线。

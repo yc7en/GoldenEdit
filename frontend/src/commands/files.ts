@@ -6,6 +6,7 @@
  */
 
 import * as api from '../bridge';
+import { trimSlash } from '../path';
 import { bus, store } from '../store';
 import { registerCommands, type CommandArg, type CommandDef } from './registry';
 
@@ -29,12 +30,11 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** 绝对路径用 Windows 分隔符，可直接粘进资源管理器地址栏 */
+/** 绝对路径。根与相对段统一用正斜杠，与窗口里显示的路径一致 */
 export function absolutePath(rel: string): string {
-  const root = (store.vault?.root ?? '').replace(/[\\/]+$/, '');
+  const root = trimSlash(store.vault?.root ?? '');
   if (!rel) return root;
-  const sep = root.includes('\\') ? '\\' : '/';
-  return `${root}${sep}${rel.replace(/\//g, sep)}`;
+  return `${root}/${rel.replace(/^\/+/, '')}`;
 }
 
 /** 右键目标：文件取其父目录，目录取自身，空白处取根 */
