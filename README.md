@@ -2,7 +2,7 @@
 
 
 
-![Version](https://img.shields.io/badge/version-0.8.5-blue)
+![Version](https://img.shields.io/badge/version-0.8.6-blue)
 
 
 
@@ -16,9 +16,6 @@
 
 ![Rust](https://img.shields.io/badge/rust-1.77+-orange)
 
-
-
-![app-icon](app-icon.png)
 
 > 把 Markdown 当源码，把预览当可插拔的渲染目标。
 
@@ -75,12 +72,12 @@ Rust + Tauri 2 桌面 Markdown / HTML 编辑器，本地优先、离线可用，
 
 
 
-| 层       | 技术                                                     |
-| ------- | ------------------------------------------------------ |
-| 桌面壳     | Rust · Tauri 2（`src-tauri/`）                           |
-| 前端      | TypeScript · Vite 5 · Monaco Editor · markdown-it      |
+| 层          | 技术                                                     |
+| ----------- | -------------------------------------------------------- |
+| 桌面壳      | Rust · Tauri 2（`src-tauri/`）                           |
+| 前端        | TypeScript · Vite 5 · Monaco Editor · markdown-it        |
 | 渲染依赖    | highlight.js · KaTeX · markmap · abcjs · Pele（Mermaid） |
-| 测试 / 检查 | Vitest · ESLint · `check:boundary` 边界脚本                |
+| 测试 / 检查 | Vitest · ESLint · `check:boundary` 边界脚本              |
 
 ## 环境要求
 
@@ -106,15 +103,15 @@ npm run tauri dev   # 起桌面壳
 
 
 
-| 命令                                            | 作用                                            |
-| --------------------------------------------- | --------------------------------------------- |
+| 命令                                          | 作用                                                        |
+| --------------------------------------------- | ----------------------------------------------------------- |
 | `npm run build`                               | 清理后构建主页面 + 预览外壳（`build:ui` / `build:preview`） |
-| `npm run typecheck`                           | `tsc --noEmit`                                |
-| `npm run lint`                                | ESLint 检查                                     |
-| `npm run check:boundary`                      | 前端桥接边界检查                                      |
-| `npm run test`                                | Vitest 单测                                     |
-| `npm run perf:samples` / `npm run perf:check` | 生成性能样本、按阈值验收                                  |
-| `npm run clean`                               | 清理旧构建产物                                       |
+| `npm run typecheck`                           | `tsc --noEmit`                                              |
+| `npm run lint`                                | ESLint 检查                                                 |
+| `npm run check:boundary`                      | 前端桥接边界检查                                            |
+| `npm run test`                                | Vitest 单测                                                 |
+| `npm run perf:samples` / `npm run perf:check` | 生成性能样本、按阈值验收                                    |
+| `npm run clean`                               | 清理旧构建产物                                              |
 
 ## 构建安装包
 
@@ -127,11 +124,11 @@ npm run tauri build -- --no-bundle   # 只编二进制，开发期验证用
 
 
 
-| 平台               | 产物                              | 说明                                                                                         |
-| ---------------- | ------------------------------- | ------------------------------------------------------------------------------------------ |
-| Windows          | `NSIS` `.exe` + `WiX` `.msi`    | 本地可直接构建；MSI 配 `zh-CN` 代码页（`tauri.conf.json`）                                               |
-| macOS            | `.app` + `.dmg`                 | **只能在 macOS 上构建**（dmg 依赖 `hdiutil`，链接依赖 Xcode SDK），打包目标在 `src-tauri/tauri.macos.conf.json` |
-| macOS（universal） | `GoldenEdit_<版本>_universal.dmg` | 由 GitHub Actions `macos-15` 任务产出，见 `.github/workflows/build.yml`                           |
+| 平台               | 产物                              | 说明                                                                                                            |
+| ------------------ | --------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Windows            | `NSIS` `.exe` + `WiX` `.msi`      | 本地可直接构建；MSI 配 `zh-CN` 代码页（`tauri.conf.json`）                                                      |
+| macOS              | `.app` + `.dmg`                   | **只能在 macOS 上构建**（dmg 依赖 `hdiutil`，链接依赖 Xcode SDK），打包目标在 `src-tauri/tauri.macos.conf.json` |
+| macOS（universal） | `GoldenEdit_<版本>_universal.dmg` | 由 GitHub Actions `macos-15` 任务产出，见 `.github/workflows/build.yml`                                         |
 
 产物未签名、未公证：自编自用可用，分发到他人机器会被 Gatekeeper 拦。
 
@@ -164,8 +161,8 @@ GoldenEdit/
 ├── docs/                      # 对外文档：Features.md / ChangeLog.md / demo.md
 ├── design/prototype/         # 浏览器直接打开的界面原型
 ├── .github/workflows/        # 双平台 CI 构建
-├── dist/  dist-preview/      # 构建产物（gitignore）
-└── GoldenEdit.7z             # 旧 Go + Wails 实现归档，不作为构建依赖
+└── dist/  dist-preview/      # 构建产物（gitignore）
+
 ```
 
 > 根目录 
@@ -208,16 +205,16 @@ GoldenEdit/
 
 
 
-| 文件                                                                                         | 内容                                             |
-| ------------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| [../docs-local/GoldenEdit/README.md](../docs-local/GoldenEdit/README.md)                   | **规则入口**。分层、强制规则、计划先行、编号与模板。任何变更先按这里判定要改哪些文档。  |
-| [../docs-local/GoldenEdit/ARCHITECTURE.md](../docs-local/GoldenEdit/ARCHITECTURE.md)       | **软件设计契约**。实现必须与之一致，改架构先改契约。                   |
-| [../docs-local/GoldenEdit/PLAN.md](../docs-local/GoldenEdit/PLAN.md)                       | 计划层。**架构变更必须先在本文列包**（范围 / 验收 / 回滚），再改契约，最后写代码。 |
-| [../docs-local/GoldenEdit/Features-local.md](../docs-local/GoldenEdit/Features-local.md)   | 功能清单内部版，每条带稳定 ID，附状态变更记录。                      |
-| [../docs-local/GoldenEdit/ChangeLog-local.md](../docs-local/GoldenEdit/ChangeLog-local.md) | 变更记录内部版，只追加，不改历史。                              |
-| [功能清单](docs/Features.md)                                                                   | 对外版，随版本发布生成。                                   |
-| [变更记录](docs/ChangeLog.md)                                                                  | 对外版，日期 + 版本号。                                  |
-| [原型](design/prototype/index.html)                                                          | 主界面 / 插件管理 / 导出对话框，浏览器直接打开。                    |
+| 文件                                                                                       | 内容                                                                                   |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| [../docs-local/GoldenEdit/README.md](../docs-local/GoldenEdit/README.md)                   | **规则入口**。分层、强制规则、计划先行、编号与模板。任何变更先按这里判定要改哪些文档。 |
+| [../docs-local/GoldenEdit/ARCHITECTURE.md](../docs-local/GoldenEdit/ARCHITECTURE.md)       | **软件设计契约**。实现必须与之一致，改架构先改契约。                                   |
+| [../docs-local/GoldenEdit/PLAN.md](../docs-local/GoldenEdit/PLAN.md)                       | 计划层。**架构变更必须先在本文列包**（范围 / 验收 / 回滚），再改契约，最后写代码。     |
+| [../docs-local/GoldenEdit/Features-local.md](../docs-local/GoldenEdit/Features-local.md)   | 功能清单内部版，每条带稳定 ID，附状态变更记录。                                        |
+| [../docs-local/GoldenEdit/ChangeLog-local.md](../docs-local/GoldenEdit/ChangeLog-local.md) | 变更记录内部版，只追加，不改历史。                                                     |
+| [功能清单](docs/Features.md)                                                               | 对外版，随版本发布生成。                                                               |
+| [变更记录](docs/ChangeLog.md)                                                              | 对外版，日期 + 版本号。                                                                |
+| [原型](design/prototype/index.html)                                                        | 主界面 / 插件管理 / 导出对话框，浏览器直接打开。                                       |
 
 ## 已知平台差异
 
@@ -231,7 +228,7 @@ GoldenEdit/
 
 ## 状态
 
-版本 0.8.5。平台：Windows 10/11（WebView2）与 macOS 13+（WKWebView）。旧 Go + Wails 实现已归档为 `GoldenEdit.7z`，不作为构建依赖。
+版本 0.8.6。平台：Windows 10/11（WebView2）与 macOS 13+（WKWebView）。
 
 ## Contributing
 
