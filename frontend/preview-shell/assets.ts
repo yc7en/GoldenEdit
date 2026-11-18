@@ -54,3 +54,28 @@ export function assetUrl(assetBase: string, dir: string, src: string): string {
   if (stack.length === 0) return src;
   return `${assetBase}asset?p=${encodeURIComponent(stack.join('/'))}`;
 }
+
+/** 命中一个完整的 `<img …>` 标签，属性里的 `>` 已经被引号包住，按标签切分足够 */
+const IMG_TAG = /<img\b[^>]*>/gi;
+const SRC_ATTR = /(\ssrc\s*=\s*)("([^"]*)"|'([^']*)'|([^\s"'>]+))/i;
+
+/**
+ * 原始 HTML 里的 `<img src>` 也走一遍 `/asset` 改写。
+ *
+ * 覆盖 `renderer.rules.image` 只对 Markdown 语法 `![]()` 生效；`html: true` 之后
+ * 用户直接写 `<img src="image/a.jpg">`，默认会按 iframe 的 `/shell/` 地址去取，
+ * 必然 404（§9.4）。这里只认 `<img>` 的 `src`，`srcset` 与其它标签不动——
+ * 越权改写越多，越容易改坏用户原样想保留的内容。
+ */
+export function rewriteHtmlAssets(html: string, assetBase: string, dir: string): string {
+  if (!assetBase || !html || html.search(/<img/i) < 0) return html;
+  return html.replace(IMG_TAG, (tag) => {
+    const m = SRC_ATTR.exec(tag);
+    if (!m) return tag;
+    const raw = m[3] ?? m[4] ?? m[5] ?? '';
+    const resolved = assetUrl(assetBase, dir, raw);
+    if (resolved === raw) return tag;
+    const quote = m[3] !== undefined ? '"' : m[4] !== undefined ? "'" : '';
+    return `${tag.slice(0, m.index)}${m[1]}${quote}${resolved}${quote}${tag.slice(m.index + m[0].length)}`;
+  });
+}

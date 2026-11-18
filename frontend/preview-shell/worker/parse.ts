@@ -12,10 +12,10 @@ import {
   blockSource,
   splitBlocks,
   stripForbiddenAttrs,
-  stripScripts,
+  sanitizeBlockHtml,
   type MdToken,
 } from '../blocks';
-import { assetBaseOf, assetUrl } from '../assets';
+import { assetBaseOf, assetUrl, rewriteHtmlAssets } from '../assets';
 import { RuntimeRegistry, type PluginRuntime } from '../context';
 import { highlightCode } from './highlight';
 import { parseFrontmatter, renderFrontmatter } from './frontmatter';
@@ -574,6 +574,13 @@ function build(inst: MarkdownIt): void {
     }
   }));
 
+  // 原始 HTML 里的 <img src> 同样要改写到 /asset（§9.4）：覆盖 image 规则只对
+  // Markdown 语法 ![]() 生效，html: true 之后用户直接写标签，默认会按 /shell/ 取图。
+  inst.renderer.rules.html_block = (tokens, idx) =>
+    rewriteHtmlAssets(tokens[idx].content, assetBase, docDir);
+  inst.renderer.rules.html_inline = (tokens, idx) =>
+    rewriteHtmlAssets(tokens[idx].content, assetBase, docDir);
+
   // 外链统一走宿主打开（沙箱内导航会把 iframe 变成别人的页面）
   inst.renderer.rules.link_open = (tokens, idx, opts, _env, self) => {
     const token = tokens[idx];
@@ -751,7 +758,7 @@ function render(gen: number, text: string, mode: 'full' | 'shard' | 'viewport' =
       });
       html = errorBlock(err, source);
     }
-    const cleaned = stripScripts(stripForbiddenAttrs(html).html);
+    const cleaned = sanitizeBlockHtml(stripForbiddenAttrs(html).html);
     const plugins = [...new Set(hit)].sort();
     const key = blockKey(source, plugins, keySalt);
     keys.set(key, i);
@@ -795,7 +802,7 @@ function expand(id: number, requested: string[]): void {
     } catch (err) {
       html = errorBlock(err, blockSource(group, current.lines));
     }
-    const cleaned = stripScripts(stripForbiddenAttrs(html).html);
+    const cleaned = sanitizeBlockHtml(stripForbiddenAttrs(html).html);
     const plugins = [...new Set(hit)].sort();
     current.rendered.set(idx, { html: cleaned, plugins });
     out.push({ key, html: cleaned, plugins });
@@ -812,7 +819,11 @@ self.onmessage = async (ev: MessageEvent<InMsg>) => {
       docDir = msg.doc.dir ?? '';
       // highlight 只作用于默认 fence renderer；命中插件的围栏在自定义规则里提前返回，不受影响
       const inst = new MarkdownIt({
-        html: false,
+        // 文档里的原始 HTML 原样进 DOM：`<table>` 排版、`<details>` 折叠、内联 SVG
+        // 都是正经用法，转义成源码文本等于不支持。可执行部分由 §11 的两道闸拦住：
+        // 渲染结果过 sanitizeBlockHtml（剥 script / 内联事件 / javascript: URL），
+        // 预览外壳的 CSP 再兜一层（script-src 'self'，无 unsafe-inline）。
+        html: true,
         linkify: true,
         breaks: false,
         typographer: false,
