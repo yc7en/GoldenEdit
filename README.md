@@ -24,6 +24,33 @@
 
 Rust + Tauri 2 桌面 Markdown / HTML 编辑器，本地优先、离线可用，预览渲染可插拔：外挂 JS/CSS 插件目录，勾选即启用，不重新打包。新增一种内容的渲染方式，只需要丢一个插件目录进去。
 
+## 界面预览
+
+下面的截图全部截自仓库内的 [docs/demo.md](docs/demo.md)——把这份文件拖进 GoldenEdit，看到的就是这个样子。
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/preview-callout.png" width="100%" alt="提示框">
+      <sub><b>提示框</b>　五种类型、可嵌套、可折叠，写法与 Obsidian 一致；代码块带语言标签与一键复制</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/preview-diagram.png" width="100%" alt="图表与公式">
+      <sub><b>图表与公式</b>　Mermaid 类图、markmap 思维导图、KaTeX 行内与块级公式，都写在围栏里</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/preview-dialogue.png" width="100%" alt="对话与对白">
+      <sub><b>对话与对白</b>　左右分列的气泡、角色名标注，气泡内可用完整 Markdown</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/preview-score.png" width="100%" alt="乐谱">
+      <sub><b>乐谱</b>　ABC 记谱法渲染五线谱，和弦、调号、拍号、多声部都交给原生语法</sub>
+    </td>
+  </tr>
+</table>
+
 ## 功能概览
 
 
