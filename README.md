@@ -35,18 +35,18 @@ Rust + Tauri 2 桌面 Markdown / HTML 编辑器，本地优先、离线可用，
       <sub><b>提示框</b>　五种类型、可嵌套、可折叠，写法与 Obsidian 一致；代码块带语言标签与一键复制</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/screenshots/preview-diagram.png" width="100%" alt="图表与公式">
-      <sub><b>图表与公式</b>　Mermaid 类图、markmap 思维导图、KaTeX 行内与块级公式，都写在围栏里</sub>
+      <img src="docs/screenshots/preview-score.png" width="100%" alt="乐谱">
+      <sub><b>乐谱</b>　ABC 记谱法渲染五线谱，和弦、调号、拍号、多声部都交给原生语法</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/screenshots/preview-dialogue.png" width="100%" alt="对话与对白">
-      <sub><b>对话与对白</b>　左右分列的气泡、角色名标注，气泡内可用完整 Markdown</sub>
+      <img src="docs/screenshots/preview-diagram.png" width="100%" alt="图表与公式">
+      <sub><b>图表与公式</b>　Mermaid 类图、markmap 思维导图、KaTeX 行内与块级公式，都写在围栏里</sub>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/screenshots/preview-score.png" width="100%" alt="乐谱">
-      <sub><b>乐谱</b>　ABC 记谱法渲染五线谱，和弦、调号、拍号、多声部都交给原生语法</sub>
+      <img src="docs/screenshots/preview-dialogue.png" width="100%" alt="对话与对白">
+      <sub><b>对话与对白</b>　左右分列的气泡、角色名标注，气泡内可用完整 Markdown</sub>
     </td>
   </tr>
 </table>
