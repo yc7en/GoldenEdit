@@ -1,0 +1,18 @@
+{
+  "id": "markmap",
+  "name": "思维导图",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "author": "builtin",
+  "description": "把 Markdown 大纲（标题 + 列表）渲染成思维导图，配色跟随主题",
+  "trust": "builtin",
+  "entry": "entry.js",
+  "style": "style.css",
+  "match": {
+    "fence": ["markmap", "mindmap"],
+    "container": [],
+    "delimiter": []
+  },
+  "permissions": ["dom", "libs:markmap"],
+  "source": { "type": "builtin" }
+}

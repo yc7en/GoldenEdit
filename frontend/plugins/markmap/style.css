@@ -1,0 +1,94 @@
+/*
+ * 思维导图卡片 + markmap 主题映射（ARCHITECTURE §5.13）。
+ *
+ * markmap 输出的是纯图元，颜色一律以 `var(--mm-*)` 形式留在 SVG 里，
+ * 所以这里把 `--mm-*` 映射到 `--ge-*`：换主题时 SVG 不用重画，变量一改就换色。
+ * 本文件不出现硬编码色值（F-THM03）。
+ *
+ * 反过来说，`--mm-*` 也**只能**写在这个作用域里：样式表是全文档生效的，
+ * 一旦写到 :root，同页其他插件（如 mermaid 的 --pele-*）会被串色。
+ */
+
+.ge-markmap {
+  margin: 1.5em 0;
+  padding: 12px;
+  background: var(--ge-bg);
+  border: 1px solid var(--ge-border);
+  border-radius: 6px;
+  /* 深图被缩放下限挡住时会超出卡片宽度，交给横向滚动而不是裁掉 */
+  overflow-x: auto;
+
+  --mm-text: var(--ge-fg);
+  --mm-bg: var(--ge-bg);
+  /* 折叠圆点：与卡片同底，靠描边成形 */
+  --mm-toggle-bg: var(--ge-bg);
+  --mm-link: var(--ge-link);
+  /* 行内代码：与正文里的 `code` 同一套粉底玫红字（R-261116-0005） */
+  --mm-code-bg: var(--ge-inline-code-bg);
+  --mm-code-text: var(--ge-inline-code-fg);
+  /* ==高亮== 的底色：用界面浅底，别用琥珀色块抢眼 */
+  --mm-mark-bg: var(--ge-bg-subtle);
+  --mm-checkbox: var(--ge-fg-muted);
+  --mm-note-dot: var(--ge-fg-muted);
+  --mm-syntax-keyword: var(--ge-hl-keyword);
+  --mm-syntax-string: var(--ge-hl-string);
+  --mm-syntax-comment: var(--ge-hl-comment);
+  --mm-syntax-number: var(--ge-hl-number);
+  --mm-syntax-title: var(--ge-hl-title);
+  --mm-syntax-attr: var(--ge-hl-builtin);
+
+  /* 分支色：按层级循环，取语义色而不是 markmap 默认的彩虹十色，
+     跟编辑区、预览区的取色范围保持一致。号数必须齐 0..9 —— markmap 的
+     默认色板有 10 个，少一个就会出现 var(--mm-branch-8) 解析失败、连线变黑。 */
+  --mm-branch-0: var(--ge-link);
+  --mm-branch-1: var(--ge-success);
+  --mm-branch-2: var(--ge-warn);
+  --mm-branch-3: var(--ge-tip);
+  --mm-branch-4: var(--ge-danger);
+  --mm-branch-5: var(--ge-accent);
+  --mm-branch-6: var(--ge-fg-muted);
+  --mm-branch-7: var(--ge-link);
+  --mm-branch-8: var(--ge-success);
+  --mm-branch-9: var(--ge-warn);
+}
+
+/*
+ * 宽度由插件按容器宽度算好（只缩不放、下限 60%），这里**不要**再写
+ * `max-width: 100%`：那会把缩放下限抹平，深图又被压回看不清的尺寸。
+ */
+.ge-markmap__svg {
+  display: block;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.ge-markmap__loading {
+  color: var(--ge-fg-muted);
+  font-size: 0.9em;
+  padding: 1em;
+}
+
+.ge-markmap--empty {
+  color: var(--ge-fg-muted);
+  font-size: 0.9em;
+  padding: 1.5em 1em;
+}
+
+.ge-markmap__error {
+  color: var(--ge-danger);
+  font-size: 0.9em;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.ge-markmap__source {
+  background: var(--ge-code-bg);
+  color: var(--ge-code-fg);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  max-width: 100%;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+}

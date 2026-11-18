@@ -206,6 +206,23 @@ classDiagram
 代码块语言名写 `mermaid` 即可；也可以通过 `markdownExtended.mermaid.aliases` 增加 `mmd` 这类别名。
 主题默认跟随 VSCode 亮 / 暗主题自动切换。
 
+## 思维导图（markmap）
+
+围栏 `markmap` / `mindmap` 里的 **Markdown 大纲**（标题与列表的层级）会渲染成思维导图：
+
+```markmap
+# GoldenEdit
+
+## 编辑区
+- Monaco
+- 行内格式：加粗、斜体、删除线
+## 预览区
+- 图表与思维导图
+- `行内代码` 与 [链接](https://example.com)
+```
+
+层级只由标题级别与列表缩进决定，不认别的语法；图比阅读栏宽时整体缩放，多到缩不下就横向滚动。
+
 ## LaTeX
 
 行内 $a^2 + b^2 = c^2$，以及带上下标、分式、根号的 $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$、$\sqrt[3]{x}$。

@@ -368,6 +368,37 @@ mod tests {
     }
 
     #[test]
+    fn builtin_markmap_plugin_stays_l2_and_skips_view() {
+        // 对着仓库里的真实插件跑：围栏名写错（用户的 ```markmap 就变成一段代码）、
+        // 或哪天有人把 @markmap/view 引进来（缩放手势会抢预览滚动），这里当场红。
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/markmap");
+        if !dir.is_dir() {
+            return; // 打包环境里没有源码目录时跳过
+        }
+        let manifest = read_manifest(&dir).expect("markmap 的 manifest 必须能被解析");
+        assert_eq!(manifest.id, "markmap");
+        let fences = manifest
+            .r#match
+            .as_ref()
+            .map(|m| m.fence.clone())
+            .unwrap_or_default();
+        assert!(fences.iter().any(|s| s == "markmap"), "必须认 markmap 围栏");
+        assert!(fences.iter().any(|s| s == "mindmap"), "mindmap 是更直观的别名");
+        assert!(
+            manifest.permissions.iter().any(|p| p == "libs:markmap"),
+            "思维导图必须声明 libs:markmap"
+        );
+        let code = std::fs::read_to_string(dir.join("entry.js")).unwrap();
+        assert!(code.contains("renderTreeAsync"), "排版必须走 markmap 的 renderTreeAsync");
+        // 只比对真正的 import 语句：注释里提到包名是解释「为什么不用它」，不能算违规
+        assert!(
+            !code.contains("from '@markmap/view'") && !code.contains("import('@markmap/view')"),
+            "不引 @markmap/view：它的缩放/折叠手势会和预览滚动抢事件"
+        );
+        assert_eq!(sniff_capability(&dir, &manifest), "L2");
+    }
+
+    #[test]
     fn capability_is_sniffed_from_entry() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("a");
@@ -411,7 +442,9 @@ mod tests {
         assert!(map.contains_key("codebar"), "缺少 codebar 插件");
         assert!(map.contains_key("dialogue"), "缺少 dialogue 插件");
         assert!(map.contains_key("typographer"), "缺少 typographer 插件");
+        assert!(map.contains_key("markmap"), "缺少 markmap 插件");
         assert_eq!(map.get("mermaid").unwrap().capability, "L2");
+        assert_eq!(map.get("markmap").unwrap().capability, "L2");
         assert_eq!(map.get("typographer").unwrap().capability, "L0");
         assert_eq!(map.get("callout").unwrap().capability, "L1");
     }

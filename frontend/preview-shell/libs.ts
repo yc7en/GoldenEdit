@@ -7,7 +7,7 @@
  * 路径动态 `import()` 本模块，Worker 的依赖图里就看不到这些库。
  */
 
-export type LibName = 'pele' | 'katex' | 'abcjs';
+export type LibName = 'pele' | 'katex' | 'abcjs' | 'markmap';
 
 const libCache = new Map<string, Promise<unknown>>();
 
@@ -21,8 +21,15 @@ export function loadLib(name: LibName): Promise<unknown> {
           import('pele/lazy')
         : name === 'katex'
           ? import('katex').then((m) => m.default)
-          : // abcjs 是 CJS 包，某些打包形态下默认导出会多包一层，两种都兜住
-            import('abcjs').then((m) => (m as { default?: unknown }).default ?? m);
+          : name === 'markmap'
+            ? // markmap 1.x 按职责拆包：parse 把 Markdown 转成树，render 排版并输出
+              // 图元。两者是同一套内部类型，版本必须一起升，所以一次取齐再交给插件。
+              // 不取 @markmap/view：它带缩放与折叠交互，会和预览滚动抢手势。
+              Promise.all([import('@markmap/parse'), import('@markmap/render')]).then(
+                ([parse, render]) => ({ parse, render })
+              )
+            : // abcjs 是 CJS 包，某些打包形态下默认导出会多包一层，两种都兜住
+              import('abcjs').then((m) => (m as { default?: unknown }).default ?? m);
     libCache.set(name, hit);
   }
   return hit;
